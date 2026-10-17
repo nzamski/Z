@@ -26,7 +26,8 @@ export function BackLink() {
     () => true,
     () => false,
   );
-  if (!hydrated || pathname === "/") return <span />;
+  // Not on home, and not in the welcome (nothing else is reachable until it's done).
+  if (!hydrated || pathname === "/" || pathname === "/welcome") return <span />;
   return (
     <Link
       href="/"

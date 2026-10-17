@@ -1,5 +1,6 @@
 "use client";
-// The first-login welcome: what Z is, set up your profile, then pick people to follow.
+// The mandatory first-login welcome: what Z is, pick a handle (+ bio), then people to follow.
+// Nothing else in Z is reachable until it is finished (requireViewer).
 import { useState } from "react";
 import { finishOnboardingAction } from "@/app/actions";
 import { ProfileForm } from "@/components/profile-form";
@@ -25,14 +26,6 @@ export function Welcome(p: {
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const finish = finishOnboardingAction.bind(null, p.next);
-  const skip = (
-    <form action={finish}>
-      <button className="text-sm text-muted hover:text-foreground hover:underline">
-        {he.welcome.skip}
-      </button>
-    </form>
-  );
-
   return (
     <div className="space-y-6 px-4 py-8 text-start sm:px-8">
       <div className="flex items-center justify-between">
@@ -45,7 +38,6 @@ export function Welcome(p: {
           ))}
           <span className="ms-2 text-xs text-muted">{he.welcome.step(step, 2)}</span>
         </div>
-        {skip}
       </div>
 
       {step === 1 ? (

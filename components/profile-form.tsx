@@ -8,7 +8,7 @@ import { he } from "@/lib/i18n/he";
 import { BIO_MAX, HANDLE_MAX, HANDLE_RE } from "@/lib/limits";
 
 type Profile = { handle: string; bio: string };
-type Status = "ok" | "taken" | "invalid" | "checking" | "same";
+type Status = "ok" | "taken" | "invalid" | "checking" | "same" | "empty";
 
 const field =
   "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400";
@@ -30,8 +30,13 @@ export function ProfileForm(p: {
   }, []);
   // Format and "unchanged" are known locally; availability comes from the server, debounced.
   const h = handle.trim().toLowerCase();
-  const local: Status | null =
-    h === p.initial.handle ? "same" : HANDLE_RE.test(h) ? null : "invalid";
+  const local: Status | null = !h
+    ? "empty" // first-time setup: no handle yet
+    : h === p.initial.handle
+      ? "same"
+      : HANDLE_RE.test(h)
+        ? null
+        : "invalid";
   const [checked, setChecked] = useState<{ h: string; r: "ok" | "taken" | "invalid" }>();
   const status: Status = local ?? (checked?.h === h ? checked.r : "checking");
   useEffect(() => {
@@ -57,6 +62,7 @@ export function ProfileForm(p: {
     pending ||
     bio.length > BIO_MAX ||
     status === "taken" ||
+    status === "empty" ||
     status === "invalid" ||
     status === "checking";
   const hint = {
@@ -65,6 +71,7 @@ export function ProfileForm(p: {
     invalid: <span className="text-danger">{he.profile.handleRules}</span>,
     checking: <span className="text-muted">{he.profile.handleChecking}</span>,
     same: <span className="text-muted">{he.profile.handleRules}</span>,
+    empty: <span className="text-muted">{he.profile.handleRules}</span>,
   }[status];
 
   return (

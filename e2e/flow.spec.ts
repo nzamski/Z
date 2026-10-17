@@ -268,7 +268,12 @@ test("search finds posts by Hebrew word forms; profiles link to the chat", async
   await expect(page).toHaveURL(/\/p\//);
 
   await page.goto("/search?q=zzzzqqq");
-  await expect(page.getByText(/לא נמצאו פוסטים/)).toBeVisible();
+  await expect(page.getByText(/לא נמצאו תוצאות/)).toBeVisible();
+
+  // People: by @handle prefix, shown above the posts.
+  await page.goto("/search?q=%40yos");
+  const people = page.locator("section", { has: page.getByRole("heading", { name: "אנשים" }) });
+  await expect(people.getByRole("link", { name: /יוסי/ })).toBeVisible();
 
   await page.goto("/u/yossi");
   await expect(page.getByRole("link", { name: "הודעה פרטית" })).toHaveAttribute(
@@ -282,13 +287,13 @@ test("search finds posts by Hebrew word forms; profiles link to the chat", async
 test("first login: welcome, profile with a live handle check, follow suggestions", async ({
   page,
 }) => {
-  // Make noa a first-time user again (the seed marks everyone as onboarded).
+  // Make noa a first-time user again: no handle, welcome not done (the seed sets both).
   try {
     process.loadEnvFile();
   } catch {}
+  const NOA = "33333333-3333-4333-8333-333333333333"; // keycloak_sub, dev/keycloak/realm-z.json
   const sql = postgres(process.env.DATABASE_URL!);
-  await sql`update users set onboarded_at = null where handle = 'noa'`;
-  await sql.end();
+  await sql`update users set onboarded_at = null, handle = null where keycloak_sub = ${NOA}`;
 
   await page.goto("/");
   await page.locator("#username").fill("noa");
@@ -296,6 +301,11 @@ test("first login: welcome, profile with a live handle check, follow suggestions
   await page.locator("#kc-login").click();
   await expect(page).toHaveURL(/\/welcome/);
   await expect(page.getByRole("heading", { name: "ברוכים הבאים ל-Z" })).toBeVisible();
+  // Mandatory: no skip, and nothing else is reachable yet.
+  await expect(page.getByRole("button", { name: "דילוג" })).toHaveCount(0);
+  await page.goto("/u/yossi");
+  await expect(page).toHaveURL(/\/welcome/);
+  await expect(page.getByRole("button", { name: "המשך" })).toBeDisabled(); // no handle yet
 
   const handle = page.getByLabel("כינוי");
   const next = page.getByRole("button", { name: "המשך" });
@@ -324,11 +334,10 @@ test("first login: welcome, profile with a live handle check, follow suggestions
   await dialog.getByRole("button", { name: "שמירה" }).click();
   await expect(page).toHaveURL(new RegExp(`/u/${again}$`));
   // Back to "noa" for the other tests (3 letters: allowed for existing handles, not as a choice).
-  const db = postgres(process.env.DATABASE_URL!);
-  await db`update users set handle = 'noa' where handle = ${again}`;
-  await db.end();
+  await sql`update users set handle = 'noa' where keycloak_sub = ${NOA}`;
+  await sql.end();
 
-  // Logging in again doesn't show the welcome.
+  // Done: the welcome doesn't come back.
   await page.goto("/welcome");
   await expect(page).toHaveURL("http://localhost:3000/");
 });
@@ -344,6 +353,17 @@ test("followers and following lists", async ({ page }) => {
   await page.goto("/u/yossi");
   await page.getByRole("link", { name: /עוקבים/ }).click();
   await expect(page).toHaveURL(/\/u\/yossi\/followers$/);
+  // Back to the feed: the card that led here must not come back open.
+  await page.goto("/");
+  await page.locator("li a[href='/u/yossi']").first().hover();
+  await page.getByRole("dialog", { name: /יוסי/ }).getByRole("link", { name: /יוסי/ }).click();
+  await expect(page).toHaveURL(/\/u\/yossi$/);
+  await page.mouse.move(5, 5);
+  await page.goBack();
+  await expect(page).toHaveURL("http://localhost:3000/");
+  await page.waitForTimeout(600);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goto("/u/yossi");
   await expect(page.locator("main li").first()).toBeVisible();
   await page.getByRole("link", { name: "נעקבים" }).click();
   await expect(page).toHaveURL(/\/u\/yossi\/following$/);

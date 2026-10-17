@@ -1,5 +1,5 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
-import { and, count, desc, eq, gt, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -222,7 +222,8 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
-  author: { displayName: users.displayName, handle: users.handle },
+  // Authors always have a handle: posting requires finishing the welcome.
+  author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
 });
 
 export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number];
@@ -467,6 +468,38 @@ export async function getThread(
 
 // ---- users ----
 
+/**
+ * People search: handle prefix (a leading @ is ignored) or display-name substring.
+ * Exact handle first, then the most followed. ponytail: ILIKE scans users; fine for thousands
+ * of users, add a trigram index (pg_trgm, PLAN Q4) if it ever isn't.
+ */
+export async function searchUsers(viewerId: string, query: string, limit = 5) {
+  const q = query.trim().replace(/^@/, "").slice(0, 50);
+  if (!q) return [];
+  const like = q.replace(/[\\%_]/g, (c) => `\\${c}`); // user input is literal text
+  return db
+    .select({
+      ...userCard,
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+    })
+    .from(users)
+    .where(
+      and(
+        active(users),
+        hasHandle,
+        sql`(${users.handle} ilike ${like + "%"} or ${users.displayName} ilike ${"%" + like + "%"})`,
+      ),
+    )
+    .orderBy(
+      desc(sql`${users.handle} = lower(${q})`),
+      desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+        and f.deleted_at is null)`),
+      users.handle,
+    )
+    .limit(limit);
+}
+
 /** Whether a handle can be taken by this user ("ok" includes the user's current handle). */
 export async function handleStatus(actorId: string, handle: string) {
   const h = Handle.safeParse(handle);
@@ -502,17 +535,21 @@ export async function updateProfile(actorId: string, input: { handle: string; bi
   }
 }
 
-/** Done with (or skipped) the first-login welcome. Idempotent. */
+/** Done with the first-login welcome. Needs a handle (the one thing setup must produce). */
 export async function finishOnboarding(actorId: string) {
+  const [u] = await db.select({ handle: users.handle }).from(users).where(eq(users.id, actorId));
+  if (!u?.handle) throw new ServiceError("invalid");
   await db
     .update(users)
     .set({ onboardedAt: now, updatedAt: now })
     .where(and(eq(users.id, actorId), isNull(users.onboardedAt)));
 }
 
+// Listed people (followers, suggestions, search) all have a handle (filtered by hasHandle).
+const hasHandle = isNotNull(users.handle);
 const userCard = {
   id: users.id,
-  handle: users.handle,
+  handle: sql<string>`${users.handle}`,
   displayName: users.displayName,
   bio: users.bio,
 };
@@ -525,6 +562,7 @@ export async function suggestedUsers(viewerId: string, limit = 5) {
     .where(
       and(
         active(users),
+        hasHandle,
         ne(users.id, viewerId),
         sql`not exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
           and f.followee_id = ${users.id} and f.deleted_at is null)`,
@@ -565,6 +603,7 @@ export async function followList(
         eq(me, userId),
         active(f),
         active(users),
+        hasHandle,
         before ? sql`${f.id} < ${before}::uuid` : undefined,
       ),
     )
@@ -578,59 +617,26 @@ export async function followList(
 export const FOLLOW_PAGE = 50;
 
 /**
- * Provision on first login. The display name always follows Keycloak (it is not editable in Z).
- * The handle follows Keycloak only until the user finishes the welcome; after that it is the
- * user's own (updateProfile). Identity is keycloak_sub; a taken handle is never stolen.
+ * Provision on first login (no handle yet: the user picks one in the mandatory welcome) and keep
+ * the display name in sync with Keycloak on every login. Identity is keycloak_sub.
  */
-export async function upsertUserFromClaims(c: {
-  sub: string;
-  handle: string;
-  displayName: string;
-}) {
-  return db.transaction(async (tx) => {
-    const [taken] = await tx
-      .select({ id: users.id, sub: users.keycloakSub })
-      .from(users)
-      .where(and(eq(users.handle, c.handle), active(users)));
-    const handleFree = !taken || taken.sub === c.sub;
-
-    const [existing] = await tx.select().from(users).where(eq(users.keycloakSub, c.sub));
-    if (existing?.onboardedAt) {
-      if (existing.displayName === c.displayName) return existing;
-      const [row] = await tx
-        .update(users)
-        .set({ displayName: c.displayName, updatedAt: now })
-        .where(eq(users.id, existing.id))
-        .returning();
-      return row;
-    }
-    if (existing) {
-      if (!handleFree) {
-        console.warn(
-          `handle "${c.handle}" for sub ${c.sub} is taken; keeping "${existing.handle}"`,
-        );
-      }
-      const [row] = await tx
-        .update(users)
-        .set({
-          displayName: c.displayName,
-          handle: handleFree ? c.handle : existing.handle,
-          updatedAt: now,
-        })
-        .where(eq(users.id, existing.id))
-        .returning();
-      return row;
-    }
-    // New user whose handle is taken: suffix with part of the sub so it stays unique.
-    const handle = handleFree ? c.handle : `${c.handle}_${c.sub.replace(/-/g, "").slice(0, 6)}`;
-    if (!handleFree)
-      console.warn(`handle "${c.handle}" is taken; provisioning sub ${c.sub} as "${handle}"`);
-    const [row] = await tx
-      .insert(users)
-      .values({ keycloakSub: c.sub, handle, displayName: c.displayName })
+export async function upsertUserFromClaims(c: { sub: string; displayName: string }) {
+  const [existing] = await db.select().from(users).where(eq(users.keycloakSub, c.sub));
+  if (existing) {
+    if (existing.displayName === c.displayName) return existing;
+    const [row] = await db
+      .update(users)
+      .set({ displayName: c.displayName, updatedAt: now })
+      .where(eq(users.id, existing.id))
       .returning();
     return row;
-  });
+  }
+  const [row] = await db
+    .insert(users)
+    .values({ keycloakSub: c.sub, displayName: c.displayName })
+    .onConflictDoNothing({ target: users.keycloakSub }) // two first logins at once
+    .returning();
+  return row ?? (await db.select().from(users).where(eq(users.keycloakSub, c.sub)))[0];
 }
 
 export async function getUser(id: string) {
@@ -646,7 +652,7 @@ export async function getUserByHandle(handle: string) {
     .select()
     .from(users)
     .where(and(eq(users.handle, handle), active(users)));
-  return u ?? null;
+  return u ? { ...u, handle } : null; // found by handle, so it has one
 }
 
 /** Seeded and other users for the dev login switcher. */

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeNext } from "@/lib/auth/provider";
-import { requireViewer } from "@/lib/auth/viewer";
+import { requireLogin, requireViewer } from "@/lib/auth/viewer";
 import { parseView, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
@@ -15,8 +15,15 @@ export type ActionResult = { ok?: true; error?: string };
 const Id = z.uuid();
 const Text = z.string();
 
-async function run(fn: (uid: string) => Promise<unknown>): Promise<ActionResult> {
-  const viewer = await requireViewer();
+// "full": through the welcome (everything else). "setup": logged in, welcome unfinished: only the
+// welcome's own actions. Following needs at least a handle, so a handle-less user never shows up
+// in anyone's followers.
+async function run(
+  fn: (uid: string) => Promise<unknown>,
+  level: "full" | "setup" | "handle" = "full",
+): Promise<ActionResult> {
+  const viewer = level === "full" ? await requireViewer() : await requireLogin();
+  if (level === "handle" && !viewer.handle) return { error: he.errors.invalid };
   try {
     await fn(viewer.id);
   } catch (e) {
@@ -69,7 +76,8 @@ export async function setLikeAction(postId: string, liked: boolean) {
 }
 
 export async function setFollowAction(userId: string, following: boolean) {
-  return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)));
+  // "handle": also from the welcome's who-to-follow step.
+  return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)), "handle");
 }
 
 export type UserCard = {
@@ -107,25 +115,26 @@ export type ProfileResult = ActionResult & { handle?: string };
 export async function updateProfileAction(_: ProfileResult, f: FormData): Promise<ProfileResult> {
   let handle: string | undefined;
   const r = await run(async (uid) => {
-    handle = (
-      await s.updateProfile(uid, {
-        handle: Text.parse(field(f, "handle") ?? ""),
-        bio: Text.parse(field(f, "bio") ?? ""),
-      })
-    ).handle;
-  });
+    handle =
+      (
+        await s.updateProfile(uid, {
+          handle: Text.parse(field(f, "handle") ?? ""),
+          bio: Text.parse(field(f, "bio") ?? ""),
+        })
+      ).handle ?? undefined;
+  }, "setup");
   return { ...r, handle };
 }
 
 /** Live check while typing a handle. */
 export async function checkHandleAction(handle: string) {
-  const viewer = await requireViewer();
+  const viewer = await requireLogin();
   return s.handleStatus(viewer.id, String(handle));
 }
 
-/** Leave the welcome (done or skipped) and go where the user was heading. */
+/** Finish the welcome (needs a handle) and go where the user was heading. */
 export async function finishOnboardingAction(next: string) {
-  const viewer = await requireViewer();
+  const viewer = await requireLogin();
   await s.finishOnboarding(viewer.id);
   redirect(safeNext(next));
 }

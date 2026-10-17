@@ -66,7 +66,7 @@ export const keycloakProvider: AuthProvider = {
   },
 };
 
-export type Claims = { sub: string; handle: string; displayName: string };
+export type Claims = { sub: string; displayName: string };
 
 /** Completes the code flow for the callback URL; returns the mapped claims and the ID token. */
 export async function finishLogin(callbackUrl: URL) {
@@ -85,9 +85,9 @@ export async function finishLogin(callbackUrl: URL) {
   });
   const c = tokens.claims()!;
   // Claim mapping (PLAN.md Q2): adjust here once the network's claims are confirmed.
+  // Only identity and the display name come from Keycloak; the handle is chosen in Z.
   const claims: Claims = {
     sub: c.sub,
-    handle: String(c.preferred_username ?? c.sub),
     displayName: String(c.name ?? c.preferred_username ?? c.sub),
   };
   return { claims, idToken: tokens.id_token, next: tx.next };

@@ -1,7 +1,7 @@
 "use client";
 // X-style profile card shown when hovering (or keyboard-focusing) a user's name.
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getUserCardAction, type UserCard } from "@/app/actions";
 import { FollowButton } from "@/components/buttons";
 import { he } from "@/lib/i18n/he";
@@ -13,20 +13,36 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
   const [card, setCard] = useState<UserCard | null>(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Still hovered/focused? The card data arrives asynchronously; if the pointer left meanwhile,
+  // the late response must not open the card (it used to, and then stayed open).
+  const wanted = useRef(false);
 
   const show = () => {
+    wanted.current = true;
     clearTimeout(timer.current);
     if (open) return; // already showing: just cancel a pending close
     timer.current = setTimeout(async () => {
       // Fetched fresh on every open, so follow state changed elsewhere is never stale.
       const c = await getUserCardAction(handle);
-      if (c) {
+      if (c && wanted.current) {
         setCard(c);
         setOpen(true);
       }
     }, OPEN_DELAY);
   };
+  // Next keeps visited pages alive (Activity) and restores their state on back: close the card
+  // when this page is hidden, or it reappears open with no pointer over it.
+  useEffect(
+    () => () => {
+      wanted.current = false;
+      clearTimeout(timer.current);
+      setOpen(false);
+    },
+    [],
+  );
+
   const hide = () => {
+    wanted.current = false;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setOpen(false), CLOSE_DELAY);
   };
@@ -37,7 +53,9 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
       className="relative inline-block"
       onMouseEnter={show}
       onMouseLeave={hide}
-      onFocus={show}
+      // Keyboard focus only: a mouse click also focuses the link, and that focus would keep the
+      // card open after the pointer has left.
+      onFocus={(e) => (e.target as Element).matches(":focus-visible") && show()}
       onBlur={hide}
       onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
     >
@@ -45,6 +63,8 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
       {open && card && (
         <div
           role="dialog"
+          // Following a link out of the card (profile, followers) closes it.
+          onClickCapture={(e) => (e.target as Element).closest("a") && setOpen(false)}
           aria-label={card.displayName}
           className="absolute start-0 top-full z-30 mt-2 w-72 rounded-xl border border-neutral-200 bg-background p-4 text-start text-sm font-normal shadow-lg dark:border-neutral-800 dark:shadow-black/60"
         >

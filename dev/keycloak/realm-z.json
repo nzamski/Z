@@ -65,6 +65,22 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "username": "newbie",
+      "firstName": "רון",
+      "lastName": "אלמוג",
+      "email": "newbie@z.test",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "newbie",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

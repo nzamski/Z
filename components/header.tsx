@@ -8,16 +8,38 @@ import { getUser } from "@/lib/services";
 async function AuthStatus() {
   const session = await getSession();
   const user = session && (await getUser(session.uid));
-  if (!user) return null; // the proxy sends anyone without a session to login
+  // No session: the proxy sends them to login. No handle yet: they're in the welcome.
+  if (!user?.handle) return null;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   return (
-    <Link
-      href={`/u/${encodeURIComponent(user.handle)}`}
-      className="font-medium hover:underline"
-      dir="ltr"
-    >
-      @{user.handle}
-    </Link>
+    <>
+      <Link
+        href={`/u/${encodeURIComponent(user.handle)}`}
+        className="font-medium hover:underline"
+        dir="ltr"
+      >
+        @{user.handle}
+      </Link>
+      <Link
+        href="/search"
+        aria-label={he.nav.search}
+        title={he.nav.search}
+        className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      </Link>
+    </>
   );
 }
 
@@ -37,25 +59,6 @@ export function Header() {
         <Suspense>
           <AuthStatus />
         </Suspense>
-        <Link
-          href="/search"
-          aria-label={he.nav.search}
-          title={he.nav.search}
-          className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden
-            className="size-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-        </Link>
       </div>
     </header>
   );

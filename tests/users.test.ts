@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, describe, expect, test, vi } from "vitest";
+import { afterAll, describe, expect, test } from "vitest";
 import { sql } from "@/db/client";
 import * as s from "@/lib/services";
 import { upsertUserFromClaims } from "@/lib/services";
@@ -10,38 +10,18 @@ afterAll(() => sql.end());
 
 const tag = () => randomUUID().slice(0, 8);
 
-test("first login provisions; later logins resync handle and display name", async () => {
+test("first login provisions without a handle; later logins resync only the display name", async () => {
   const sub = randomUUID();
-  const h = `h_${tag()}`;
-  const u1 = await upsertUserFromClaims({ sub, handle: h, displayName: "שם ישן" });
-  const h2 = `h_${tag()}`;
-  const u2 = await upsertUserFromClaims({ sub, handle: h2, displayName: "שם חדש" });
+  const u1 = await upsertUserFromClaims({ sub, displayName: "שם ישן" });
+  expect(u1).toMatchObject({ handle: null, onboardedAt: null, displayName: "שם ישן" });
+  const u2 = await upsertUserFromClaims({ sub, displayName: "שם חדש" });
   expect(u2.id).toBe(u1.id);
-  expect(u2).toMatchObject({ handle: h2, displayName: "שם חדש" });
+  expect(u2.displayName).toBe("שם חדש");
 });
 
-test("a handle taken by another active user is not stolen on resync", async () => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  const taken = `h_${tag()}`;
-  await upsertUserFromClaims({ sub: randomUUID(), handle: taken, displayName: "בעלים" });
-  const sub = randomUUID();
-  const mine = `h_${tag()}`;
-  await upsertUserFromClaims({ sub, handle: mine, displayName: "אני" });
-
-  const after = await upsertUserFromClaims({ sub, handle: taken, displayName: "אני" });
-  expect(after.handle).toBe(mine);
-  expect(warn).toHaveBeenCalled();
-  warn.mockRestore();
-});
-
-test("a new user whose handle is taken gets a unique suffixed handle", async () => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  const taken = `h_${tag()}`;
-  await upsertUserFromClaims({ sub: randomUUID(), handle: taken, displayName: "בעלים" });
-  const u = await upsertUserFromClaims({ sub: randomUUID(), handle: taken, displayName: "חדש" });
-  expect(u.handle).not.toBe(taken);
-  expect(u.handle.startsWith(`${taken}_`)).toBe(true);
-  warn.mockRestore();
+test("the welcome can't be finished without a handle", async () => {
+  const u = await upsertUserFromClaims({ sub: randomUUID(), displayName: "חדש" });
+  await expect(s.finishOnboarding(u.id)).rejects.toThrow("invalid");
 });
 
 describe("profile", () => {
@@ -70,15 +50,13 @@ describe("profile", () => {
     }
   });
 
-  test("after the welcome Keycloak keeps the name in sync but no longer touches the handle", async () => {
+  test("handle and the name stay separate: Keycloak updates the name, never the handle", async () => {
     const sub = randomUUID();
-    const kc = `kc_${tag()}`;
-    const u = await upsertUserFromClaims({ sub, handle: kc, displayName: "מקלוק" });
-    expect(u.onboardedAt).toBeNull(); // new users get the welcome
+    const u = await upsertUserFromClaims({ sub, displayName: "מקלוק" });
     const mine = h();
     await s.updateProfile(u.id, profile(mine));
     await s.finishOnboarding(u.id);
-    const again = await upsertUserFromClaims({ sub, handle: kc, displayName: "שם חדש" });
+    const again = await upsertUserFromClaims({ sub, displayName: "שם חדש" });
     expect(again).toMatchObject({ handle: mine, displayName: "שם חדש" });
     expect(again.onboardedAt).not.toBeNull();
   });
@@ -114,5 +92,25 @@ describe("follow lists and suggestions", () => {
     const ids = (await s.suggestedUsers(viewer.id, 100)).map((x) => x.id);
     expect(ids).not.toContain(viewer.id);
     expect(ids).not.toContain(a.id);
+  });
+});
+
+describe("people search", () => {
+  test("handle prefix (with or without @), name substring, exact handle first, literal input", async () => {
+    const t = tag()
+      .replace(/[^a-z]/g, "q")
+      .slice(0, 6);
+    const viewer = await makeUser();
+    const exact = await makeUser("אחד", `p${t}`);
+    const longer = await makeUser("שניים", `p${t}x`);
+    const byName = await makeUser(`רונית ${t}ית`, `n${t}`);
+    await upsertUserFromClaims({ sub: randomUUID(), displayName: `${t}ית בלי כינוי` }); // not listed
+    const ids = async (q: string) => (await s.searchUsers(viewer.id, q, 10)).map((u) => u.id);
+
+    expect(await ids(`p${t}`)).toEqual([exact.id, longer.id]); // exact handle first
+    expect(await ids(`@P${t}`)).toEqual([exact.id, longer.id]); // @ and case ignored
+    expect(await ids(`${t}ית`)).toEqual([byName.id]); // inside the display name
+    expect(await ids(`%${t}`)).toEqual([]); // % is a character, not a wildcard
+    expect(await ids("   ")).toEqual([]);
   });
 });
