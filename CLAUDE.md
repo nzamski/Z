@@ -15,6 +15,13 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - **Security review is required** before real deployment. Never claim production readiness.
 - Postgres everywhere (no SQLite). Never commit secrets or real personal data; seed data is fictional.
 
+## Data conventions
+
+- Tables are plural (`users`, `posts`, `comments`, `likes`, `follows`): `user`/`like` are reserved words.
+- A new table needs: the `base` columns from `db/schema.ts`, an `updated_at` index, and a `CREATE TRIGGER ... set_updated_at()` in its migration. `tests/trigger.test.ts` lists every table; add it there.
+- Writes go through `lib/services.ts` and throw `ServiceError` (`invalid` / `not_found` / `forbidden` / `gone`).
+- Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
+
 ## Commands
 
 | Command                              | What                                                 |
@@ -37,7 +44,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 ## Milestones
 
 - [x] M0 Skeleton
-- [ ] M1 Data + seed
+- [x] M1 Data + seed
 - [ ] M2 Login, posting, edit/delete, likes, threaded comments, follows
 - [ ] M3 Feeds + infinite scroll + read more
 - [ ] M4 Search + chat deep link + polish

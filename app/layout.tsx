@@ -11,7 +11,6 @@ const heebo = localFont({
 
 export const metadata: Metadata = {
   title: he.appName,
-  description: he.tagline,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

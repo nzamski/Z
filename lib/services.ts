@@ -1,5 +1,5 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -190,4 +190,26 @@ export async function unfollow(actorId: string, followeeId: string) {
     .where(
       and(eq(follows.followerId, actorId), eq(follows.followeeId, followeeId), active(follows)),
     );
+}
+
+// ---- reads ----
+
+// Placeholder feed until M3: newest live posts with their author.
+export async function latestPosts(limit = 20) {
+  return db
+    .select({
+      id: posts.id,
+      preview: posts.preview,
+      hasMore: posts.hasMore,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      createdAt: posts.createdAt,
+      editedAt: posts.editedAt,
+      author: { displayName: users.displayName, handle: users.handle, unit: users.unit },
+    })
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(active(posts))
+    .orderBy(desc(posts.createdAt), desc(posts.id))
+    .limit(limit);
 }
