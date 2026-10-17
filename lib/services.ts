@@ -229,6 +229,8 @@ export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number
 export type FeedPage = { items: PostSummary[]; next: string | null; asOf: string };
 
 const PAGE = RANKING.pageSize;
+// Ops can widen/narrow the For You window without a rebuild (PLAN.md §9).
+const WINDOW_DAYS = Number(process.env.FEED_WINDOW_DAYS) || RANKING.windowDays;
 
 const followsAuthor = (viewerId: string) =>
   sql`exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
@@ -280,7 +282,7 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
       and(
         active(posts),
         sql`${posts.createdAt} <= ${asOf}::timestamptz`,
-        sql`${posts.createdAt} > ${asOf}::timestamptz - make_interval(days => ${R.windowDays}::int)`,
+        sql`${posts.createdAt} > ${asOf}::timestamptz - make_interval(days => ${WINDOW_DAYS}::int)`,
         cursor?.s !== undefined
           ? sql`(${score}, ${posts.id}) < (${cursor.s}::float8, ${cursor.id}::uuid)`
           : undefined,

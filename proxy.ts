@@ -13,6 +13,6 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Everything except the login flow itself, the dev switcher, and static assets.
-  matcher: ["/((?!auth/|dev/|_next/|favicon.ico).*)"],
+  // Everything except the login flow itself, the dev switcher, health probes and static assets.
+  matcher: ["/((?!auth/|dev/|api/health|_next/|favicon.ico).*)"],
 };

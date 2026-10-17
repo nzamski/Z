@@ -7,6 +7,15 @@ import { cookieOptions, seal, unseal } from "./session";
 const TX_COOKIE = "z_oidc";
 const TX_MAX_AGE_S = 600;
 
+// Production requires an https issuer. OIDC_ALLOW_HTTP=1 lifts that for a local dry run of the
+// production image against the compose Keycloak only (docs/deploy.md); never in a real deployment.
+function allowHttp() {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (process.env.OIDC_ALLOW_HTTP !== "1") return false;
+  console.warn("OIDC_ALLOW_HTTP=1: plain-http OIDC in production mode. Local dry runs only!");
+  return true;
+}
+
 let config: Promise<oidc.Configuration> | undefined;
 function getConfig() {
   config ??= oidc
@@ -16,7 +25,7 @@ function getConfig() {
       undefined,
       oidc.ClientSecretPost(process.env.OIDC_CLIENT_SECRET!),
       // The dev Keycloak is plain http; real issuers must be https.
-      process.env.NODE_ENV === "production" ? undefined : { execute: [oidc.allowInsecureRequests] },
+      allowHttp() ? { execute: [oidc.allowInsecureRequests] } : undefined,
     )
     .catch((e) => {
       config = undefined; // retry discovery on the next request
