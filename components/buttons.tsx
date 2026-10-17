@@ -17,10 +17,27 @@ export function LikeButton(p: { postId: string; liked: boolean; count: number })
       onClick={toggle}
       aria-pressed={state.liked}
       aria-busy={pending}
-      aria-label={state.liked ? he.post.unlike : he.post.like}
-      className={state.liked ? "font-medium text-rose-600" : "hover:text-rose-600"}
+      aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
+      className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
+        state.liked ? "text-rose-600" : "hover:text-rose-600"
+      }`}
     >
-      {state.liked ? "♥" : "♡"} {state.count} {he.post.likes}
+      <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-rose-500/10 group-focus-visible:bg-rose-500/10">
+        <svg
+          key={String(state.liked)} // remount so the pop replays on each like
+          viewBox="0 0 24 24"
+          aria-hidden
+          className={`size-[18px] ${state.liked ? "animate-like-pop" : ""}`}
+          fill={state.liked ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        >
+          <path d="M12 20.5s-7.5-4.6-9.4-9.3C1.3 7.9 3.4 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.4 0 5.5 3.4 4.2 6.7-1.9 4.7-9.4 9.3-9.4 9.3Z" />
+        </svg>
+      </span>
+      {/* Like X: no number at zero. */}
+      <span className="min-w-[1ch] text-sm">{state.count > 0 ? state.count : ""}</span>
     </button>
   );
 }

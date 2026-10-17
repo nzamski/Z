@@ -5,7 +5,7 @@ import { createCommentAction } from "@/app/actions";
 import { LikeButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
-import { Byline } from "@/components/post-card";
+import { Byline, CommentStat } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { requireViewer } from "@/lib/auth/viewer";
@@ -46,14 +46,12 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
         ) : (
           body
         )}
-        <div className="mt-3 flex gap-6 text-sm text-neutral-500">
+        <div className="mt-3 flex gap-8 text-sm text-neutral-500">
           <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
-          <span>
-            {post.commentCount} {he.post.comments}
-          </span>
+          <CommentStat href="#reply" count={post.commentCount} />
         </div>
       </article>
-      <section className="p-4 text-start">
+      <section id="reply" className="scroll-mt-24 p-4 text-start">
         {viewerId ? (
           <Composer
             action={createCommentAction}

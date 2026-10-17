@@ -40,7 +40,7 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await parent.getByPlaceholder("כתבו תשובה…").fill("תשובת בן");
   await parent.getByRole("button", { name: "שליחה" }).click();
   await expect(parent.locator("li[id^=c-]", { hasText: "תשובת בן" })).toBeVisible();
-  await expect(article).toContainText("2 תגובות");
+  await expect(article.getByRole("link", { name: "2 תגובות" })).toBeVisible();
 
   // Delete the parent: placeholder stays, reply survives, count drops by one.
   const parentId = await parent.getAttribute("id");
@@ -54,7 +54,7 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await expect(placeholder).toContainText("[נמחק]");
   await expect(placeholder).not.toContainText("תגובת אב");
   await expect(placeholder).toContainText("תשובת בן");
-  await expect(article).toContainText("1 תגובות");
+  await expect(article.getByRole("link", { name: "1 תגובות" })).toBeVisible();
 
   // Like, unlike, like.
   const like = article.getByRole("button", { name: /לייק/ });
@@ -65,12 +65,12 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   ]) {
     await like.click();
     await expect(like).toHaveAttribute("aria-pressed", pressed);
-    await expect(like).toContainText(count);
+    await expect(like).toHaveAccessibleName(new RegExp(` ${count} לייקים`));
     await expect(like).toHaveAttribute("aria-busy", "false"); // saved on the server
   }
   await page.reload();
-  await expect(page.locator("article").getByRole("button", { name: /לייק/ })).toContainText(
-    "1 לייקים",
+  await expect(page.locator("article").getByRole("button", { name: /לייק/ })).toHaveAccessibleName(
+    /ביטול לייק · 1 לייקים/,
   );
 
   // Follow, persisted across reload.

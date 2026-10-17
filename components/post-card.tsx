@@ -6,6 +6,32 @@ import { he } from "@/lib/i18n/he";
 import { renderMarkdown } from "@/lib/markdown";
 import type { PostSummary } from "@/lib/services";
 
+/** X-style comment count: bubble icon, blue hover circle, no number at zero. */
+export function CommentStat({ href, count }: { href: string; count: number }) {
+  return (
+    <Link
+      href={href}
+      aria-label={`${count} ${he.post.comments}`}
+      className="group -my-1 -ms-2 flex items-center tabular-nums transition-colors hover:text-sky-500"
+    >
+      <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-[18px]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        >
+          <path d="M12 4c4.97 0 9 3.36 9 7.5S16.97 19 12 19c-1 0-1.96-.13-2.86-.38L4.5 20.5l1.2-3.6C4.03 15.55 3 13.62 3 11.5 3 7.36 7.03 4 12 4Z" />
+        </svg>
+      </span>
+      <span className="min-w-[1ch] text-sm">{count > 0 ? count : ""}</span>
+    </Link>
+  );
+}
+
 const Dot = () => (
   <span aria-hidden className="text-neutral-500">
     •
@@ -56,11 +82,9 @@ export function PostCard({ post: p }: { post: PostSummary }) {
           {he.post.readMore}…
         </Link>
       )}
-      <div className="mt-2 flex gap-6 text-sm text-neutral-500">
+      <div className="mt-2 flex gap-8 text-sm text-neutral-500">
         <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
-        <Link href={`/p/${p.id}`} className="hover:underline">
-          {p.commentCount} {he.post.comments}
-        </Link>
+        <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
       </div>
     </li>
   );
