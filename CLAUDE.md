@@ -28,6 +28,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Posts, comments and bios are plain text for now (markdown turned off at the user's request, 2026-10-17; PLAN.md still describes markdown). Render user text with `PlainText` (`components/post-card.tsx`), never as HTML.
 - Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. No `pg_trgm` until PLAN Q4 is answered.
 - Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
+- Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container), `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
 - Feeds: ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands
@@ -42,7 +43,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 | `npm run ci`                         | lint + typecheck + test                                                                   |
 | `npm run db:generate` / `db:migrate` | drizzle-kit                                                                               |
 | `npm run seed` / `seed:large`        | Reset dev DB with fictional data (60 / 10k posts)                                         |
-| `npm run build:images`               | not yet (M5)                                                                              |
+| `npm run build:images`               | Build the amd64 image + OCI archive in `dist/` (docs/deploy.md)                           |
 
 ## Working agreements (PLAN.md §11)
 
@@ -57,4 +58,4 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - [x] M2 Login, posting, edit/delete, likes, threaded comments, follows
 - [x] M3 Feeds + infinite scroll + read more
 - [x] M4 Search + chat deep link + polish
-- [ ] M5 Offline delivery
+- [x] M5 Offline delivery

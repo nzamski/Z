@@ -107,8 +107,16 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await expect(hoverCard.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
 
   // Logout through Keycloak end-session; with no session the app goes straight back to login.
-  // There's no logout button; the route still exists. The request shares the browser's cookies.
-  await page.request.post("/auth/logout");
+  // There's no logout button; the route still exists. POST it from the page, like a form would.
+  await page.evaluate(() => {
+    const f = Object.assign(document.createElement("form"), {
+      method: "post",
+      action: "/auth/logout",
+    });
+    document.body.append(f);
+    f.submit();
+  });
+  await expect(page.locator("#username")).toBeVisible(); // back at the Keycloak login
   await page.goto("/");
   await expect(page.locator("#username")).toBeVisible();
   await page.goto("/u/dana");
@@ -167,7 +175,8 @@ test("feed: infinite scroll, then back from a post restores the list and positio
   await expect(page).toHaveURL(/\/p\//);
   await page.goBack();
   await expect(latest).toHaveAttribute("aria-pressed", "true");
-  await expect(cards).toHaveCount(count);
+  // Nothing lost (infinite scroll may already be loading the next page near the bottom).
+  await expect.poll(() => cards.count()).toBeGreaterThanOrEqual(count);
   await expect(target).toBeInViewport();
   expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y / 2); // not reset to the top
 });

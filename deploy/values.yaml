@@ -1,0 +1,115 @@
+# Z: EXAMPLE values for the organization's Helm library chart (PLAN.md §9).
+#
+# Z ships no templates of its own. This file shows WHAT the deployment needs; the key names are
+# guesses at a typical libchart. Rename them to your libchart's schema inside the network
+# (docs/deploy.md, "Adapting the values"). Per-environment overrides: values-<env>.yaml.
+
+image:
+  repository: <internal-registry>/z/z-app
+  tag: "<tag>" # from dist/z-app-<tag>.manifest.txt
+  # digest: sha256:... # prefer pinning the digest from the manifest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# The app listens on 8080 (PORT is baked into the image).
+service:
+  port: 8080
+  targetPort: 8080
+
+route:
+  enabled: true
+  host: z.<apps-domain> # must match APP_URL and the Keycloak redirect URIs
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: "1", memory: 512Mi }
+
+# /api/health?live  - the Node process answers (no DB call)
+# /api/health       - and Postgres answers within 2 s
+probes:
+  liveness:
+    httpGet: { path: /api/health?live, port: 8080 }
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    httpGet: { path: /api/health, port: 8080 }
+    initialDelaySeconds: 3
+    periodSeconds: 10
+    failureThreshold: 3
+
+# Restricted SCC: OpenShift assigns an arbitrary UID (group 0); the image works with that.
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }
+
+# Writable scratch space for a read-only root filesystem.
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: next-cache
+    emptyDir: {}
+volumeMounts:
+  - { name: tmp, mountPath: /tmp }
+  - { name: next-cache, mountPath: /app/.next/cache }
+
+env:
+  # Public URL as users see it (behind the router). Used for the OIDC redirect URI.
+  APP_URL: https://z.<apps-domain>
+  AUTH_PROVIDER: keycloak
+  OIDC_ISSUER: https://<keycloak-host>/realms/<realm>
+  OIDC_CLIENT_ID: z
+  SESSION_MAX_AGE_HOURS: "12"
+  # "Message privately" deep link into the chat; {handle} is replaced. Remove to hide the button.
+  CHAT_DEEPLINK_TEMPLATE: "chat://user/{handle}"
+  # For You candidate window in days (default 30).
+  FEED_WINDOW_DAYS: "30"
+  # Only if the platform Postgres uses a private CA (mount the cert, e.g. from a ConfigMap):
+  # DATABASE_CA_FILE: /etc/z/pg-ca.crt
+  #
+  # NEVER set OIDC_ALLOW_HTTP here: it exists only for local dry runs.
+  # NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is not needed: one image = one build = one key for all
+  # replicas (docs/deploy.md).
+
+# Secrets (create them in the namespace; never commit values).
+secretEnv:
+  DATABASE_URL: # postgres://<user>:<password>@<host>:5432/<db>?sslmode=verify-full
+    secretName: z-db
+    key: url
+  OIDC_CLIENT_SECRET:
+    secretName: z-oidc
+    key: client-secret
+  SESSION_SECRET: # 32+ random bytes: openssl rand -base64 48
+    secretName: z-session
+    key: secret
+
+# ---------------------------------------------------------------------------------------------
+# Migrations: pick ONE of the two, depending on what the libchart supports (PLAN.md Q1).
+# Both run the same command from the same image: `node migrate.mjs` (advisory-locked, so
+# concurrent runs are safe; forward-only; each release stays compatible with the previous one).
+# ---------------------------------------------------------------------------------------------
+
+# Option A (preferred): Helm hook Job, runs once before install/upgrade; a failure stops the
+# release before any new pod starts.
+jobs:
+  migrate:
+    enabled: true
+    annotations:
+      "helm.sh/hook": pre-install,pre-upgrade
+      "helm.sh/hook-weight": "0"
+      "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    command: ["node", "migrate.mjs"]
+    backoffLimit: 1
+    # same image, securityContext, secretEnv.DATABASE_URL (and DATABASE_CA_FILE) as the app
+
+# Option B (fallback): init container in every app pod. Replicas wait on the advisory lock; the
+# first applies the migrations, the others find nothing to do.
+initContainers: []
+#  - name: migrate
+#    command: ["node", "migrate.mjs"]
+#    # same image, securityContext, DATABASE_URL secret (and DATABASE_CA_FILE) as the app
