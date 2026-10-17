@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 
 // PLAN.md M2: login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
@@ -93,11 +94,37 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   const hoverCard = page.getByRole("dialog", { name: /יוסי/ });
   await expect(hoverCard).toContainText("@yossi");
   await expect(hoverCard).toContainText("עוקבים");
+  // Unfollow and re-follow from the card; the state must stick (card used to revert on re-hover).
+  await hoverCard.getByRole("button", { name: "הפסקת מעקב" }).click();
+  await page.waitForTimeout(1000);
+  await expect(hoverCard.getByRole("button", { name: "מעקב", exact: true })).toBeVisible();
+  await hoverCard.getByRole("button", { name: "מעקב", exact: true }).click();
+  await page.waitForTimeout(1000);
   await expect(hoverCard.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
 
   // Logout through Keycloak end-session; with no session the app goes straight back to login.
-  await page.getByRole("button", { name: "התנתקות" }).click();
+  // There's no logout button; the route still exists. The request shares the browser's cookies.
+  await page.request.post("/auth/logout");
+  await page.goto("/");
   await expect(page.locator("#username")).toBeVisible();
   await page.goto("/u/dana");
   await expect(page.locator("#username")).toBeVisible();
+});
+
+test("a session whose user vanished (dev reseed) re-logs in instead of failing writes", async ({
+  page,
+}) => {
+  await login(page, "noa");
+  execSync("npm run seed", { stdio: "ignore" }); // new user ids; noa's cookie now points nowhere
+  await page.goto("/u/yossi"); // bounces through Keycloak (SSO still active) and back in
+  await expect(page.getByRole("link", { name: "@noa" })).toBeVisible();
+  await page.goto("/u/yossi");
+  const follow = page.getByRole("button", { name: "מעקב", exact: true });
+  const unfollow = page.getByRole("button", { name: "הפסקת מעקב" });
+  await expect(follow.or(unfollow)).toBeVisible();
+  const wasFollowing = await unfollow.isVisible();
+  await (wasFollowing ? unfollow : follow).click();
+  await expect(wasFollowing ? follow : unfollow).toBeVisible();
+  await page.reload();
+  await expect(wasFollowing ? follow : unfollow).toBeVisible(); // saved, not a 500
 });

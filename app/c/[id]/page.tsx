@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { z } from "zod";
 import { Loading } from "@/components/loading";
 import { Thread } from "@/components/thread";
-import { getSession } from "@/lib/auth/session";
+import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { getComment, getPost, getThread, REPLIES_PAGE } from "@/lib/services";
 
@@ -17,7 +17,7 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
   if (!z.uuid().safeParse(id).success) return notFound;
   const comment = await getComment(id);
   if (!comment) return notFound;
-  const viewerId = (await getSession())?.uid ?? null;
+  const viewerId = (await requireViewer()).id;
   const post = await getPost(comment.postId, viewerId);
   if (!post || post.deletedAt)
     return <p className="p-8 text-center text-neutral-500">{he.post.deletedPage}</p>;

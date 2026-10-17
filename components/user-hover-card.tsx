@@ -8,7 +8,6 @@ import { he } from "@/lib/i18n/he";
 
 const OPEN_DELAY = 400;
 const CLOSE_DELAY = 200;
-const cache = new Map<string, Promise<UserCard | null>>();
 
 export function UserHoverCard({ handle, children }: { handle: string; children: React.ReactNode }) {
   const [card, setCard] = useState<UserCard | null>(null);
@@ -17,9 +16,10 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
 
   const show = () => {
     clearTimeout(timer.current);
+    if (open) return; // already showing: just cancel a pending close
     timer.current = setTimeout(async () => {
-      if (!cache.has(handle)) cache.set(handle, getUserCardAction(handle));
-      const c = await cache.get(handle)!;
+      // Fetched fresh on every open, so follow state changed elsewhere is never stale.
+      const c = await getUserCardAction(handle);
       if (c) {
         setCard(c);
         setOpen(true);
@@ -62,10 +62,11 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
                 key={String(card.viewerFollows)}
                 userId={card.id}
                 following={card.viewerFollows}
-                onChange={(f) => {
-                  cache.delete(handle);
-                  setCard({ ...card, viewerFollows: f, followers: card.followers + (f ? 1 : -1) });
-                }}
+                onChange={(f) =>
+                  setCard(
+                    (c) => c && { ...c, viewerFollows: f, followers: c.followers + (f ? 1 : -1) },
+                  )
+                }
               />
             )}
           </div>

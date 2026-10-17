@@ -6,27 +6,38 @@ import { he } from "@/lib/i18n/he";
 import { renderMarkdown } from "@/lib/markdown";
 import type { PostSummary } from "@/lib/services";
 
+const Dot = () => (
+  <span aria-hidden className="text-neutral-500">
+    •
+  </span>
+);
+
 export function Byline(p: {
-  author: { displayName: string; handle: string; unit?: string };
+  author: { displayName: string; handle: string };
   createdAt: Date;
   editedAt: Date | null;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+    <div className="flex flex-wrap items-baseline gap-x-1 text-sm text-neutral-500">
       <UserHoverCard handle={p.author.handle}>
-        <Link
-          href={`/u/${encodeURIComponent(p.author.handle)}`}
-          className="font-bold hover:underline"
-        >
-          {p.author.displayName}
-        </Link>{" "}
-        <span className="text-neutral-500" dir="ltr">
-          @{p.author.handle}
+        <span className="inline-flex items-baseline gap-x-2">
+          <Link
+            href={`/u/${encodeURIComponent(p.author.handle)}`}
+            className="font-bold text-foreground hover:underline"
+          >
+            {p.author.displayName}
+          </Link>
+          <span dir="ltr">@{p.author.handle}</span>
         </span>
       </UserHoverCard>
-      {p.author.unit && <span className="text-neutral-500">· {p.author.unit}</span>}
-      <span className="text-neutral-500">· {ago(p.createdAt)}</span>
-      {p.editedAt && <span className="text-neutral-500">· {he.post.edited}</span>}
+      <Dot />
+      <span>{ago(p.createdAt)}</span>
+      {p.editedAt && (
+        <>
+          <Dot />
+          <span>{he.post.edited}</span>
+        </>
+      )}
     </div>
   );
 }

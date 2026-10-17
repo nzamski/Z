@@ -8,7 +8,7 @@ import { Loading } from "@/components/loading";
 import { Byline } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
-import { getSession } from "@/lib/auth/session";
+import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { renderMarkdown } from "@/lib/markdown";
 import { getPost, getThread, ROOTS_PAGE } from "@/lib/services";
@@ -22,7 +22,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   const { id } = await params;
   const from = Math.max(0, Number((await searchParams).from) || 0);
   if (!z.uuid().safeParse(id).success) return <Notice text={he.post.notFound} />;
-  const viewerId = (await getSession())?.uid ?? null;
+  const viewerId = (await requireViewer()).id;
   const post = await getPost(id, viewerId);
   if (!post) return <Notice text={he.post.notFound} />;
   if (post.deletedAt) return <Notice text={he.post.deletedPage} />;

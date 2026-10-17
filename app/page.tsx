@@ -4,7 +4,7 @@ import { createPostAction } from "@/app/actions";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
-import { getSession } from "@/lib/auth/session";
+import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { latestPosts } from "@/lib/services";
 
@@ -12,7 +12,7 @@ const tabs = [he.nav.forYou, he.nav.following, he.nav.latest];
 
 async function Home() {
   await connection();
-  const viewerId = (await getSession())?.uid ?? null;
+  const viewerId = (await requireViewer()).id;
   const posts = await latestPosts(viewerId);
   return (
     <>

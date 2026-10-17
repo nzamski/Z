@@ -9,7 +9,6 @@ export const he = {
     home: "לדף הבית",
   },
   auth: {
-    logout: "התנתקות",
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",
   },
   post: {
@@ -60,7 +59,6 @@ export const he = {
     not_found: "לא נמצא.",
     forbidden: "אין לך הרשאה לפעולה הזו.",
     gone: "התוכן נמחק.",
-    unauthenticated: "צריך להתחבר.",
     unknown: "משהו השתבש. נסו שוב.",
   },
   feed: {

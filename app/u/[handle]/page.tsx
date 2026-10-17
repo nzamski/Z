@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
-import { getSession } from "@/lib/auth/session";
+import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { followInfo, getUserByHandle, latestPosts } from "@/lib/services";
 
@@ -12,7 +12,7 @@ async function Profile({ params }: PageProps<"/u/[handle]">) {
   const handle = decodeURIComponent((await params).handle);
   const user = await getUserByHandle(handle);
   if (!user) return <p className="p-8 text-center text-neutral-500">{he.profile.notFound}</p>;
-  const viewerId = (await getSession())?.uid ?? null;
+  const viewerId = (await requireViewer()).id;
   const [info, posts] = await Promise.all([
     followInfo(user.id, viewerId),
     latestPosts(viewerId, { authorId: user.id }),
@@ -24,8 +24,8 @@ async function Profile({ params }: PageProps<"/u/[handle]">) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold">{user.displayName}</h2>
-            <p className="text-neutral-500" dir="ltr">
-              @{user.handle}
+            <p className="text-neutral-500">
+              <span dir="ltr">@{user.handle}</span>
             </p>
           </div>
           {viewerId && viewerId !== user.id && (

@@ -8,15 +8,11 @@ async function AuthStatus() {
   const session = await getSession();
   const user = session && (await getUser(session.uid));
   if (!user) return null; // the proxy sends anyone without a session to login
+  // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   return (
-    <div className="flex items-center gap-3">
-      <Link href={`/u/${encodeURIComponent(user.handle)}`} className="font-medium" dir="ltr">
-        @{user.handle}
-      </Link>
-      <form action="/auth/logout" method="post">
-        <button className="text-neutral-500 hover:underline">{he.auth.logout}</button>
-      </form>
-    </div>
+    <Link href={`/u/${encodeURIComponent(user.handle)}`} className="font-medium" dir="ltr">
+      @{user.handle}
+    </Link>
   );
 }
 

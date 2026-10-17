@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getSession } from "@/lib/auth/session";
+import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
 
@@ -13,10 +13,9 @@ const Id = z.uuid();
 const Text = z.string();
 
 async function run(fn: (uid: string) => Promise<unknown>): Promise<ActionResult> {
-  const session = await getSession();
-  if (!session) return { error: he.errors.unauthenticated };
+  const viewer = await requireViewer();
   try {
-    await fn(session.uid);
+    await fn(viewer.id);
   } catch (e) {
     if (e instanceof s.ServiceError) return { error: he.errors[e.code] };
     if (e instanceof z.ZodError) return { error: he.errors.invalid };
@@ -85,11 +84,10 @@ export type UserCard = {
 
 /** Data for the hover card on a user's name. */
 export async function getUserCardAction(handle: string): Promise<UserCard | null> {
-  const session = await getSession();
-  if (!session) return null;
+  const viewer = await requireViewer();
   const u = await s.getUserByHandle(String(handle));
   if (!u) return null;
-  const info = await s.followInfo(u.id, session.uid);
+  const info = await s.followInfo(u.id, viewer.id);
   return {
     id: u.id,
     handle: u.handle,
@@ -100,6 +98,6 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     followers: info.followers,
     following: info.following,
     viewerFollows: info.viewerFollows,
-    isSelf: u.id === session.uid,
+    isSelf: u.id === viewer.id,
   };
 }
