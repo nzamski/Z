@@ -59,7 +59,9 @@ export default function Home() {
     <main className="mx-auto w-full max-w-2xl flex-1 border-x border-neutral-200 dark:border-neutral-800">
       <header className="sticky top-0 z-10 border-b border-neutral-200 bg-background/90 px-4 py-3 backdrop-blur dark:border-neutral-800">
         <h1 className="text-center">
-          <span className="text-5xl font-bold select-none">{he.appName}</span>
+          <span className="text-5xl leading-none font-extrabold tracking-tight select-none">
+            {he.appName}
+          </span>
         </h1>
         <nav className="mt-3 flex gap-6 text-sm font-medium">
           {tabs.map((t) => (

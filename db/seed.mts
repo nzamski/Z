@@ -278,8 +278,17 @@ const COMMENTS = [
 ];
 
 const fill = (s: string) => s.replace("{t}", pick(TOPICS));
-const generatedPost = () =>
-  [pick(OPENERS), fill(pick(MIDDLES)) + ".", pick(ENDINGS)].filter(Boolean).join(" ");
+const usedBodies = new Set<string>();
+// Unique until the combinations run out (~5k), then repeats are fine (seed:large only).
+const generatedPost = () => {
+  for (let i = 0; i < 20; i++) {
+    const b = [pick(OPENERS), fill(pick(MIDDLES)) + ".", pick(ENDINGS)].filter(Boolean).join(" ");
+    if (usedBodies.has(b)) continue;
+    usedBodies.add(b);
+    return b;
+  }
+  return [pick(OPENERS), fill(pick(MIDDLES)) + "."].join(" ");
+};
 
 // ---------- build ----------
 
@@ -326,7 +335,7 @@ for (let i = 0; i < N_POSTS; i++) {
       ? LONG[(i / longEvery) % LONG.length]
       : !large && i < SHORT.length
         ? SHORT[i]
-        : rand() < 0.3
+        : large && rand() < 0.3
           ? pick(SHORT)
           : generatedPost();
   const t = postTime();
@@ -334,7 +343,7 @@ for (let i = 0; i < N_POSTS; i++) {
     id: uuidv7(t),
     created_at: new Date(t),
     updated_at: new Date(t),
-    author_id: uid(popular()),
+    author_id: uid(rand() < 0.5 ? popular() : int(N_USERS)),
     body,
     ...(({ preview, hasMore }) => ({ preview, has_more: hasMore }))(computePreview(body)),
   });
