@@ -22,7 +22,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Writes go through `lib/services.ts` and throw `ServiceError` (`invalid` / `not_found` / `forbidden` / `gone`).
 - Auth: `lib/auth/` (`AuthProvider`: Keycloak or dev switcher at `/dev/login`). Dev Keycloak users `dana`/`yossi`/`noa` (password = username) have fixed ids that the seed reuses as `keycloak_sub`. Claim mapping lives in `finishLogin` (`lib/auth/keycloak.ts`).
 - Server Actions (`app/actions.ts`) only check the session and input shape, call a service, then `refresh()`. Anything that reads cookies or the DB sits under `<Suspense>` after `await connection()`; route handlers that call out at request time also `await connection()` so `next build` never contacts the DB or Keycloak.
-- Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS.
+- Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS. Edits to `app/globals.css` sometimes don't hot-reload either: check the served CSS, and restart `next dev` if the rule is missing.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
 
 ## Commands
