@@ -19,13 +19,16 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
+    "markdown-it": "^15.0.3",
     "next": "16.4.2",
     "postgres": "^3.4.9",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -34,6 +37,7 @@
     "eslint-config-next": "16.4.2",
     "prettier": "^3.9.10",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.5"
   },
