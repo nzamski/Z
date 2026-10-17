@@ -10,6 +10,7 @@ import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
+import { COMMENT_MAX } from "@/lib/limits";
 import { getPost, getThread, ROOTS_PAGE } from "@/lib/services";
 
 const Notice = ({ text }: { text: string }) => (
@@ -49,7 +50,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           <Composer
             action={createCommentAction}
             hidden={{ postId: post.id }}
-            max={5_000}
+            max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.placeholder}
             submitLabel={he.comment.send}

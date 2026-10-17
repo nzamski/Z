@@ -4,6 +4,7 @@ import { deletePostAction, editPostAction } from "@/app/actions";
 import { DeleteButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { he } from "@/lib/i18n/he";
+import { POST_MAX } from "@/lib/limits";
 
 /** Edit / delete for the post's author. While editing, the composer replaces the rendered body. */
 export function PostOwnerActions(p: { postId: string; body: string; children: React.ReactNode }) {
@@ -15,8 +16,8 @@ export function PostOwnerActions(p: { postId: string; body: string; children: Re
           action={editPostAction}
           hidden={{ id: p.postId }}
           initial={p.body}
-          max={20_000}
-          rows={10}
+          max={POST_MAX}
+          rows={3}
           placeholder={he.composer.placeholder}
           submitLabel={he.composer.save}
           onCancel={() => setEditing(false)}

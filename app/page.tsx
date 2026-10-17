@@ -9,6 +9,7 @@ import { Loading } from "@/components/loading";
 import { requireViewer } from "@/lib/auth/viewer";
 import { parseView, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
+import { POST_MAX } from "@/lib/limits";
 import { feedPage, ServiceError } from "@/lib/services";
 
 async function Home({ searchParams }: PageProps<"/">) {
@@ -28,7 +29,7 @@ async function Home({ searchParams }: PageProps<"/">) {
       <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
         <Composer
           action={createPostAction}
-          max={20_000}
+          max={POST_MAX}
           placeholder={he.composer.placeholder}
           submitLabel={he.composer.publish}
         />

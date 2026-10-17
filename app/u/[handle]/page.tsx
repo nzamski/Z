@@ -7,7 +7,8 @@ import { FeedList } from "@/components/feed-list";
 import { requireViewer } from "@/lib/auth/viewer";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { BIO_MAX, feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
+import { BIO_MAX } from "@/lib/limits";
+import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   await connection();

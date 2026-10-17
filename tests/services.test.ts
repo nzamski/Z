@@ -4,6 +4,7 @@ import { db, sql } from "@/db/client";
 import { follows, likes, posts } from "@/db/schema";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
+import { POST_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -31,7 +32,7 @@ describe("posts", () => {
 
   test("rejects bodies over the limit and blank bodies", async () => {
     const a = await makeUser();
-    expect(await code(s.createPost(a.id, "א".repeat(20_001)))).toBe("invalid");
+    expect(await code(s.createPost(a.id, "א".repeat(POST_MAX + 1)))).toBe("invalid");
     expect(await code(s.createPost(a.id, "   "))).toBe("invalid");
   });
 

@@ -30,8 +30,7 @@ async function UserList({ next }: { next: Promise<string> }) {
               <span className="font-bold">{u.displayName}</span>{" "}
               <span className="text-neutral-500" dir="ltr">
                 @{u.handle}
-              </span>{" "}
-              <span className="text-neutral-500">· {u.unit}</span>
+              </span>
             </button>
           </form>
         </li>

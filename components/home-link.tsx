@@ -51,7 +51,7 @@ export function LogoLink({ children }: { children: React.ReactNode }) {
     <Link
       href="/"
       aria-label={he.nav.home}
-      className="justify-self-center rounded-full px-2 py-1 transition-colors hover:bg-neutral-500/15"
+      className="grid size-15 place-items-center justify-self-center rounded-full transition-colors hover:bg-neutral-500/15"
       onClick={(e) => {
         if (location.pathname !== "/" || e.metaKey || e.ctrlKey || e.shiftKey) return;
         e.preventDefault();

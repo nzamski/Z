@@ -75,8 +75,6 @@ export type UserCard = {
   id: string;
   handle: string;
   displayName: string;
-  unit: string;
-  roleTitle: string;
   bio: string;
   followers: number;
   following: number;
@@ -94,8 +92,6 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     id: u.id,
     handle: u.handle,
     displayName: u.displayName,
-    unit: u.unit,
-    roleTitle: u.roleTitle,
     bio: u.bio,
     followers: info.followers,
     following: info.following,

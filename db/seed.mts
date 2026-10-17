@@ -78,30 +78,6 @@ const LAST = [
   "קפלן",
   "שגיא",
 ];
-const UNITS = [
-  "יחידת תשתיות",
-  "מדור דאטה",
-  "צוות פלטפורמה",
-  "מערך סייבר",
-  "יחידת ML",
-  "מדור פיתוח",
-  "צוות DevOps",
-  "מדור מערכות מידע",
-  "יחידת תקשוב",
-  "צוות אבטחת מידע",
-];
-const ROLES = [
-  "מפתחת",
-  "מפתח",
-  "ראש צוות",
-  "ארכיטקט",
-  "מהנדסת דאטה",
-  "מהנדס תשתיות",
-  "חוקרת ML",
-  "SRE",
-  "מפקד מדור",
-  "מנהלת מוצר",
-];
 const BIOS = [
   "אוהב/ת Postgres יותר מדי.",
   "בונה מערכות שלא נופלות בשלוש בלילה.",
@@ -313,8 +289,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     keycloak_sub: i < 3 ? KEYCLOAK_IDS[i] : `seed-${i}`,
     handle: i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`,
     display_name: `${first} ${last}`,
-    unit: pick(UNITS),
-    role_title: pick(ROLES),
     bio: pick(BIOS),
     avatar_seed: String(i),
   };

@@ -4,8 +4,7 @@ import { createCommentAction, deleteCommentAction, editCommentAction } from "@/a
 import { DeleteButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { he } from "@/lib/i18n/he";
-
-const MAX = 5_000;
+import { COMMENT_MAX } from "@/lib/limits";
 
 /** Reply / edit / delete controls under one comment. */
 export function CommentActions(p: {
@@ -45,7 +44,7 @@ export function CommentActions(p: {
           <Composer
             action={createCommentAction}
             hidden={{ postId: p.postId, parentId: p.commentId }}
-            max={MAX}
+            max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.replyPlaceholder}
             submitLabel={he.comment.send}
@@ -60,7 +59,7 @@ export function CommentActions(p: {
             action={editCommentAction}
             hidden={{ id: p.commentId }}
             initial={p.body}
-            max={MAX}
+            max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.placeholder}
             submitLabel={he.composer.save}

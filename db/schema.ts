@@ -32,8 +32,6 @@ export const users = pgTable(
     keycloakSub: text("keycloak_sub").notNull(),
     handle: text("handle").notNull(),
     displayName: text("display_name").notNull(),
-    unit: text("unit").notNull().default(""),
-    roleTitle: text("role_title").notNull().default(""),
     bio: text("bio").notNull().default(""),
     avatarSeed: text("avatar_seed").notNull().default(""),
   },

@@ -12,6 +12,7 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
+import { BIO_MAX, COMMENT_MAX, POST_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
 
 export class ServiceError extends Error {
@@ -20,9 +21,8 @@ export class ServiceError extends Error {
   }
 }
 
-const PostBody = z.string().trim().min(1).max(20_000);
-const CommentBody = z.string().trim().min(1).max(5_000);
-export const BIO_MAX = 160;
+const PostBody = z.string().trim().min(1).max(POST_MAX);
+const CommentBody = z.string().trim().min(1).max(COMMENT_MAX);
 const Bio = z.string().trim().max(BIO_MAX);
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
@@ -220,7 +220,7 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
-  author: { displayName: users.displayName, handle: users.handle, unit: users.unit },
+  author: { displayName: users.displayName, handle: users.handle },
 });
 
 export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number];
@@ -530,7 +530,6 @@ export async function listUsers(limit = 50) {
       id: users.id,
       handle: users.handle,
       displayName: users.displayName,
-      unit: users.unit,
     })
     .from(users)
     .where(active(users))

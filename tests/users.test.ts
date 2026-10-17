@@ -4,6 +4,7 @@ import { sql } from "@/db/client";
 import * as s from "@/lib/services";
 import { upsertUserFromClaims } from "@/lib/services";
 import { makeUser } from "./helpers";
+import { BIO_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -50,6 +51,6 @@ describe("bio", () => {
     expect((await s.getUser(u.id))?.bio).toBe("שלום");
     await s.updateBio(u.id, "");
     expect((await s.getUser(u.id))?.bio).toBe("");
-    await expect(s.updateBio(u.id, "א".repeat(s.BIO_MAX + 1))).rejects.toThrow("invalid");
+    await expect(s.updateBio(u.id, "א".repeat(BIO_MAX + 1))).rejects.toThrow("invalid");
   });
 });
