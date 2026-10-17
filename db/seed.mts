@@ -460,6 +460,7 @@ await sql`
   update posts p set
     like_count = (select count(*) from likes l where l.post_id = p.id and l.deleted_at is null),
     comment_count = (select count(*) from comments c where c.post_id = p.id and c.deleted_at is null)`;
+await sql`analyze`; // fresh planner stats, so EXPLAIN on seed data reflects real plans
 await sql.end();
 
 console.log(

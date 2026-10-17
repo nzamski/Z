@@ -85,6 +85,14 @@ export function FeedList(p: {
     restoreY.current = null;
   }, [items]);
 
+  // Shown again from Next's Activity cache (back within the last 3 routes): the DOM is intact,
+  // but the window scroll isn't reliably where we left it.
+  const shown = useRef(false);
+  useLayoutEffect(() => {
+    if (shown.current) window.scrollTo(0, scrollY.current);
+    shown.current = true;
+  }, []);
+
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined;
     const save = () =>

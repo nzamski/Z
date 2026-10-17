@@ -61,11 +61,13 @@ export const posts = pgTable(
     editedAt: ts("edited_at"),
   },
   (t) => [
+    // Plain `ORDER BY ... DESC` is NULLS FIRST; drizzle's .desc() alone emits NULLS LAST, which
+    // the planner won't use for that order.
     index("posts_feed_idx")
-      .on(t.createdAt.desc(), t.id)
+      .on(t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.deletedAt} is null`),
     index("posts_author_idx")
-      .on(t.authorId, t.createdAt.desc())
+      .on(t.authorId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.deletedAt} is null`),
     index("posts_updated_at_idx").on(t.updatedAt),
   ],

@@ -24,6 +24,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Server Actions (`app/actions.ts`) only check the session and input shape, call a service, then `refresh()`. Anything that reads cookies or the DB sits under `<Suspense>` after `await connection()`; route handlers that call out at request time also `await connection()` so `next build` never contacts the DB or Keycloak.
 - Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS. Edits to `app/globals.css` sometimes don't hot-reload either: check the served CSS, and restart `next dev` if the rule is missing.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
+- Feeds: ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands
 
@@ -35,7 +36,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 | `npm run lint` / `npm run typecheck` | ESLint + Prettier check / `tsc`                      |
 | `npm run ci`                         | lint + typecheck + test                              |
 | `npm run db:generate` / `db:migrate` | drizzle-kit                                          |
-| `npm run seed` / `seed:large`        | not yet (M1)                                         |
+| `npm run seed` / `seed:large`        | Reset dev DB with fictional data (60 / 10k posts)    |
 | `npm run build:images`               | not yet (M5)                                         |
 
 ## Working agreements (PLAN.md §11)
@@ -49,6 +50,6 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - [x] M0 Skeleton
 - [x] M1 Data + seed
 - [x] M2 Login, posting, edit/delete, likes, threaded comments, follows
-- [ ] M3 Feeds + infinite scroll + read more
+- [x] M3 Feeds + infinite scroll + read more
 - [ ] M4 Search + chat deep link + polish
 - [ ] M5 Offline delivery

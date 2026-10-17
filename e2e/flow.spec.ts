@@ -153,5 +153,6 @@ test("feed: infinite scroll, then back from a post restores the list and positio
   await page.goBack();
   await expect(page).toHaveURL(/view=latest/);
   await expect(cards).toHaveCount(count);
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(y - 50);
+  await expect(target).toBeInViewport();
+  expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(400);
 });
