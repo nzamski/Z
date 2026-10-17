@@ -81,6 +81,19 @@ export const he = {
     taken: "שם המשתמש הזה כבר תפוס.",
     unknown: "משהו השתבש. נסו שוב.",
   },
+  // Browser tab titles, X-style "<page> / Z" (the " / Z" comes from the root layout template).
+  titles: {
+    home: "בית",
+    search: "חיפוש",
+    searchFor: (q: string) => `${q} – חיפוש`,
+    welcome: "ברוכים הבאים",
+    post: (name: string, text: string) => `${name} ב־Z: "${text}"`,
+    profile: (name: string, handle: string) => `${name} (@${handle})`,
+    followers: (name: string, handle: string) => `העוקבים של ${name} (@${handle})`,
+    following: (name: string, handle: string) => `הנעקבים של ${name} (@${handle})`,
+    notFound: "העמוד לא נמצא",
+    devLogin: "התחברות פיתוח",
+  },
   welcome: {
     title: "ברוכים הבאים ל־Z",
     next: "המשך",

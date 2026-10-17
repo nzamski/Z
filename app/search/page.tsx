@@ -6,6 +6,7 @@ import { UserRow } from "@/components/user-row";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { feedPage, searchUsers, ServiceError } from "@/lib/services";
+import type { Metadata } from "next";
 
 const heading =
   "border-b border-neutral-200 px-4 py-3 text-start text-lg font-bold dark:border-neutral-800";
@@ -84,6 +85,13 @@ async function SearchResults(p: { viewerId: string; q: string; cursor: string | 
       />
     </>
   );
+}
+
+export async function generateMetadata({ searchParams }: PageProps<"/search">): Promise<Metadata> {
+  const q = (await searchParams).q;
+  return {
+    title: typeof q === "string" && q.trim() ? he.titles.searchFor(q.trim()) : he.titles.search,
+  };
 }
 
 export default function Page(props: PageProps<"/search">) {

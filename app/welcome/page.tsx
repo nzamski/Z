@@ -6,6 +6,8 @@ import { Welcome } from "@/components/welcome";
 import { safeNext } from "@/lib/auth/provider";
 import { requireLogin } from "@/lib/auth/viewer";
 import { suggestedUsers } from "@/lib/services";
+import type { Metadata } from "next";
+import { he } from "@/lib/i18n/he";
 
 // First login (mandatory): a short welcome, choose a handle (+ bio), who to follow.
 async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
@@ -23,6 +25,8 @@ async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
     />
   );
 }
+
+export const metadata: Metadata = { title: he.titles.welcome };
 
 export default function Page(props: PageProps<"/welcome">) {
   return (

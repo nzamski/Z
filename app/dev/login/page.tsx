@@ -6,6 +6,7 @@ import { startSession } from "@/lib/auth/session";
 import { ListSkeleton } from "@/components/loading";
 import { he } from "@/lib/i18n/he";
 import { getUser, listUsers } from "@/lib/services";
+import type { Metadata } from "next";
 
 async function loginAs(formData: FormData) {
   "use server";
@@ -39,6 +40,8 @@ async function UserList({ next }: { next: Promise<string> }) {
     </ul>
   );
 }
+
+export const metadata: Metadata = { title: he.titles.devLogin };
 
 export default function DevLogin({ searchParams }: PageProps<"/dev/login">) {
   const next = searchParams.then((p) => safeNext(typeof p.next === "string" ? p.next : null));

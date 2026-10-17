@@ -11,6 +11,7 @@ import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
 import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
+import type { Metadata } from "next";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   await connection();
@@ -111,6 +112,11 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       />
     </>
   );
+}
+
+export async function generateMetadata({ params }: PageProps<"/u/[handle]">): Promise<Metadata> {
+  const user = await getUserByHandle(decodeURIComponent((await params).handle));
+  return { title: user ? he.titles.profile(user.displayName, user.handle) : he.profile.notFound };
 }
 
 export default function Page(props: PageProps<"/u/[handle]">) {

@@ -11,6 +11,14 @@ export function ago(d: Date) {
   return fmt(-Math.round(min / (24 * 60)), "day");
 }
 
+/** First line of a text, cut to `n` characters at a word boundary: for page titles. */
+export function snippet(text: string, n = 60) {
+  const line = text.trim().split("\n")[0];
+  if (line.length <= n) return line;
+  const cut = line.slice(0, n);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > n / 2 ? cut.lastIndexOf(" ") : n)}…`;
+}
+
 const my = new Intl.DateTimeFormat("he", { month: "long", year: "numeric" });
 
 /** "אוקטובר 2026" */

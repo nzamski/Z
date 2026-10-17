@@ -11,7 +11,8 @@ const heebo = localFont({
 });
 
 export const metadata: Metadata = {
-  title: he.appName,
+  // Each page sets its part; the tab reads e.g. "בית / Z" (like X's "Home / X").
+  title: { default: he.appName, template: `%s / ${he.appName}` },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

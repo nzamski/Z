@@ -6,7 +6,9 @@ import { Loading } from "@/components/loading";
 import { Thread } from "@/components/thread";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
-import { getComment, getPost, getThread, REPLIES_PAGE } from "@/lib/services";
+import { getComment, getPost, getThread, getUser, REPLIES_PAGE } from "@/lib/services";
+import type { Metadata } from "next";
+import { snippet } from "@/lib/format";
 
 // One comment's subthread: target of "continue thread" (depth cap) and "show N more replies".
 async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
@@ -49,6 +51,14 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
       </div>
     </section>
   );
+}
+
+export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  const comment = z.uuid().safeParse(id).success ? await getComment(id) : null;
+  const author = comment && !comment.deletedAt ? await getUser(comment.authorId) : null;
+  if (!comment || !author) return { title: he.errors.not_found };
+  return { title: he.titles.post(author.displayName, snippet(comment.body)) };
 }
 
 export default function Page(props: PageProps<"/c/[id]">) {

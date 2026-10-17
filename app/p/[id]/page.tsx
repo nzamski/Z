@@ -12,6 +12,8 @@ import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 import { getPost, getThread, ROOTS_PAGE } from "@/lib/services";
+import type { Metadata } from "next";
+import { snippet } from "@/lib/format";
 
 const Notice = ({ text }: { text: string }) => <p className="p-8 text-center text-muted">{text}</p>;
 
@@ -68,6 +70,15 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
       </section>
     </>
   );
+}
+
+// X-style: "Name ב־Z: "first words of the post"". The proxy already required a session.
+export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  const post = z.uuid().safeParse(id).success ? await getPost(id, null) : null;
+  if (!post) return { title: he.post.notFound };
+  if (post.deletedAt) return { title: he.post.deletedPage };
+  return { title: he.titles.post(post.author.displayName, snippet(post.body)) };
 }
 
 export default function Page(props: PageProps<"/p/[id]">) {

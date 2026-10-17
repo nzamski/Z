@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Z logo: drawn as a shape (no font), white on black like the X icon -->
+  <rect width="32" height="32" rx="7" fill="#0a0a0a"/>
+  <path fill="#fff" d="M8 7h16v4.2L14.6 21H24v4H8v-4.2L17.4 11H8z"/>
+</svg>

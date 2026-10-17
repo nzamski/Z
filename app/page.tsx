@@ -11,6 +11,7 @@ import { parseView, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
 import { feedPage, ServiceError } from "@/lib/services";
+import type { Metadata } from "next";
 
 async function Home({ searchParams }: PageProps<"/">) {
   await connection();
@@ -45,6 +46,9 @@ async function Home({ searchParams }: PageProps<"/">) {
     </>
   );
 }
+
+// Same segment as the root layout, whose title template only reaches child segments.
+export const metadata: Metadata = { title: { absolute: `${he.titles.home} / ${he.appName}` } };
 
 export default function Page(props: PageProps<"/">) {
   return (

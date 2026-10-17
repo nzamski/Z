@@ -380,3 +380,20 @@ test("followers and following lists", async ({ page }) => {
   await expect(page).toHaveURL(/\/u\/yossi\/following$/);
   await expect(page.getByRole("link", { name: "נעקבים" })).toHaveAttribute("aria-current", "page");
 });
+
+test("tab titles follow the page, X-style", async ({ page }) => {
+  await login(page, "dana");
+  await expect(page).toHaveTitle("בית / Z");
+  await page.goto("/u/yossi");
+  await expect(page).toHaveTitle(/^יוסי \S+ \(@yossi\) \/ Z$/);
+  await page.goto("/u/yossi/followers");
+  await expect(page).toHaveTitle(/^העוקבים של יוסי \S+ \(@yossi\) \/ Z$/);
+  await page.goto("/search?q=Postgres");
+  await expect(page).toHaveTitle("Postgres – חיפוש / Z");
+  await page.goto("/");
+  await page.locator("main > ul > li").first().locator("p").first().click();
+  await expect(page).toHaveURL(/\/p\//);
+  await expect(page).toHaveTitle(/^.+ ב־Z: ".+" \/ Z$/);
+  await page.goto("/no/such/page");
+  await expect(page).toHaveTitle("העמוד לא נמצא / Z");
+});
