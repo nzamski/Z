@@ -47,12 +47,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           body
         )}
         <div className="mt-3 flex gap-6 text-sm text-neutral-500">
-          <LikeButton
-            postId={post.id}
-            liked={post.liked}
-            count={post.likeCount}
-            canLike={!!viewerId}
-          />
+          <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
           <span>
             {post.commentCount} {he.post.comments}
           </span>
@@ -68,11 +63,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
             placeholder={he.comment.placeholder}
             submitLabel={he.comment.send}
           />
-        ) : (
-          <a href="/auth/login" className="text-sm text-sky-600 hover:underline">
-            {he.comment.loginToComment}
-          </a>
-        )}
+        ) : null}
         <div className="mt-4">
           <Thread nodes={thread.nodes} ctx={{ postId: post.id, viewerId, postLive: true }} />
           {from + ROOTS_PAGE < thread.total && (

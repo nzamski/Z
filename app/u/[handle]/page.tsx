@@ -47,7 +47,7 @@ async function Profile({ params }: PageProps<"/u/[handle]">) {
       </section>
       <ul>
         {posts.map((p) => (
-          <PostCard key={p.id} post={p} viewerId={viewerId} />
+          <PostCard key={p.id} post={p} />
         ))}
       </ul>
     </>

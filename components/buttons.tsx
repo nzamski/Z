@@ -3,16 +3,9 @@ import { useOptimistic, useState, useTransition } from "react";
 import { setFollowAction, setLikeAction, type ActionResult } from "@/app/actions";
 import { he } from "@/lib/i18n/he";
 
-export function LikeButton(p: { postId: string; liked: boolean; count: number; canLike: boolean }) {
+export function LikeButton(p: { postId: string; liked: boolean; count: number }) {
   const [state, setOptimistic] = useOptimistic({ liked: p.liked, count: p.count });
   const [pending, start] = useTransition();
-  if (!p.canLike) {
-    return (
-      <a href="/auth/login">
-        ♡ {p.count} {he.post.likes}
-      </a>
-    );
-  }
   const toggle = () =>
     start(async () => {
       const liked = !state.liked;
@@ -32,17 +25,26 @@ export function LikeButton(p: { postId: string; liked: boolean; count: number; c
   );
 }
 
-export function FollowButton(p: { userId: string; following: boolean }) {
-  const [following, setOptimistic] = useOptimistic(p.following);
-  const [, start] = useTransition();
+// Local state rather than useOptimistic: the hover card has no server prop to refresh into.
+export function FollowButton(p: {
+  userId: string;
+  following: boolean;
+  onChange?: (following: boolean) => void;
+}) {
+  const [following, setFollowing] = useState(p.following);
+  const [pending, start] = useTransition();
+  const toggle = () =>
+    start(async () => {
+      const next = !following;
+      setFollowing(next);
+      const r = await setFollowAction(p.userId, next);
+      if (r.error) setFollowing(!next);
+      else p.onChange?.(next);
+    });
   return (
     <button
-      onClick={() =>
-        start(async () => {
-          setOptimistic(!following);
-          await setFollowAction(p.userId, !following);
-        })
-      }
+      onClick={toggle}
+      aria-busy={pending}
       className={
         following
           ? "rounded-full border border-neutral-400 px-4 py-1.5 text-sm font-medium"

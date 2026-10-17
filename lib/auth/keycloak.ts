@@ -28,14 +28,14 @@ function getConfig() {
 const redirectUri = () => appUrl("/auth/callback").href;
 
 export const keycloakProvider: AuthProvider = {
-  async loginUrl() {
+  async loginUrl(next) {
     const cfg = await getConfig();
     const verifier = oidc.randomPKCECodeVerifier();
     const state = oidc.randomState();
     const nonce = oidc.randomNonce();
     (await cookies()).set(
       TX_COOKIE,
-      await seal({ verifier, state, nonce }, TX_MAX_AGE_S),
+      await seal({ verifier, state, nonce, next }, TX_MAX_AGE_S),
       cookieOptions(TX_MAX_AGE_S),
     );
     return oidc.buildAuthorizationUrl(cfg, {
@@ -62,7 +62,7 @@ export type Claims = { sub: string; handle: string; displayName: string };
 /** Completes the code flow for the callback URL; returns the mapped claims and the ID token. */
 export async function finishLogin(callbackUrl: URL) {
   const jar = await cookies();
-  const tx = await unseal<{ verifier: string; state: string; nonce: string }>(
+  const tx = await unseal<{ verifier: string; state: string; nonce: string; next: string }>(
     jar.get(TX_COOKIE)?.value,
   );
   jar.delete(TX_COOKIE);
@@ -81,5 +81,5 @@ export async function finishLogin(callbackUrl: URL) {
     handle: String(c.preferred_username ?? c.sub),
     displayName: String(c.name ?? c.preferred_username ?? c.sub),
   };
-  return { claims, idToken: tokens.id_token };
+  return { claims, idToken: tokens.id_token, next: tx.next };
 }

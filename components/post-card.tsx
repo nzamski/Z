@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
+import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
 import { renderMarkdown } from "@/lib/markdown";
@@ -12,15 +13,17 @@ export function Byline(p: {
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-      <Link
-        href={`/u/${encodeURIComponent(p.author.handle)}`}
-        className="font-bold hover:underline"
-      >
-        {p.author.displayName}
-      </Link>
-      <span className="text-neutral-500" dir="ltr">
-        @{p.author.handle}
-      </span>
+      <UserHoverCard handle={p.author.handle}>
+        <Link
+          href={`/u/${encodeURIComponent(p.author.handle)}`}
+          className="font-bold hover:underline"
+        >
+          {p.author.displayName}
+        </Link>{" "}
+        <span className="text-neutral-500" dir="ltr">
+          @{p.author.handle}
+        </span>
+      </UserHoverCard>
       {p.author.unit && <span className="text-neutral-500">· {p.author.unit}</span>}
       <span className="text-neutral-500">· {ago(p.createdAt)}</span>
       {p.editedAt && <span className="text-neutral-500">· {he.post.edited}</span>}
@@ -28,7 +31,7 @@ export function Byline(p: {
   );
 }
 
-export function PostCard({ post: p, viewerId }: { post: PostSummary; viewerId: string | null }) {
+export function PostCard({ post: p }: { post: PostSummary }) {
   return (
     <li className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800">
       <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
@@ -43,7 +46,7 @@ export function PostCard({ post: p, viewerId }: { post: PostSummary; viewerId: s
         </Link>
       )}
       <div className="mt-2 flex gap-6 text-sm text-neutral-500">
-        <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} canLike={!!viewerId} />
+        <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
         <Link href={`/p/${p.id}`} className="hover:underline">
           {p.commentCount} {he.post.comments}
         </Link>

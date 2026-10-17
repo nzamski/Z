@@ -3,8 +3,8 @@ import { devProvider } from "./dev";
 import { keycloakProvider } from "./keycloak";
 
 export interface AuthProvider {
-  /** Where to send the browser to start a login. */
-  loginUrl(): Promise<string>;
+  /** Where to send the browser to start a login; `next` is the local path to return to. */
+  loginUrl(next: string): Promise<string>;
   /** Where to send the browser after the session cookie is cleared. */
   logoutUrl(idToken?: string): Promise<string>;
 }
@@ -20,3 +20,7 @@ export function authProvider(): AuthProvider {
 }
 
 export const appUrl = (path = "/") => new URL(path, process.env.APP_URL ?? "http://localhost:3000");
+
+/** Only same-origin paths, so `?next=` can't become an open redirect. */
+export const safeNext = (next: string | null | undefined) =>
+  next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/";

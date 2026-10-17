@@ -1,8 +1,12 @@
 const rtf = new Intl.RelativeTimeFormat("he", { numeric: "auto" });
 
+// ICU appends the count to Hebrew singular/dual forms ("לפני שעתיים (2)"); drop it.
+const fmt = (n: number, unit: Intl.RelativeTimeFormatUnit) =>
+  rtf.format(n, unit).replace(/ \(\d+\)/, "");
+
 export function ago(d: Date) {
   const min = Math.round((Date.now() - d.getTime()) / 60_000);
-  if (min < 60) return rtf.format(-min, "minute");
-  if (min < 24 * 60) return rtf.format(-Math.round(min / 60), "hour");
-  return rtf.format(-Math.round(min / (24 * 60)), "day");
+  if (min < 60) return fmt(-min, "minute");
+  if (min < 24 * 60) return fmt(-Math.round(min / 60), "hour");
+  return fmt(-Math.round(min / (24 * 60)), "day");
 }

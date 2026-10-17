@@ -69,3 +69,37 @@ export async function setLikeAction(postId: string, liked: boolean) {
 export async function setFollowAction(userId: string, following: boolean) {
   return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)));
 }
+
+export type UserCard = {
+  id: string;
+  handle: string;
+  displayName: string;
+  unit: string;
+  roleTitle: string;
+  bio: string;
+  followers: number;
+  following: number;
+  viewerFollows: boolean;
+  isSelf: boolean;
+};
+
+/** Data for the hover card on a user's name. */
+export async function getUserCardAction(handle: string): Promise<UserCard | null> {
+  const session = await getSession();
+  if (!session) return null;
+  const u = await s.getUserByHandle(String(handle));
+  if (!u) return null;
+  const info = await s.followInfo(u.id, session.uid);
+  return {
+    id: u.id,
+    handle: u.handle,
+    displayName: u.displayName,
+    unit: u.unit,
+    roleTitle: u.roleTitle,
+    bio: u.bio,
+    followers: info.followers,
+    following: info.following,
+    viewerFollows: info.viewerFollows,
+    isSelf: u.id === session.uid,
+  };
+}

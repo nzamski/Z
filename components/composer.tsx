@@ -1,6 +1,6 @@
 "use client";
 // Markdown composer with a live preview from the same renderer the server uses.
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type { ActionResult } from "@/app/actions";
 import { he } from "@/lib/i18n/he";
 import { renderMarkdown } from "@/lib/markdown";
@@ -19,6 +19,12 @@ type Props = {
 
 export function Composer(p: Props) {
   const [body, setBody] = useState(p.initial ?? "");
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  // Keep anything typed before hydration (slow loads), which React state would otherwise miss.
+  useEffect(() => {
+    const typed = textarea.current?.value;
+    if (typed && typed !== p.initial) setBody(typed);
+  }, [p.initial]);
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
@@ -49,6 +55,7 @@ export function Composer(p: Props) {
         ))}
       </div>
       <textarea
+        ref={textarea}
         name="body"
         value={body}
         onChange={(e) => setBody(e.target.value)}

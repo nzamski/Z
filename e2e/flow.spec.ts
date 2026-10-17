@@ -3,8 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 // PLAN.md M2: login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
 
 async function login(page: Page, user: string) {
-  await page.goto("/");
-  await page.getByRole("link", { name: "התחברות" }).click();
+  await page.goto("/"); // no session: the proxy sends us straight to Keycloak
   await page.locator("#username").fill(user);
   await page.locator("#password").fill(user);
   await page.locator("#kc-login").click();
@@ -88,8 +87,17 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
 
-  // Logout through Keycloak end-session, back to Z logged out.
+  // Hover card on an author's name.
+  await page.goto("/");
+  await page.locator("li a[href='/u/yossi']").first().hover();
+  const hoverCard = page.getByRole("dialog", { name: /יוסי/ });
+  await expect(hoverCard).toContainText("@yossi");
+  await expect(hoverCard).toContainText("עוקבים");
+  await expect(hoverCard.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
+
+  // Logout through Keycloak end-session; with no session the app goes straight back to login.
   await page.getByRole("button", { name: "התנתקות" }).click();
-  await expect(page.getByRole("link", { name: "התחברות" })).toBeVisible();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page.locator("#username")).toBeVisible();
+  await page.goto("/u/dana");
+  await expect(page.locator("#username")).toBeVisible();
 });

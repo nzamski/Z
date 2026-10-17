@@ -7,13 +7,7 @@ import { getUser } from "@/lib/services";
 async function AuthStatus() {
   const session = await getSession();
   const user = session && (await getUser(session.uid));
-  if (!user) {
-    return (
-      <a href="/auth/login" className="font-medium underline">
-        {he.auth.login}
-      </a>
-    );
-  }
+  if (!user) return null; // the proxy sends anyone without a session to login
   return (
     <div className="flex items-center gap-3">
       <Link href={`/u/${encodeURIComponent(user.handle)}`} className="font-medium" dir="ltr">

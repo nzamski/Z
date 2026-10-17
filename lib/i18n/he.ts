@@ -9,7 +9,6 @@ export const he = {
     home: "לדף הבית",
   },
   auth: {
-    login: "התחברות",
     logout: "התנתקות",
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",
   },
@@ -46,7 +45,6 @@ export const he = {
     collapse: "הסתרת תשובות",
     expand: (n: number) => `הצגת ${n} תשובות`,
     backToPost: "חזרה לפוסט",
-    loginToComment: "התחברו כדי להגיב",
   },
   profile: {
     follow: "מעקב",

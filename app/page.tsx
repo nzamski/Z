@@ -29,7 +29,7 @@ async function Home() {
       {posts.length ? (
         <ul>
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} viewerId={viewerId} />
+            <PostCard key={p.id} post={p} />
           ))}
         </ul>
       ) : (
