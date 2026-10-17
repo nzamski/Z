@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, expect, test } from "vitest";
 
-const sql = postgres(process.env.TEST_DATABASE_URL!);
+const sql = postgres(process.env.DATABASE_URL!);
 afterAll(() => sql.end());
 
 test("connects to the test Postgres", async () => {

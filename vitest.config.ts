@@ -1,12 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+// Tests always run against the separate z_test database, never the dev one.
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? "postgres://z:z@localhost:5433/z_test";
+
 export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
   test: {
     include: ["tests/**/*.test.ts"],
-    env: {
-      TEST_DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgres://z:z@localhost:5433/z_test",
-    },
+    globalSetup: ["tests/global-setup.ts"],
+    env: { DATABASE_URL: process.env.DATABASE_URL },
   },
 });
