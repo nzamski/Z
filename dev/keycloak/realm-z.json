@@ -1,0 +1,49 @@
+{
+  "realm": "z",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "z",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dev-secret-not-for-prod",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "dana",
+      "firstName": "דנה",
+      "lastName": "לוי",
+      "email": "dana@z.test",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "dana", "temporary": false }]
+    },
+    {
+      "username": "yossi",
+      "firstName": "יוסי",
+      "lastName": "כהן",
+      "email": "yossi@z.test",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "yossi", "temporary": false }]
+    },
+    {
+      "username": "noa",
+      "firstName": "נועה",
+      "lastName": "מזרחי",
+      "email": "noa@z.test",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "noa", "temporary": false }]
+    }
+  ]
+}
