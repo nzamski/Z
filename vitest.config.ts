@@ -2,6 +2,9 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // Tests always run against the separate z_test database, never the dev one.
+try {
+  process.loadEnvFile(); // TEST_DATABASE_URL from .env, if set
+} catch {}
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? "postgres://z:z@localhost:5433/z_test";
 
 export default defineConfig({

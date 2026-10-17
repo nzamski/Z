@@ -16,7 +16,7 @@ export function FeedTabs({ view }: { view: FeedView }) {
     <form
       action={setViewAction}
       onSubmit={() => window.scrollTo(0, 0)}
-      className="sticky top-(--header-h) z-10 flex h-(--tabs-h) items-end gap-6 border-b border-neutral-200 bg-background/90 px-4 text-sm font-medium backdrop-blur dark:border-neutral-800"
+      className="sticky top-(--header-h) z-10 flex h-(--tabs-h) items-end gap-4 border-b border-neutral-200 bg-background/90 px-4 text-sm font-medium backdrop-blur dark:border-neutral-800"
     >
       {TABS.map(([v, label]) => (
         <button
@@ -24,9 +24,11 @@ export function FeedTabs({ view }: { view: FeedView }) {
           name="view"
           value={v}
           aria-pressed={v === view}
-          className="border-b-2 border-transparent pb-2 text-neutral-500 aria-pressed:border-current aria-pressed:text-foreground"
+          className="group -mx-2 rounded-t-md px-2 pt-2 text-neutral-500 transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:text-foreground"
         >
-          {label}
+          <span className="block border-b-2 border-transparent pb-2 group-aria-pressed:border-current">
+            {label}
+          </span>
         </button>
       ))}
     </form>

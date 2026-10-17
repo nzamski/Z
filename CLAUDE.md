@@ -29,16 +29,17 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 
 ## Commands
 
-| Command                              | What                                                 |
-| ------------------------------------ | ---------------------------------------------------- |
-| `docker compose up -d db keycloak`   | Dev Postgres on :5433, Keycloak on :8180 (realm `z`) |
-| `npm run dev`                        | Next dev server on :3000                             |
-| `npm test`                           | Vitest against compose Postgres (`z_test` DB)        |
-| `npm run lint` / `npm run typecheck` | ESLint + Prettier check / `tsc`                      |
-| `npm run ci`                         | lint + typecheck + test                              |
-| `npm run db:generate` / `db:migrate` | drizzle-kit                                          |
-| `npm run seed` / `seed:large`        | Reset dev DB with fictional data (60 / 10k posts)    |
-| `npm run build:images`               | not yet (M5)                                         |
+| Command                              | What                                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `docker compose up -d db keycloak`   | Dev Postgres on :5433, Keycloak on :8180 (realm `z`)                                      |
+| (or) any local Postgres 16           | Set `DATABASE_URL`/`TEST_DATABASE_URL` in `.env`; needs role `z` owning DBs `z`, `z_test` |
+| `npm run dev`                        | Next dev server on :3000                                                                  |
+| `npm test`                           | Vitest against compose Postgres (`z_test` DB)                                             |
+| `npm run lint` / `npm run typecheck` | ESLint + Prettier check / `tsc`                                                           |
+| `npm run ci`                         | lint + typecheck + test                                                                   |
+| `npm run db:generate` / `db:migrate` | drizzle-kit                                                                               |
+| `npm run seed` / `seed:large`        | Reset dev DB with fictional data (60 / 10k posts)                                         |
+| `npm run build:images`               | not yet (M5)                                                                              |
 
 ## Working agreements (PLAN.md §11)
 

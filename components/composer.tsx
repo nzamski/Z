@@ -52,12 +52,16 @@ export function Composer(p: Props) {
       <div className="flex items-center gap-3 text-sm">
         <button
           disabled={pending || over || (!p.allowEmpty && !body.trim())}
-          className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background disabled:opacity-40"
+          className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
         >
           {p.submitLabel}
         </button>
         {p.onCancel && (
-          <button type="button" onClick={p.onCancel} className="text-neutral-500">
+          <button
+            type="button"
+            onClick={p.onCancel}
+            className="text-neutral-500 hover:text-foreground hover:underline"
+          >
             {he.composer.cancel}
           </button>
         )}

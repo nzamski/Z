@@ -41,9 +41,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
             <FollowButton userId={user.id} following={info.viewerFollows} />
           )}
         </div>
-        {(user.roleTitle || user.unit) && (
-          <p className="mt-2 text-sm">{[user.roleTitle, user.unit].filter(Boolean).join(" · ")}</p>
-        )}
         <ProfileBio bio={user.bio} isSelf={viewerId === user.id} max={BIO_MAX} />
         <p className="mt-2 flex items-center gap-1 text-sm text-neutral-500">
           <svg

@@ -73,8 +73,9 @@ export function FollowButton(p: {
       aria-busy={pending}
       className={
         following
-          ? "rounded-full border border-neutral-400 px-4 py-1.5 text-sm font-medium"
-          : "rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background"
+          ? // X-style: hovering "unfollow" turns it red.
+            "rounded-full border border-neutral-400 px-4 py-1.5 text-sm font-medium transition-colors hover:border-red-400 hover:bg-red-500/10 hover:text-red-600"
+          : "rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-85"
       }
     >
       {following ? he.profile.unfollow : he.profile.follow}
@@ -89,7 +90,10 @@ export function DeleteButton(p: { id: string; action: (id: string) => Promise<Ac
   const [pending, start] = useTransition();
   if (!armed) {
     return (
-      <button onClick={() => setArmed(true)} className="hover:underline">
+      <button
+        onClick={() => setArmed(true)}
+        className="transition-colors hover:text-red-600 hover:underline"
+      >
         {he.post.delete}
       </button>
     );
@@ -104,7 +108,10 @@ export function DeleteButton(p: { id: string; action: (id: string) => Promise<Ac
       >
         {he.post.delete}
       </button>
-      <button onClick={() => setArmed(false)} className="hover:underline">
+      <button
+        onClick={() => setArmed(false)}
+        className="transition-colors hover:text-foreground hover:underline"
+      >
         {he.composer.cancel}
       </button>
       {error && <span className="text-red-600">{error}</span>}

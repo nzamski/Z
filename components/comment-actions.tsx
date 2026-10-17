@@ -21,13 +21,19 @@ export function CommentActions(p: {
     <div className="mt-1 text-sm text-neutral-500">
       <div className="flex gap-4">
         {p.canReply && (
-          <button onClick={() => setMode("reply")} className="hover:underline">
+          <button
+            onClick={() => setMode("reply")}
+            className="transition-colors hover:text-foreground hover:underline"
+          >
             {he.comment.reply}
           </button>
         )}
         {p.isOwner && (
           <>
-            <button onClick={() => setMode("edit")} className="hover:underline">
+            <button
+              onClick={() => setMode("edit")}
+              className="transition-colors hover:text-foreground hover:underline"
+            >
               {he.post.edit}
             </button>
             <DeleteButton id={p.commentId} action={deleteCommentAction} />

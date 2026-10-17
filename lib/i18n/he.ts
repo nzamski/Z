@@ -7,6 +7,7 @@ export const he = {
     latest: "אחרונים",
     search: "חיפוש",
     home: "לדף הבית",
+    back: "חזרה",
   },
   auth: {
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",
@@ -17,7 +18,7 @@ export const he = {
     unlike: "ביטול לייק",
     comments: "תגובות",
     edited: "נערך",
-    readMore: "המשך קריאה",
+    readMore: "הצגת עוד",
     edit: "עריכה",
     delete: "מחיקה",
     confirmDelete: "למחוק? אי אפשר לבטל.",
@@ -54,7 +55,7 @@ export const he = {
     editBio: "עריכת ביו",
     bioPlaceholder: "כמה מילים עליך",
     addBio: "הוספת ביו",
-    joined: (monthYear: string) => `ב-Z מאז ${monthYear}`,
+    joined: (monthYear: string) => `מאז ${monthYear}`,
   },
   errors: {
     invalid: "הקלט לא תקין.",

@@ -120,3 +120,12 @@ export async function setViewAction(f: FormData) {
   });
   refresh();
 }
+
+/** Full body for the inline "show more" in feeds; null if the post is gone. */
+export async function getPostBodyAction(postId: string): Promise<string | null> {
+  const viewer = await requireViewer();
+  const id = Id.safeParse(postId);
+  if (!id.success) return null;
+  const post = await s.getPost(id.data, viewer.id);
+  return post && !post.deletedAt ? post.body : null;
+}

@@ -88,9 +88,9 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
 
-  // Back-to-home arrow on every non-home page.
-  await page.getByRole("link", { name: "לדף הבית" }).first().click();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  // Back arrow: the previous page in the app (the post), not always home.
+  await page.getByRole("link", { name: "חזרה" }).click();
+  await expect(page).toHaveURL(/\/p\//);
 
   // Hover card on an author's name.
   await page.goto("/");
@@ -143,6 +143,19 @@ test("feed: infinite scroll, then back from a post restores the list and positio
   await expect(page).toHaveURL("http://localhost:3000/"); // the tab is a cookie, not the URL
   const cards = page.locator("main > ul > li");
   await expect(cards).toHaveCount(20);
+
+  // Long posts expand in place.
+  const longIds = await cards.evaluateAll((lis) =>
+    lis.map((li, i) => (li.textContent?.includes("הצגת עוד") ? i : -1)).filter((i) => i >= 0),
+  );
+  const long = cards.nth(longIds[0]);
+  const text = long.locator("p").first();
+  const before = (await text.innerText()).replace(/…$/, "").length;
+  await long.getByRole("link", { name: "הצגת עוד" }).click();
+  await expect(long.getByRole("link", { name: "הצגת עוד" })).toHaveCount(0);
+  expect((await text.innerText()).length).toBeGreaterThan(before);
+  await expect(page).toHaveURL("http://localhost:3000/");
+
   await page.mouse.wheel(0, 20_000);
   await expect.poll(() => cards.count()).toBeGreaterThan(20);
 
@@ -212,7 +225,7 @@ test("new posts by others show a pill that refreshes the feed", async ({ browser
 test("edit your own bio on your profile", async ({ page }) => {
   await login(page, "dana");
   await page.goto("/u/dana");
-  await expect(page.getByText(/ב-Z מאז/)).toBeVisible();
+  await expect(page.getByText(/^מאז /)).toBeVisible();
   await page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ }).click();
   const bio = `ביו ${Date.now()}`;
   await page.getByPlaceholder("כמה מילים עליך").fill(bio);

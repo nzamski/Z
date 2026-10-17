@@ -29,7 +29,10 @@ export function PostOwnerActions(p: { postId: string; body: string; children: Re
     <>
       {p.children}
       <div className="mt-2 flex gap-4 text-sm text-neutral-500">
-        <button onClick={() => setEditing(true)} className="hover:underline">
+        <button
+          onClick={() => setEditing(true)}
+          className="transition-colors hover:text-foreground hover:underline"
+        >
           {he.post.edit}
         </button>
         <DeleteButton id={p.postId} action={deletePostAction} />

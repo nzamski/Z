@@ -70,9 +70,6 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
               />
             )}
           </div>
-          {(card.roleTitle || card.unit) && (
-            <p className="mt-2">{[card.roleTitle, card.unit].filter(Boolean).join(" · ")}</p>
-          )}
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-neutral-500">
             <span>
