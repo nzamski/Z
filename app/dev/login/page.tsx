@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { devAuthEnabled, safeNext } from "@/lib/auth/provider";
 import { startSession } from "@/lib/auth/session";
+import { ListSkeleton } from "@/components/loading";
 import { he } from "@/lib/i18n/he";
 import { getUser, listUsers } from "@/lib/services";
 
@@ -46,7 +47,7 @@ export default function DevLogin({ searchParams }: PageProps<"/dev/login">) {
       <h1 className="border-b border-neutral-200 p-4 text-start text-xl font-bold dark:border-neutral-800">
         {he.auth.devLoginTitle}
       </h1>
-      <Suspense fallback={<p className="p-4 text-muted">{he.feed.loading}</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <UserList next={next} />
       </Suspense>
     </main>

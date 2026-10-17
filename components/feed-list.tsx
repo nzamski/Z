@@ -4,6 +4,7 @@
 // List + scroll position are saved per view in sessionStorage and restored on return.
 // For You / Following poll for newer posts by others and offer a "show new posts" pill.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Spinner } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
 import { mergeById, RANKING, type FeedView } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
@@ -235,7 +236,7 @@ export function FeedList(p: {
       </ul>
       <div ref={sentinel} className="p-4 text-center text-sm text-muted">
         {loading ? (
-          he.feed.loading
+          <Spinner />
         ) : next ? (
           <a
             // No-JS: a plain page; home reads the view from its cookie, search keeps `q`.

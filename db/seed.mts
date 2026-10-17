@@ -286,6 +286,7 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     id: uuidv7(created),
     created_at: new Date(created),
     updated_at: new Date(created),
+    onboarded_at: new Date(created), // seeded people skip the first-login welcome
     // First 3 match the fixed user ids in dev/keycloak/realm-z.json, so a real login maps onto them.
     keycloak_sub: i < 3 ? KEYCLOAK_IDS[i] : `seed-${i}`,
     handle: i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`,

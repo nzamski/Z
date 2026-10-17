@@ -72,12 +72,12 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
           </div>
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-muted">
-            <span>
+            <Link href={`${href}/following`} className="hover:underline">
               <b className="text-foreground">{card.following}</b> {he.profile.following}
-            </span>
-            <span>
+            </Link>
+            <Link href={`${href}/followers`} className="hover:underline">
               <b className="text-foreground">{card.followers}</b> {he.profile.followers}
-            </span>
+            </Link>
           </div>
         </div>
       )}

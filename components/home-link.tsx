@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import { he } from "@/lib/i18n/he";
 
 // Navigation API (Chromium, recent Safari/Firefox). Its entries are same-origin and contiguous, so
 // index > 0 means the previous entry is a page of this app, never an outside site.
+const noop = () => () => {};
+
 type Nav = { currentEntry?: { index: number } | null };
 const canGoBack = () =>
   ((window as unknown as { navigation?: Nav }).navigation?.currentEntry?.index ?? 0) > 0;
@@ -15,7 +18,15 @@ const canGoBack = () =>
  */
 export function BackLink() {
   const router = useRouter();
-  if (usePathname() === "/") return <span />;
+  const pathname = usePathname();
+  // With a Proxy, the server's pathname can differ from the browser's (Next docs: usePathname,
+  // "Avoid hydration mismatch"): render the same placeholder on both, decide after hydration.
+  const hydrated = useSyncExternalStore(
+    noop,
+    () => true,
+    () => false,
+  );
+  if (!hydrated || pathname === "/") return <span />;
   return (
     <Link
       href="/"

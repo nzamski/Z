@@ -12,12 +12,12 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { BIO_MAX, COMMENT_MAX, POST_MAX } from "@/lib/limits";
+import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
 import { toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
-  constructor(public code: "invalid" | "not_found" | "forbidden" | "gone") {
+  constructor(public code: "invalid" | "not_found" | "forbidden" | "gone" | "taken") {
     super(code);
   }
 }
@@ -25,6 +25,7 @@ export class ServiceError extends Error {
 const PostBody = z.string().trim().min(1).max(POST_MAX);
 const CommentBody = z.string().trim().min(1).max(COMMENT_MAX);
 const Bio = z.string().trim().max(BIO_MAX);
+const Handle = z.string().trim().toLowerCase().regex(HANDLE_RE);
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
@@ -466,14 +467,120 @@ export async function getThread(
 
 // ---- users ----
 
-export async function updateBio(actorId: string, bio: string) {
-  const text = parse(Bio, bio);
-  await db.update(users).set({ bio: text, updatedAt: now }).where(eq(users.id, actorId));
+/** Whether a handle can be taken by this user ("ok" includes the user's current handle). */
+export async function handleStatus(actorId: string, handle: string) {
+  const h = Handle.safeParse(handle);
+  if (!h.success) return "invalid" as const;
+  const [other] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.handle, h.data), active(users)));
+  return !other || other.id === actorId ? ("ok" as const) : ("taken" as const);
+}
+
+/** Handle (unique among active users) and bio, from the welcome screen or the profile.
+ * The display name is not editable: it always comes from Keycloak. */
+export async function updateProfile(actorId: string, input: { handle: string; bio: string }) {
+  const data = {
+    handle: parse(Handle, input.handle),
+    bio: parse(Bio, input.bio),
+  };
+  if ((await handleStatus(actorId, data.handle)) === "taken") throw new ServiceError("taken");
+  try {
+    const [row] = await db
+      .update(users)
+      .set({ ...data, updatedAt: now })
+      .where(and(eq(users.id, actorId), active(users)))
+      .returning();
+    if (!row) throw new ServiceError("not_found");
+    return row;
+  } catch (e) {
+    // Lost a race for the same handle: the partial unique index has the last word.
+    if ((e as { cause?: { code?: string } }).cause?.code === "23505")
+      throw new ServiceError("taken");
+    throw e;
+  }
+}
+
+/** Done with (or skipped) the first-login welcome. Idempotent. */
+export async function finishOnboarding(actorId: string) {
+  await db
+    .update(users)
+    .set({ onboardedAt: now, updatedAt: now })
+    .where(and(eq(users.id, actorId), isNull(users.onboardedAt)));
+}
+
+const userCard = {
+  id: users.id,
+  handle: users.handle,
+  displayName: users.displayName,
+  bio: users.bio,
+};
+
+/** Who to follow on the welcome screen: the most-followed people the viewer doesn't follow yet. */
+export async function suggestedUsers(viewerId: string, limit = 5) {
+  return db
+    .select(userCard)
+    .from(users)
+    .where(
+      and(
+        active(users),
+        ne(users.id, viewerId),
+        sql`not exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
+          and f.followee_id = ${users.id} and f.deleted_at is null)`,
+      ),
+    )
+    .orderBy(
+      desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+        and f.deleted_at is null)`),
+      users.createdAt,
+    )
+    .limit(limit);
 }
 
 /**
- * Provision on first login, resync display name and handle on every login (PLAN.md §5).
- * Identity is keycloak_sub; a handle taken by another active user is never stolen.
+ * Followers of a user, or the people they follow, newest follow first, with whether the viewer
+ * follows each of them. One page (FOLLOW_PAGE); `before` is the last row's follow id.
+ */
+export async function followList(
+  userId: string,
+  viewerId: string,
+  which: "followers" | "following",
+  before?: string,
+) {
+  const f = follows;
+  const [me, them] =
+    which === "followers" ? [f.followeeId, f.followerId] : [f.followerId, f.followeeId];
+  const rows = await db
+    .select({
+      ...userCard,
+      followId: f.id,
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+    })
+    .from(f)
+    .innerJoin(users, eq(users.id, them))
+    .where(
+      and(
+        eq(me, userId),
+        active(f),
+        active(users),
+        before ? sql`${f.id} < ${before}::uuid` : undefined,
+      ),
+    )
+    .orderBy(desc(f.id)) // UUIDv7: newest follow first
+    .limit(FOLLOW_PAGE + 1);
+  return {
+    items: rows.slice(0, FOLLOW_PAGE),
+    next: rows.length > FOLLOW_PAGE ? rows[FOLLOW_PAGE - 1].followId : null,
+  };
+}
+export const FOLLOW_PAGE = 50;
+
+/**
+ * Provision on first login. The display name always follows Keycloak (it is not editable in Z).
+ * The handle follows Keycloak only until the user finishes the welcome; after that it is the
+ * user's own (updateProfile). Identity is keycloak_sub; a taken handle is never stolen.
  */
 export async function upsertUserFromClaims(c: {
   sub: string;
@@ -488,6 +595,15 @@ export async function upsertUserFromClaims(c: {
     const handleFree = !taken || taken.sub === c.sub;
 
     const [existing] = await tx.select().from(users).where(eq(users.keycloakSub, c.sub));
+    if (existing?.onboardedAt) {
+      if (existing.displayName === c.displayName) return existing;
+      const [row] = await tx
+        .update(users)
+        .set({ displayName: c.displayName, updatedAt: now })
+        .where(eq(users.id, existing.id))
+        .returning();
+      return row;
+    }
     if (existing) {
       if (!handleFree) {
         console.warn(

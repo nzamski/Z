@@ -44,13 +44,75 @@ test("a new user whose handle is taken gets a unique suffixed handle", async () 
   warn.mockRestore();
 });
 
-describe("bio", () => {
-  test("is trimmed, can be cleared, and is capped", async () => {
+describe("profile", () => {
+  const h = () => `h_${tag()}`;
+  const profile = (handle: string, bio = "") => ({ handle, bio });
+
+  test("updates handle (lowercased) and bio; bio can be cleared and is capped", async () => {
     const u = await makeUser();
-    await s.updateBio(u.id, "  שלום  ");
-    expect((await s.getUser(u.id))?.bio).toBe("שלום");
-    await s.updateBio(u.id, "");
-    expect((await s.getUser(u.id))?.bio).toBe("");
-    await expect(s.updateBio(u.id, "א".repeat(BIO_MAX + 1))).rejects.toThrow("invalid");
+    const handle = h();
+    const r = await s.updateProfile(u.id, profile(handle.toUpperCase(), "  שלום  "));
+    expect(r).toMatchObject({ displayName: u.displayName, handle, bio: "שלום" });
+    expect((await s.updateProfile(u.id, profile(handle))).bio).toBe("");
+    await expect(s.updateProfile(u.id, profile(handle, "א".repeat(BIO_MAX + 1)))).rejects.toThrow(
+      "invalid",
+    );
+  });
+
+  test("a handle taken by another active user is refused; bad formats too", async () => {
+    const [a, b] = [await makeUser(), await makeUser()];
+    expect(await s.handleStatus(b.id, a.handle)).toBe("taken");
+    expect(await s.handleStatus(a.id, a.handle)).toBe("ok"); // your own
+    await expect(s.updateProfile(b.id, profile(a.handle))).rejects.toThrow("taken");
+    for (const bad of ["abc", "1abc", "_abc", "has space", "שלום", "a".repeat(16), "dot.ted"]) {
+      expect(await s.handleStatus(b.id, bad)).toBe("invalid");
+      await expect(s.updateProfile(b.id, profile(bad))).rejects.toThrow("invalid");
+    }
+  });
+
+  test("after the welcome Keycloak keeps the name in sync but no longer touches the handle", async () => {
+    const sub = randomUUID();
+    const kc = `kc_${tag()}`;
+    const u = await upsertUserFromClaims({ sub, handle: kc, displayName: "מקלוק" });
+    expect(u.onboardedAt).toBeNull(); // new users get the welcome
+    const mine = h();
+    await s.updateProfile(u.id, profile(mine));
+    await s.finishOnboarding(u.id);
+    const again = await upsertUserFromClaims({ sub, handle: kc, displayName: "שם חדש" });
+    expect(again).toMatchObject({ handle: mine, displayName: "שם חדש" });
+    expect(again.onboardedAt).not.toBeNull();
+  });
+});
+
+describe("follow lists and suggestions", () => {
+  test("followers / following, newest first, with whether the viewer follows each", async () => {
+    const [u, a, b, viewer] = [
+      await makeUser(),
+      await makeUser(),
+      await makeUser(),
+      await makeUser(),
+    ];
+    await s.follow(a.id, u.id);
+    await s.follow(b.id, u.id);
+    await s.follow(u.id, a.id);
+    await s.follow(viewer.id, b.id);
+    await s.unfollow(b.id, u.id);
+    await s.follow(b.id, u.id); // re-follow: newest
+    const followers = await s.followList(u.id, viewer.id, "followers");
+    expect(followers.items.map((x) => [x.id, x.viewerFollows])).toEqual([
+      [b.id, true],
+      [a.id, false],
+    ]);
+    expect((await s.followList(u.id, viewer.id, "following")).items.map((x) => x.id)).toEqual([
+      a.id,
+    ]);
+  });
+
+  test("suggestions skip yourself and people you already follow", async () => {
+    const [viewer, a] = [await makeUser(), await makeUser()];
+    await s.follow(viewer.id, a.id);
+    const ids = (await s.suggestedUsers(viewer.id, 100)).map((x) => x.id);
+    expect(ids).not.toContain(viewer.id);
+    expect(ids).not.toContain(a.id);
   });
 });

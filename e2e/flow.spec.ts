@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
+import postgres from "postgres";
 
 // PLAN.md M2: login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
 
@@ -231,20 +232,26 @@ test("new posts by others show a pill that refreshes the feed", async ({ browser
   await expect(reader.locator("main > ul > li").first()).toContainText(stamp);
 });
 
-test("edit your own bio on your profile", async ({ page }) => {
+test("edit your own bio in the profile popup", async ({ page }) => {
   await login(page, "dana");
   await page.goto("/u/dana");
   await expect(page.getByText(/^מאז /)).toBeVisible();
-  await page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ }).click();
+  await page.getByRole("button", { name: "עריכת פרופיל" }).click();
+  const dialog = page.getByRole("dialog", { name: "עריכת פרופיל" });
+  await expect(dialog).toBeVisible();
   const bio = `ביו ${Date.now()}`;
-  await page.getByPlaceholder("כמה מילים עליך").fill(bio);
-  await page.getByRole("button", { name: "שמירה" }).click();
-  await expect(page.getByPlaceholder("כמה מילים עליך")).toHaveCount(0); // saved, editor closed
+  await dialog.getByLabel("ביו").fill(bio);
+  await dialog.getByRole("button", { name: "שמירה" }).click();
+  await expect(dialog).toBeHidden(); // saved and closed
   await expect(page.locator("section p", { hasText: bio })).toBeVisible();
   await page.reload();
   await expect(page.locator("section p", { hasText: bio })).toBeVisible();
+  // Esc closes without saving.
+  await page.getByRole("button", { name: "עריכת פרופיל" }).click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
   await page.goto("/u/yossi");
-  await expect(page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "עריכת פרופיל" })).toHaveCount(0);
 });
 
 test("search finds posts by Hebrew word forms; profiles link to the chat", async ({ page }) => {
@@ -270,4 +277,75 @@ test("search finds posts by Hebrew word forms; profiles link to the chat", async
   );
   await page.goto("/u/noa");
   await expect(page.getByRole("link", { name: "הודעה פרטית" })).toHaveCount(0);
+});
+
+test("first login: welcome, profile with a live handle check, follow suggestions", async ({
+  page,
+}) => {
+  // Make noa a first-time user again (the seed marks everyone as onboarded).
+  try {
+    process.loadEnvFile();
+  } catch {}
+  const sql = postgres(process.env.DATABASE_URL!);
+  await sql`update users set onboarded_at = null where handle = 'noa'`;
+  await sql.end();
+
+  await page.goto("/");
+  await page.locator("#username").fill("noa");
+  await page.locator("#password").fill("noa");
+  await page.locator("#kc-login").click();
+  await expect(page).toHaveURL(/\/welcome/);
+  await expect(page.getByRole("heading", { name: "ברוכים הבאים ל-Z" })).toBeVisible();
+
+  const handle = page.getByLabel("כינוי");
+  const next = page.getByRole("button", { name: "המשך" });
+  await handle.fill("dana");
+  await expect(page.getByText("הכינוי הזה כבר תפוס")).toBeVisible();
+  await expect(next).toBeDisabled();
+  await handle.fill("1abc");
+  await expect(page.getByText(/4–15 תווים/)).toBeVisible();
+  const fresh = `noa_${Date.now().toString(36).slice(-6)}`;
+  await handle.fill(fresh);
+  await expect(page.getByText("הכינוי פנוי")).toBeVisible();
+  await next.click();
+
+  await expect(page.getByRole("heading", { name: "את מי לעקוב?" })).toBeVisible();
+  await page.getByRole("button", { name: "בואו נתחיל" }).click();
+  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page.getByRole("link", { name: `@${fresh}` })).toBeVisible();
+
+  // Change it again from the profile popup; the page follows the new handle.
+  await page.goto(`/u/${fresh}`);
+  await page.getByRole("button", { name: "עריכת פרופיל" }).click();
+  const dialog = page.getByRole("dialog", { name: "עריכת פרופיל" });
+  const again = `${fresh}x`;
+  await dialog.getByLabel("כינוי").fill(again);
+  await expect(dialog.getByText("הכינוי פנוי")).toBeVisible();
+  await dialog.getByRole("button", { name: "שמירה" }).click();
+  await expect(page).toHaveURL(new RegExp(`/u/${again}$`));
+  // Back to "noa" for the other tests (3 letters: allowed for existing handles, not as a choice).
+  const db = postgres(process.env.DATABASE_URL!);
+  await db`update users set handle = 'noa' where handle = ${again}`;
+  await db.end();
+
+  // Logging in again doesn't show the welcome.
+  await page.goto("/welcome");
+  await expect(page).toHaveURL("http://localhost:3000/");
+});
+
+test("followers and following lists", async ({ page }) => {
+  await login(page, "dana");
+  // From the hover card...
+  await page.locator("li a[href='/u/yossi']").first().hover();
+  const card = page.getByRole("dialog", { name: /יוסי/ });
+  await card.getByRole("link", { name: /נעקבים/ }).click();
+  await expect(page).toHaveURL(/\/u\/yossi\/following$/);
+  // ...and from the profile.
+  await page.goto("/u/yossi");
+  await page.getByRole("link", { name: /עוקבים/ }).click();
+  await expect(page).toHaveURL(/\/u\/yossi\/followers$/);
+  await expect(page.locator("main li").first()).toBeVisible();
+  await page.getByRole("link", { name: "נעקבים" }).click();
+  await expect(page).toHaveURL(/\/u\/yossi\/following$/);
+  await expect(page.getByRole("link", { name: "נעקבים" })).toHaveAttribute("aria-current", "page");
 });

@@ -37,6 +37,9 @@ export const users = pgTable(
     displayName: text("display_name").notNull(),
     bio: text("bio").notNull().default(""),
     avatarSeed: text("avatar_seed").notNull().default(""),
+    // Set when the user finishes (or skips) the first-login welcome. From then on handle and
+    // display name are the user's own and Keycloak no longer overwrites them.
+    onboardedAt: ts("onboarded_at"),
   },
   (t) => [
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),

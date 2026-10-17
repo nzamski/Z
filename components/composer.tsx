@@ -86,11 +86,13 @@ export function Composer(p: Props) {
 }
 
 /** X-style counter: a ring that fills as you type; the numbers appear only near the limit. */
-function LengthRing({ length, max }: { length: number; max: number }) {
+export function LengthRing(p: { length: number; max: number; alwaysCount?: boolean }) {
+  const { length, max } = p;
   if (!length) return null;
   const R = 9;
   const C = 2 * Math.PI * R;
   const near = length >= max * 0.9;
+  const showCount = near || p.alwaysCount;
   const over = length > max;
   const color = over ? "text-danger" : near ? "text-amber-500" : "text-sky-500";
   return (
@@ -117,12 +119,12 @@ function LengthRing({ length, max }: { length: number; max: number }) {
           className={`${color} transition-[stroke-dashoffset]`}
         />
       </svg>
-      {near && (
+      {showCount && (
         <span className={over ? "text-danger" : "text-muted"}>
           {length.toLocaleString()} / {max.toLocaleString()}
         </span>
       )}
-      {!near && (
+      {!showCount && (
         <span className="sr-only">
           {length} / {max}
         </span>

@@ -12,5 +12,7 @@ export async function GET(req: NextRequest) {
   );
   const user = await upsertUserFromClaims(claims);
   await startSession({ uid: user.id, idt: idToken });
+  // First time here (or setup not finished yet): the welcome, then where they were heading.
+  if (!user.onboardedAt) redirect(`/welcome?next=${encodeURIComponent(safeNext(next))}`);
   redirect(safeNext(next));
 }

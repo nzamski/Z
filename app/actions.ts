@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { safeNext } from "@/lib/auth/provider";
 import { requireViewer } from "@/lib/auth/viewer";
 import { parseView, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
@@ -100,8 +101,33 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
   };
 }
 
-export async function updateBioAction(_: ActionResult, f: FormData) {
-  return run((uid) => s.updateBio(uid, Text.parse(field(f, "body") ?? "")));
+export type ProfileResult = ActionResult & { handle?: string };
+
+/** Handle and bio (welcome screen and profile). Returns the saved handle. */
+export async function updateProfileAction(_: ProfileResult, f: FormData): Promise<ProfileResult> {
+  let handle: string | undefined;
+  const r = await run(async (uid) => {
+    handle = (
+      await s.updateProfile(uid, {
+        handle: Text.parse(field(f, "handle") ?? ""),
+        bio: Text.parse(field(f, "bio") ?? ""),
+      })
+    ).handle;
+  });
+  return { ...r, handle };
+}
+
+/** Live check while typing a handle. */
+export async function checkHandleAction(handle: string) {
+  const viewer = await requireViewer();
+  return s.handleStatus(viewer.id, String(handle));
+}
+
+/** Leave the welcome (done or skipped) and go where the user was heading. */
+export async function finishOnboardingAction(next: string) {
+  const viewer = await requireViewer();
+  await s.finishOnboarding(viewer.id);
+  redirect(safeNext(next));
 }
 
 /** Remember the chosen feed tab across sessions (a cookie, so the server renders the right one). */

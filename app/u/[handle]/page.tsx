@@ -1,14 +1,15 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
-import { ProfileBio } from "@/components/profile-bio";
+import { PlainText } from "@/components/post-card";
+import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
 import { requireViewer } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { BIO_MAX } from "@/lib/limits";
 import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
@@ -30,16 +31,18 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   ]);
 
   const chat = chatLink(user.handle);
+  const base = `/u/${encodeURIComponent(user.handle)}`;
   return (
     <>
       <section className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold">{user.displayName}</h2>
             <p className="text-muted">
               <span dir="ltr">@{user.handle}</span>
             </p>
           </div>
+          {viewerId === user.id && <ProfileEditor handle={user.handle} bio={user.bio} />}
           {viewerId !== user.id && (
             <div className="flex items-center gap-2">
               {chat && (
@@ -70,7 +73,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
             </div>
           )}
         </div>
-        <ProfileBio bio={user.bio} isSelf={viewerId === user.id} max={BIO_MAX} />
+        {user.bio && <PlainText text={user.bio} className="mt-2" />}
         <p className="mt-2 flex items-center gap-1 text-sm text-muted">
           <svg
             viewBox="0 0 24 24"
@@ -87,12 +90,12 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           {he.profile.joined(monthYear(user.createdAt))}
         </p>
         <div className="mt-3 flex gap-4 text-sm text-muted">
-          <span>
-            <b className="text-foreground">{info.followers}</b> {he.profile.followers}
-          </span>
-          <span>
+          <Link href={`${base}/following`} className="hover:underline">
             <b className="text-foreground">{info.following}</b> {he.profile.following}
-          </span>
+          </Link>
+          <Link href={`${base}/followers`} className="hover:underline">
+            <b className="text-foreground">{info.followers}</b> {he.profile.followers}
+          </Link>
         </div>
       </section>
       <FeedList

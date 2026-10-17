@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { getPostBodyAction } from "@/app/actions";
+import { Spinner } from "@/components/loading";
 import { PlainText } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 
@@ -30,7 +31,7 @@ export function PostPreview(p: { id: string; preview: string; hasMore: boolean }
           }}
           className="mt-1 inline-block text-sm text-link hover:underline"
         >
-          {pending ? he.feed.loading : he.post.readMore}
+          {pending ? <Spinner className="size-4" /> : he.post.readMore}
         </a>
       )}
     </>
