@@ -292,6 +292,12 @@ const generatedPost = () => {
 
 // ---------- build ----------
 
+const KEYCLOAK_IDS = [
+  "11111111-1111-4111-8111-111111111111",
+  "22222222-2222-4222-8222-222222222222",
+  "33333333-3333-4333-8333-333333333333",
+];
+
 type Row = Record<string, string | number | boolean | Date | null>;
 const N_USERS = large ? 200 : 12;
 const N_POSTS = large ? 10_000 : 60;
@@ -308,8 +314,9 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     id: uuidv7(created),
     created_at: new Date(created),
     updated_at: new Date(created),
-    keycloak_sub: `seed-${i}`,
-    handle: i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`, // first 3 match the dev Keycloak realm
+    // First 3 match the fixed user ids in dev/keycloak/realm-z.json, so a real login maps onto them.
+    keycloak_sub: i < 3 ? KEYCLOAK_IDS[i] : `seed-${i}`,
+    handle: i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`,
     display_name: `${first} ${last}`,
     unit: pick(UNITS),
     role_title: pick(ROLES),

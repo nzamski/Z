@@ -15,18 +15,22 @@
     "db:migrate": "drizzle-kit migrate",
     "seed": "tsx --env-file-if-exists=.env db/seed.mts",
     "seed:large": "tsx --env-file-if-exists=.env db/seed.mts --large",
-    "build:images": "echo \"not yet: M5\" && exit 1"
+    "build:images": "echo \"not yet: M5\" && exit 1",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
+    "jose": "^6.2.12",
     "markdown-it": "^15.0.3",
     "next": "16.4.2",
+    "openid-client": "^6.8.8",
     "postgres": "^3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^22.20.5",

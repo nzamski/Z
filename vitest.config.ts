@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     globalSetup: ["tests/global-setup.ts"],
-    env: { DATABASE_URL: process.env.DATABASE_URL },
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL,
+      SESSION_SECRET: "test-only-session-secret-0123456789abcdef",
+    },
   },
 });

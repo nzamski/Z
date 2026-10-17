@@ -194,22 +194,238 @@ export async function unfollow(actorId: string, followeeId: string) {
 
 // ---- reads ----
 
-// Placeholder feed until M3: newest live posts with their author.
-export async function latestPosts(limit = 20) {
+const likedBy = (viewerId: string | null) =>
+  viewerId
+    ? sql<boolean>`exists (select 1 from ${likes} l where l.post_id = ${posts.id}
+        and l.user_id = ${viewerId} and l.deleted_at is null)`
+    : sql<boolean>`false`;
+
+const postCols = (viewerId: string | null) => ({
+  id: posts.id,
+  authorId: posts.authorId,
+  preview: posts.preview,
+  hasMore: posts.hasMore,
+  likeCount: posts.likeCount,
+  commentCount: posts.commentCount,
+  createdAt: posts.createdAt,
+  editedAt: posts.editedAt,
+  liked: likedBy(viewerId),
+  author: { displayName: users.displayName, handle: users.handle, unit: users.unit },
+});
+
+export type PostSummary = Awaited<ReturnType<typeof latestPosts>>[number];
+
+// Placeholder feed until M3: newest live posts, optionally by one author.
+export async function latestPosts(viewerId: string | null, opts: { authorId?: string } = {}) {
   return db
-    .select({
-      id: posts.id,
-      preview: posts.preview,
-      hasMore: posts.hasMore,
-      likeCount: posts.likeCount,
-      commentCount: posts.commentCount,
-      createdAt: posts.createdAt,
-      editedAt: posts.editedAt,
-      author: { displayName: users.displayName, handle: users.handle, unit: users.unit },
-    })
+    .select(postCols(viewerId))
     .from(posts)
     .innerJoin(users, eq(users.id, posts.authorId))
-    .where(active(posts))
+    .where(and(active(posts), opts.authorId ? eq(posts.authorId, opts.authorId) : undefined))
     .orderBy(desc(posts.createdAt), desc(posts.id))
+    .limit(20);
+}
+
+/** The full post, including deleted ones (the page shows a "deleted" notice). */
+export async function getPost(id: string, viewerId: string | null) {
+  const [row] = await db
+    .select({ ...postCols(viewerId), body: posts.body, deletedAt: posts.deletedAt })
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(eq(posts.id, id));
+  return row ?? null;
+}
+
+export async function getComment(id: string) {
+  const [row] = await db.select().from(comments).where(eq(comments.id, id));
+  return row ?? null;
+}
+
+export async function followInfo(userId: string, viewerId: string | null) {
+  const [r] = await db.execute<{
+    followers: number;
+    following: number;
+    viewer_follows: boolean;
+  }>(sql`
+    select
+      (select count(*)::int from ${follows} where followee_id = ${userId} and deleted_at is null) as followers,
+      (select count(*)::int from ${follows} where follower_id = ${userId} and deleted_at is null) as following,
+      exists (select 1 from ${follows} where follower_id = ${viewerId} and followee_id = ${userId}
+        and deleted_at is null) as viewer_follows`);
+  return { followers: r.followers, following: r.following, viewerFollows: r.viewer_follows };
+}
+
+// ---- threads ----
+
+export const THREAD_DEPTH = 5;
+export const REPLIES_PAGE = 20;
+export const ROOTS_PAGE = 50;
+
+export type ThreadNode = {
+  id: string;
+  parentId: string | null;
+  depth: number;
+  deleted: boolean;
+  body: string | null; // null when deleted
+  author: { id: string; handle: string; displayName: string } | null;
+  createdAt: Date;
+  editedAt: Date | null;
+  /** Visible children in the DB (live, or deleted with replies), loaded or not. */
+  childCount: number;
+  children: ThreadNode[];
+};
+
+/**
+ * Loads children of `parentId` (null = top-level) starting at `offset`, each with its subtree
+ * down to THREAD_DEPTH levels, at most REPLIES_PAGE children per comment.
+ * Deleted comments without replies are hidden; deleted ones with replies become placeholders.
+ */
+export async function getThread(
+  postId: string,
+  parentId: string | null,
+  offset = 0,
+  onlyId?: string,
+) {
+  const visible = sql`(x.deleted_at is null or exists (
+    select 1 from comments y where y.post_id = x.post_id and y.parent_comment_id = x.id))`;
+  const rows = await db.execute<{
+    id: string;
+    parent_comment_id: string | null;
+    depth: number;
+    deleted_at: string | null;
+    body: string;
+    author_id: string;
+    handle: string;
+    display_name: string;
+    created_at: string;
+    edited_at: string | null;
+    child_count: number;
+  }>(sql`
+    with recursive t as (
+      select x.*, 1 as depth from (
+        select * from comments x
+        where x.post_id = ${postId}
+          and ${parentId ? sql`x.parent_comment_id = ${parentId}` : sql`x.parent_comment_id is null`}
+          and ${onlyId ? sql`x.id = ${onlyId}` : sql`true`}
+          and ${visible}
+        order by x.created_at, x.id
+        limit ${parentId ? REPLIES_PAGE : ROOTS_PAGE} offset ${offset}) x
+      union all
+      select c.*, t.depth + 1 from t cross join lateral (
+        select * from comments x
+        where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}
+        order by x.created_at, x.id
+        limit ${REPLIES_PAGE}) c
+      where t.depth < ${THREAD_DEPTH}
+    )
+    select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.body, t.author_id, t.created_at,
+      t.edited_at, u.handle, u.display_name,
+      (select count(*)::int from comments x
+        where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}) as child_count
+    from t join users u on u.id = t.author_id
+    order by t.depth, t.created_at, t.id`);
+
+  const byId = new Map<string, ThreadNode>();
+  const roots: ThreadNode[] = [];
+  for (const r of rows) {
+    const deleted = r.deleted_at !== null;
+    const node: ThreadNode = {
+      id: r.id,
+      parentId: r.parent_comment_id,
+      depth: r.depth,
+      deleted,
+      body: deleted ? null : r.body,
+      author: deleted ? null : { id: r.author_id, handle: r.handle, displayName: r.display_name },
+      createdAt: new Date(r.created_at),
+      editedAt: r.edited_at ? new Date(r.edited_at) : null,
+      childCount: r.child_count,
+      children: [],
+    };
+    byId.set(node.id, node);
+    (r.depth === 1 ? roots : byId.get(r.parent_comment_id!)!.children).push(node);
+  }
+  const [{ total }] = await db.execute<{ total: number }>(sql`
+    select count(*)::int as total from comments x where x.post_id = ${postId}
+      and ${parentId ? sql`x.parent_comment_id = ${parentId}` : sql`x.parent_comment_id is null`}
+      and ${visible}`);
+  return { nodes: roots, total };
+}
+
+// ---- users ----
+
+/**
+ * Provision on first login, resync display name and handle on every login (PLAN.md §5).
+ * Identity is keycloak_sub; a handle taken by another active user is never stolen.
+ */
+export async function upsertUserFromClaims(c: {
+  sub: string;
+  handle: string;
+  displayName: string;
+}) {
+  return db.transaction(async (tx) => {
+    const [taken] = await tx
+      .select({ id: users.id, sub: users.keycloakSub })
+      .from(users)
+      .where(and(eq(users.handle, c.handle), active(users)));
+    const handleFree = !taken || taken.sub === c.sub;
+
+    const [existing] = await tx.select().from(users).where(eq(users.keycloakSub, c.sub));
+    if (existing) {
+      if (!handleFree) {
+        console.warn(
+          `handle "${c.handle}" for sub ${c.sub} is taken; keeping "${existing.handle}"`,
+        );
+      }
+      const [row] = await tx
+        .update(users)
+        .set({
+          displayName: c.displayName,
+          handle: handleFree ? c.handle : existing.handle,
+          updatedAt: now,
+        })
+        .where(eq(users.id, existing.id))
+        .returning();
+      return row;
+    }
+    // New user whose handle is taken: suffix with part of the sub so it stays unique.
+    const handle = handleFree ? c.handle : `${c.handle}_${c.sub.replace(/-/g, "").slice(0, 6)}`;
+    if (!handleFree)
+      console.warn(`handle "${c.handle}" is taken; provisioning sub ${c.sub} as "${handle}"`);
+    const [row] = await tx
+      .insert(users)
+      .values({ keycloakSub: c.sub, handle, displayName: c.displayName })
+      .returning();
+    return row;
+  });
+}
+
+export async function getUser(id: string) {
+  const [u] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, id), active(users)));
+  return u ?? null;
+}
+
+export async function getUserByHandle(handle: string) {
+  const [u] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.handle, handle), active(users)));
+  return u ?? null;
+}
+
+/** Seeded and other users for the dev login switcher. */
+export async function listUsers(limit = 50) {
+  return db
+    .select({
+      id: users.id,
+      handle: users.handle,
+      displayName: users.displayName,
+      unit: users.unit,
+    })
+    .from(users)
+    .where(active(users))
+    .orderBy(users.createdAt)
     .limit(limit);
 }
