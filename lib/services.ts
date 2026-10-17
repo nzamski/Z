@@ -1,9 +1,17 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { comments, follows, likes, posts, users } from "@/db/schema";
+import {
+  applyAuthorPenalty,
+  decodeCursor,
+  encodeCursor,
+  RANKING,
+  type Cursor,
+  type FeedView,
+} from "@/lib/feed";
 import { computePreview } from "@/lib/markdown";
 
 export class ServiceError extends Error {
@@ -213,17 +221,81 @@ const postCols = (viewerId: string | null) => ({
   author: { displayName: users.displayName, handle: users.handle, unit: users.unit },
 });
 
-export type PostSummary = Awaited<ReturnType<typeof latestPosts>>[number];
+export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number];
+export type FeedPage = { items: PostSummary[]; next: string | null };
 
-// Placeholder feed until M3: newest live posts, optionally by one author.
-export async function latestPosts(viewerId: string | null, opts: { authorId?: string } = {}) {
-  return db
+const PAGE = RANKING.pageSize;
+
+const followsAuthor = (viewerId: string) =>
+  sql`exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
+    and f.followee_id = ${posts.authorId} and f.deleted_at is null)`;
+
+// Following, Latest and profiles: keyset on (created_at DESC, id DESC). The cursor carries only the
+// id; its exact created_at comes from the row (soft-deleted rows stay, so the cursor never dangles).
+async function newestPage(viewerId: string, filter: SQL | undefined, cursor: Cursor | null) {
+  const rows = await db
     .select(postCols(viewerId))
     .from(posts)
     .innerJoin(users, eq(users.id, posts.authorId))
-    .where(and(active(posts), opts.authorId ? eq(posts.authorId, opts.authorId) : undefined))
+    .where(
+      and(
+        active(posts),
+        filter,
+        cursor
+          ? sql`(${posts.createdAt}, ${posts.id}) <
+              (select c.created_at, c.id from ${posts} c where c.id = ${cursor.id})`
+          : undefined,
+      ),
+    )
     .orderBy(desc(posts.createdAt), desc(posts.id))
-    .limit(20);
+    .limit(PAGE + 1);
+  const items = rows.slice(0, PAGE);
+  return { items, next: rows.length > PAGE ? encodeCursor({ id: items.at(-1)!.id }) : null };
+}
+
+// For You (§6.1, §6.2): the snapshot time `asOf` fixes both the age term and the candidate set.
+// SQL orders by cursor_score = base * boost; the author penalty only re-sorts the returned page.
+async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): Promise<FeedPage> {
+  const asOf = cursor?.a ?? now.toISOString();
+  const R = RANKING;
+  const ageHours = sql`(extract(epoch from (${asOf}::timestamptz - ${posts.createdAt})) / 3600)::float8`;
+  const score = sql<number>`((1 + ${posts.likeCount} + ${R.commentWeight}::float8 * ${posts.commentCount})
+    / power(${ageHours} + ${R.ageOffsetHours}::float8, ${R.gravity}::float8)
+    * (case when ${followsAuthor(viewerId)} then ${R.followBoost}::float8 else 1 end))::float8`;
+  const rows = await db
+    .select({ ...postCols(viewerId), score })
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(
+      and(
+        active(posts),
+        sql`${posts.createdAt} <= ${asOf}::timestamptz`,
+        sql`${posts.createdAt} > ${asOf}::timestamptz - make_interval(days => ${R.windowDays}::int)`,
+        cursor?.s !== undefined
+          ? sql`(${score}, ${posts.id}) < (${cursor.s}::float8, ${cursor.id}::uuid)`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(score), desc(posts.id))
+    .limit(PAGE + 1);
+  const page = rows.slice(0, PAGE);
+  const last = page.at(-1);
+  // float8 survives the JSON round trip exactly (PG prints shortest round-trip digits).
+  const next =
+    rows.length > PAGE && last ? encodeCursor({ a: asOf, s: last.score, id: last.id }) : null;
+  return { items: applyAuthorPenalty(page), next };
+}
+
+export async function feedPage(
+  viewerId: string,
+  opts: { view: FeedView; authorId?: string; cursor?: string | null; now?: Date },
+): Promise<FeedPage> {
+  const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
+  if (opts.cursor && !cursor) throw new ServiceError("invalid");
+  if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor);
+  if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor);
+  if (opts.view === "latest") return newestPage(viewerId, undefined, cursor);
+  return forYouPage(viewerId, cursor, opts.now ?? new Date());
 }
 
 /** The full post, including deleted ones (the page shows a "deleted" notice). */
