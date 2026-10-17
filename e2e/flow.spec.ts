@@ -132,3 +132,26 @@ test("a session whose user vanished (dev reseed) re-logs in instead of failing w
   await page.reload();
   await expect(wasFollowing ? follow : unfollow).toBeVisible(); // saved, not a 500
 });
+
+test("feed: infinite scroll, then back from a post restores the list and position", async ({
+  page,
+}) => {
+  await login(page, "yossi");
+  await page.getByRole("link", { name: "אחרונים" }).click(); // Latest: seed has > 1 page
+  await expect(page).toHaveURL(/view=latest/);
+  const cards = page.locator("main > ul > li");
+  await expect(cards).toHaveCount(20);
+  await page.mouse.wheel(0, 20_000);
+  await expect.poll(() => cards.count()).toBeGreaterThan(20);
+
+  const target = cards.nth(25);
+  await target.scrollIntoViewIfNeeded();
+  const y = await page.evaluate(() => scrollY);
+  const count = await cards.count();
+  await target.locator(".md").click();
+  await expect(page).toHaveURL(/\/p\//);
+  await page.goBack();
+  await expect(page).toHaveURL(/view=latest/);
+  await expect(cards).toHaveCount(count);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(y - 50);
+});

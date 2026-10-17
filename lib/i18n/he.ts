@@ -64,5 +64,8 @@ export const he = {
   feed: {
     loading: "טוען…",
     empty: "עדיין אין פוסטים.",
+    loadMore: "טעינת עוד",
+    retry: "הטעינה נכשלה. לנסות שוב?",
+    end: "אין עוד פוסטים.",
   },
 } as const;

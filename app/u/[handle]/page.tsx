@@ -2,20 +2,27 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
-import { PostCard } from "@/components/post-card";
+import { FeedList } from "@/components/feed-list";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
-import { followInfo, getUserByHandle, latestPosts } from "@/lib/services";
+import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
 
-async function Profile({ params }: PageProps<"/u/[handle]">) {
+async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   await connection();
   const handle = decodeURIComponent((await params).handle);
   const user = await getUserByHandle(handle);
   if (!user) return <p className="p-8 text-center text-neutral-500">{he.profile.notFound}</p>;
   const viewerId = (await requireViewer()).id;
-  const [info, posts] = await Promise.all([
+  const { cursor } = await searchParams;
+  const byAuthor = { view: "latest" as const, authorId: user.id };
+  const [info, page] = await Promise.all([
     followInfo(user.id, viewerId),
-    latestPosts(viewerId, { authorId: user.id }),
+    feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
+      (e) => {
+        if (e instanceof ServiceError) return feedPage(viewerId, byAuthor);
+        throw e;
+      },
+    ),
   ]);
 
   return (
@@ -45,11 +52,12 @@ async function Profile({ params }: PageProps<"/u/[handle]">) {
           </span>
         </div>
       </section>
-      <ul>
-        {posts.map((p) => (
-          <PostCard key={p.id} post={p} />
-        ))}
-      </ul>
+      <FeedList
+        key={user.id}
+        params={{ view: "latest", author: user.id }}
+        first={page.items}
+        next={page.next}
+      />
     </>
   );
 }
