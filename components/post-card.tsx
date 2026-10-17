@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
+import { ClickableCard } from "@/components/clickable-card";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -70,7 +71,10 @@ export function Byline(p: {
 
 export function PostCard({ post: p }: { post: PostSummary }) {
   return (
-    <li className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800">
+    <ClickableCard
+      href={`/p/${p.id}`}
+      className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
+    >
       <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
       {/* Safe: markdown-it runs with html disabled (lib/markdown.ts). */}
       <div className="md mt-1" dangerouslySetInnerHTML={{ __html: renderMarkdown(p.preview) }} />
@@ -86,6 +90,6 @@ export function PostCard({ post: p }: { post: PostSummary }) {
         <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
         <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
       </div>
-    </li>
+    </ClickableCard>
   );
 }

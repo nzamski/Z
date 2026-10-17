@@ -22,7 +22,7 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await expect(card).toBeVisible();
 
   // Open it and edit.
-  await card.getByRole("link", { name: /תגובות/ }).click();
+  await card.getByText(`פוסט בדיקה ${stamp}`).click(); // clicking the card opens the post
   await expect(page).toHaveURL(/\/p\//);
   const article = page.locator("article");
   await article.getByRole("button", { name: "עריכה" }).click();
