@@ -88,6 +88,10 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
 
+  // Back-to-home arrow on every non-home page.
+  await page.getByRole("link", { name: "לדף הבית" }).first().click();
+  await expect(page).toHaveURL("http://localhost:3000/");
+
   // Hover card on an author's name.
   await page.goto("/");
   await page.locator("li a[href='/u/yossi']").first().hover();
