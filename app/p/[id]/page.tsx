@@ -5,12 +5,11 @@ import { createCommentAction } from "@/app/actions";
 import { LikeButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
-import { Byline, CommentStat } from "@/components/post-card";
+import { Byline, CommentStat, PlainText } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
-import { renderMarkdown } from "@/lib/markdown";
 import { getPost, getThread, ROOTS_PAGE } from "@/lib/services";
 
 const Notice = ({ text }: { text: string }) => (
@@ -28,13 +27,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   if (post.deletedAt) return <Notice text={he.post.deletedPage} />;
 
   const thread = await getThread(post.id, null, from);
-  // Safe: markdown-it runs with html disabled (lib/markdown.ts).
-  const body = (
-    <div
-      className="md mt-2 text-lg"
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(post.body) }}
-    />
-  );
+  const body = <PlainText text={post.body} className="mt-2 text-lg" />;
   return (
     <>
       <article className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">

@@ -137,8 +137,10 @@ test("feed: infinite scroll, then back from a post restores the list and positio
   page,
 }) => {
   await login(page, "yossi");
-  await page.getByRole("link", { name: "אחרונים" }).click(); // Latest: seed has > 1 page
-  await expect(page).toHaveURL(/view=latest/);
+  const latest = page.getByRole("button", { name: "אחרונים" });
+  await latest.click(); // Latest: seed has > 1 page
+  await expect(latest).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL("http://localhost:3000/"); // the tab is a cookie, not the URL
   const cards = page.locator("main > ul > li");
   await expect(cards).toHaveCount(20);
   await page.mouse.wheel(0, 20_000);
@@ -148,11 +150,77 @@ test("feed: infinite scroll, then back from a post restores the list and positio
   await target.scrollIntoViewIfNeeded();
   const y = await page.evaluate(() => scrollY);
   const count = await cards.count();
-  await target.locator(".md").click();
+  await target.locator("p").first().click();
   await expect(page).toHaveURL(/\/p\//);
   await page.goBack();
-  await expect(page).toHaveURL(/view=latest/);
+  await expect(latest).toHaveAttribute("aria-pressed", "true");
   await expect(cards).toHaveCount(count);
   await expect(target).toBeInViewport();
   expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(400);
+});
+
+test("tab survives a new session; logo on home reloads to the top", async ({ browser }) => {
+  const first = await browser.newContext();
+  const page = await first.newPage();
+  await login(page, "noa");
+  await page.getByRole("button", { name: "נעקבים" }).click();
+  await expect(page.getByRole("button", { name: "נעקבים" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const state = await first.storageState(); // persistent cookies, like a browser restart
+  await first.close();
+
+  const second = await browser.newContext({ storageState: state });
+  const again = await second.newPage();
+  await again.goto("/");
+  await expect(again.getByRole("button", { name: "נעקבים" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await again.getByRole("button", { name: "בשבילך" }).click();
+  await expect(again.getByRole("button", { name: "בשבילך" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await again.mouse.wheel(0, 3000);
+  await expect.poll(() => again.evaluate(() => scrollY)).toBeGreaterThan(500);
+  await again.getByRole("link", { name: "לדף הבית" }).click();
+  await again.waitForLoadState("load");
+  await expect.poll(() => again.evaluate(() => scrollY)).toBe(0);
+  await second.close();
+});
+
+test("new posts by others show a pill that refreshes the feed", async ({ browser }) => {
+  const reader = await (await browser.newContext()).newPage();
+  const writer = await (await browser.newContext()).newPage();
+  await login(reader, "dana");
+  await login(writer, "yossi");
+  const stamp = `חדש ${Date.now()}`;
+  await writer.getByPlaceholder("מה חדש?").fill(stamp);
+  await writer.getByRole("button", { name: "פרסום" }).click();
+  await expect(writer.locator("li", { hasText: stamp })).toBeVisible();
+
+  await expect(reader.locator("li", { hasText: stamp })).toHaveCount(0);
+  await reader.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))); // skip the 60s poll
+  const pill = reader.getByRole("button", { name: /פוסט חדש|פוסטים חדשים/ });
+  await pill.click();
+  await expect(pill).toHaveCount(0);
+  await expect(reader.locator("main > ul > li").first()).toContainText(stamp);
+});
+
+test("edit your own bio on your profile", async ({ page }) => {
+  await login(page, "dana");
+  await page.goto("/u/dana");
+  await expect(page.getByText(/ב-Z מאז/)).toBeVisible();
+  await page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ }).click();
+  const bio = `ביו ${Date.now()}`;
+  await page.getByPlaceholder("כמה מילים עליך").fill(bio);
+  await page.getByRole("button", { name: "שמירה" }).click();
+  await expect(page.getByPlaceholder("כמה מילים עליך")).toHaveCount(0); // saved, editor closed
+  await expect(page.locator("section p", { hasText: bio })).toBeVisible();
+  await page.reload();
+  await expect(page.locator("section p", { hasText: bio })).toBeVisible();
+  await page.goto("/u/yossi");
+  await expect(page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ })).toHaveCount(0);
 });

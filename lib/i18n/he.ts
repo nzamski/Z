@@ -25,12 +25,10 @@ export const he = {
     notFound: "הפוסט לא נמצא.",
   },
   composer: {
-    placeholder: "מה חדש? (תומך ב-markdown)",
+    placeholder: "מה חדש?",
     publish: "פרסום",
     save: "שמירה",
     cancel: "ביטול",
-    write: "כתיבה",
-    preview: "תצוגה מקדימה",
     tooLong: "ארוך מדי",
   },
   comment: {
@@ -53,6 +51,10 @@ export const he = {
     posts: "פוסטים",
     notFound: "המשתמש לא נמצא.",
     message: "הודעה פרטית",
+    editBio: "עריכת ביו",
+    bioPlaceholder: "כמה מילים עליך",
+    addBio: "הוספת ביו",
+    joined: (monthYear: string) => `ב-Z מאז ${monthYear}`,
   },
   errors: {
     invalid: "הקלט לא תקין.",
@@ -67,5 +69,6 @@ export const he = {
     loadMore: "טעינת עוד",
     retry: "הטעינה נכשלה. לנסות שוב?",
     end: "אין עוד פוסטים.",
+    showNew: (n: number) => (n === 1 ? "הצגת פוסט חדש" : `הצגת ${n} פוסטים חדשים`),
   },
 } as const;

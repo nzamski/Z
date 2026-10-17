@@ -1,5 +1,5 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
-import { and, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, ne, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -12,7 +12,7 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { computePreview } from "@/lib/markdown";
+import { computePreview } from "@/lib/preview";
 
 export class ServiceError extends Error {
   constructor(public code: "invalid" | "not_found" | "forbidden" | "gone") {
@@ -22,6 +22,8 @@ export class ServiceError extends Error {
 
 const PostBody = z.string().trim().min(1).max(20_000);
 const CommentBody = z.string().trim().min(1).max(5_000);
+export const BIO_MAX = 160;
+const Bio = z.string().trim().max(BIO_MAX);
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
@@ -222,7 +224,8 @@ const postCols = (viewerId: string | null) => ({
 });
 
 export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number];
-export type FeedPage = { items: PostSummary[]; next: string | null };
+/** `asOf`: when the first page was built; new posts after it are announced, not injected. */
+export type FeedPage = { items: PostSummary[]; next: string | null; asOf: string };
 
 const PAGE = RANKING.pageSize;
 
@@ -232,7 +235,12 @@ const followsAuthor = (viewerId: string) =>
 
 // Following, Latest and profiles: keyset on (created_at DESC, id DESC). The cursor carries only the
 // id; its exact created_at comes from the row (soft-deleted rows stay, so the cursor never dangles).
-async function newestPage(viewerId: string, filter: SQL | undefined, cursor: Cursor | null) {
+async function newestPage(
+  viewerId: string,
+  filter: SQL | undefined,
+  cursor: Cursor | null,
+  now: Date,
+) {
   const rows = await db
     .select(postCols(viewerId))
     .from(posts)
@@ -250,7 +258,8 @@ async function newestPage(viewerId: string, filter: SQL | undefined, cursor: Cur
     .orderBy(desc(posts.createdAt), desc(posts.id))
     .limit(PAGE + 1);
   const items = rows.slice(0, PAGE);
-  return { items, next: rows.length > PAGE ? encodeCursor({ id: items.at(-1)!.id }) : null };
+  const next = rows.length > PAGE ? encodeCursor({ id: items.at(-1)!.id }) : null;
+  return { items, next, asOf: now.toISOString() };
 }
 
 // For You (§6.1, §6.2): the snapshot time `asOf` fixes both the age term and the candidate set.
@@ -283,7 +292,7 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   // float8 survives the JSON round trip exactly (PG prints shortest round-trip digits).
   const next =
     rows.length > PAGE && last ? encodeCursor({ a: asOf, s: last.score, id: last.id }) : null;
-  return { items: applyAuthorPenalty(page), next };
+  return { items: applyAuthorPenalty(page), next, asOf };
 }
 
 export async function feedPage(
@@ -292,10 +301,32 @@ export async function feedPage(
 ): Promise<FeedPage> {
   const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
   if (opts.cursor && !cursor) throw new ServiceError("invalid");
-  if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor);
-  if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor);
-  if (opts.view === "latest") return newestPage(viewerId, undefined, cursor);
-  return forYouPage(viewerId, cursor, opts.now ?? new Date());
+  const now = opts.now ?? new Date();
+  if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
+  if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor, now);
+  if (opts.view === "latest") return newestPage(viewerId, undefined, cursor, now);
+  return forYouPage(viewerId, cursor, now);
+}
+
+// Posts by others published after `since` that would show in this view (the "new posts" pill).
+const newSince = (viewerId: string, view: FeedView, since: Date) =>
+  and(
+    gt(posts.createdAt, since),
+    ne(posts.authorId, viewerId),
+    view === "following" ? followsAuthor(viewerId) : undefined,
+  );
+
+export async function countNewPosts(viewerId: string, view: FeedView, since: Date) {
+  const [r] = await db
+    .select({ n: count() })
+    .from(posts)
+    .where(and(active(posts), newSince(viewerId, view, since)));
+  return r.n;
+}
+
+/** The newest of those posts (one page), shown on top when the pill is clicked. */
+export async function newPosts(viewerId: string, view: FeedView, since: Date) {
+  return (await newestPage(viewerId, newSince(viewerId, view, since), null, new Date())).items;
 }
 
 /** The full post, including deleted ones (the page shows a "deleted" notice). */
@@ -424,6 +455,11 @@ export async function getThread(
 }
 
 // ---- users ----
+
+export async function updateBio(actorId: string, bio: string) {
+  const text = parse(Bio, bio);
+  await db.update(users).set({ bio: text, updatedAt: now }).where(eq(users.id, actorId));
+}
 
 /**
  * Provision on first login, resync display name and handle on every login (PLAN.md §5).

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { CommentActions } from "@/components/comment-actions";
-import { Byline } from "@/components/post-card";
+import { Byline, PlainText } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
-import { renderMarkdown } from "@/lib/markdown";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 
 type Ctx = { postId: string; viewerId: string | null; postLive: boolean };
@@ -19,8 +18,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       ) : (
         <>
           <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
-          {/* Safe: markdown-it runs with html disabled (lib/markdown.ts). */}
-          <div className="md mt-1" dangerouslySetInnerHTML={{ __html: renderMarkdown(n.body!) }} />
+          <PlainText text={n.body!} className="mt-1" />
           <CommentActions
             postId={ctx.postId}
             commentId={n.id}

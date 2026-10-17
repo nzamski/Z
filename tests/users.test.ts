@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, expect, test, vi } from "vitest";
+import { afterAll, describe, expect, test, vi } from "vitest";
 import { sql } from "@/db/client";
+import * as s from "@/lib/services";
 import { upsertUserFromClaims } from "@/lib/services";
+import { makeUser } from "./helpers";
 
 afterAll(() => sql.end());
 
@@ -39,4 +41,15 @@ test("a new user whose handle is taken gets a unique suffixed handle", async () 
   expect(u.handle).not.toBe(taken);
   expect(u.handle.startsWith(`${taken}_`)).toBe(true);
   warn.mockRestore();
+});
+
+describe("bio", () => {
+  test("is trimmed, can be cleared, and is capped", async () => {
+    const u = await makeUser();
+    await s.updateBio(u.id, "  שלום  ");
+    expect((await s.getUser(u.id))?.bio).toBe("שלום");
+    await s.updateBio(u.id, "");
+    expect((await s.getUser(u.id))?.bio).toBe("");
+    await expect(s.updateBio(u.id, "א".repeat(s.BIO_MAX + 1))).rejects.toThrow("invalid");
+  });
 });

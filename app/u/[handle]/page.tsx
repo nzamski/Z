@@ -2,10 +2,12 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
+import { ProfileBio } from "@/components/profile-bio";
 import { FeedList } from "@/components/feed-list";
 import { requireViewer } from "@/lib/auth/viewer";
+import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
+import { BIO_MAX, feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   await connection();
@@ -42,7 +44,22 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
         {(user.roleTitle || user.unit) && (
           <p className="mt-2 text-sm">{[user.roleTitle, user.unit].filter(Boolean).join(" · ")}</p>
         )}
-        {user.bio && <p className="mt-2">{user.bio}</p>}
+        <ProfileBio bio={user.bio} isSelf={viewerId === user.id} max={BIO_MAX} />
+        <p className="mt-2 flex items-center gap-1 text-sm text-neutral-500">
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M3 10h18M8 3v4M16 3v4" />
+          </svg>
+          {he.profile.joined(monthYear(user.createdAt))}
+        </p>
         <div className="mt-3 flex gap-4 text-sm text-neutral-500">
           <span>
             <b className="text-foreground">{info.followers}</b> {he.profile.followers}
@@ -54,9 +71,12 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       </section>
       <FeedList
         key={user.id}
-        params={{ view: "latest", author: user.id }}
+        view="latest"
+        author={user.id}
+        viewerId={viewerId}
         first={page.items}
         next={page.next}
+        asOf={page.asOf}
       />
     </>
   );

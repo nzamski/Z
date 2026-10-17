@@ -29,3 +29,22 @@ export function HomeLink() {
     </Link>
   );
 }
+
+/** The Z logo: goes home; on the home page itself it reloads it (fresh feed, back at the top). */
+export function LogoLink({ children }: { children: React.ReactNode }) {
+  return (
+    <Link
+      href="/"
+      aria-label={he.nav.home}
+      className="justify-self-center"
+      onClick={(e) => {
+        if (location.pathname !== "/" || e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        window.scrollTo(0, 0); // so the browser doesn't restore the old offset after reloading
+        location.reload();
+      }}
+    >
+      {children}
+    </Link>
+  );
+}

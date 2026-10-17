@@ -10,3 +10,8 @@ export function ago(d: Date) {
   if (min < 24 * 60) return fmt(-Math.round(min / 60), "hour");
   return fmt(-Math.round(min / (24 * 60)), "day");
 }
+
+const my = new Intl.DateTimeFormat("he", { month: "long", year: "numeric" });
+
+/** "אוקטובר 2026" */
+export const monthYear = (d: Date) => my.format(d);

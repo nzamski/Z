@@ -1,9 +1,11 @@
 "use server";
 // Server Actions: auth check, input shape check, service call, refresh. Business rules live in services.
 import { refresh } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireViewer } from "@/lib/auth/viewer";
+import { parseView, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
 
@@ -102,11 +104,19 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
   };
 }
 
-/** Full body for inline "read more" in feeds; null if the post is gone. */
-export async function getPostBodyAction(postId: string): Promise<string | null> {
-  const viewer = await requireViewer();
-  const id = Id.safeParse(postId);
-  if (!id.success) return null;
-  const post = await s.getPost(id.data, viewer.id);
-  return post && !post.deletedAt ? post.body : null;
+export async function updateBioAction(_: ActionResult, f: FormData) {
+  return run((uid) => s.updateBio(uid, Text.parse(field(f, "body") ?? "")));
+}
+
+/** Remember the chosen feed tab across sessions (a cookie, so the server renders the right one). */
+export async function setViewAction(f: FormData) {
+  await requireViewer();
+  (await cookies()).set(VIEW_COOKIE, parseView(f.get("view")), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true, // like the session cookie; browsers allow it on localhost
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  refresh();
 }

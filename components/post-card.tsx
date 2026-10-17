@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
 import { ClickableCard } from "@/components/clickable-card";
-import { PostPreview } from "@/components/post-preview";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -30,6 +29,13 @@ export function CommentStat({ href, count }: { href: string; count: number }) {
       </span>
       <span className="min-w-[1ch] text-sm">{count > 0 ? count : ""}</span>
     </Link>
+  );
+}
+
+/** User text, as typed: React escapes it, newlines are kept, long words wrap. */
+export function PlainText({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <p className={`leading-relaxed whitespace-pre-wrap wrap-break-word ${className}`}>{text}</p>
   );
 }
 
@@ -77,7 +83,16 @@ export function PostCard({ post: p }: { post: PostSummary }) {
       className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
       <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
-      <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
+      <PlainText text={p.hasMore ? `${p.preview}…` : p.preview} className="mt-1" />
+      {p.hasMore && (
+        // The full post lives on its page; feeds only ever carry the preview.
+        <Link
+          href={`/p/${p.id}`}
+          className="mt-1 inline-block text-sm text-sky-600 hover:underline"
+        >
+          {he.post.readMore}
+        </Link>
+      )}
       <div className="mt-2 flex gap-8 text-sm text-neutral-500">
         <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
         <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />

@@ -167,3 +167,19 @@ describe("author penalty", () => {
     expect(applyAuthorPenalty(page).map((p) => p.id)).toEqual(["1", "3", "2", "4"]);
   });
 });
+
+describe("new posts pill", () => {
+  test("counts others' posts after the snapshot, filtered by view", async () => {
+    const [viewer, followed, other] = [await makeUser(), await makeUser(), await makeUser()];
+    await s.follow(viewer.id, followed.id);
+    const since = new Date();
+    await new Promise((r) => setTimeout(r, 5));
+    await s.createPost(followed.id, "חדש");
+    await s.createPost(other.id, "חדש");
+    await s.createPost(viewer.id, "שלי"); // own posts are never announced
+    const following = await s.countNewPosts(viewer.id, "following", since);
+    expect(following).toBe(1);
+    // For You counts everyone's (other test files may add more concurrently).
+    expect(await s.countNewPosts(viewer.id, "forYou", since)).toBeGreaterThanOrEqual(2);
+  });
+});

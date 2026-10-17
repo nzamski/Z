@@ -5,14 +5,14 @@ Spec: PLAN.md §6.
 
 ## Views
 
-| View                          | Order                        | Cursor                    | Window  |
-| ----------------------------- | ---------------------------- | ------------------------- | ------- |
-| For You (`/`)                 | `cursor_score DESC, id DESC` | `(feed_as_of, score, id)` | 30 days |
-| Following (`?view=following`) | `created_at DESC, id DESC`   | `id` (row's `created_at`) | none    |
-| Latest (`?view=latest`)       | `created_at DESC, id DESC`   | `id`                      | none    |
-| Profile (`/u/[handle]`)       | `created_at DESC, id DESC`   | `id`                      | none    |
+| View                    | Order                        | Cursor                    | Window  |
+| ----------------------- | ---------------------------- | ------------------------- | ------- |
+| For You                 | `cursor_score DESC, id DESC` | `(feed_as_of, score, id)` | 30 days |
+| Following               | `created_at DESC, id DESC`   | `id` (row's `created_at`) | none    |
+| Latest                  | `created_at DESC, id DESC`   | `id`                      | none    |
+| Profile (`/u/[handle]`) | `created_at DESC, id DESC`   | `id`                      | none    |
 
-Pages are 20 posts. The cursor is opaque base64url JSON; a garbled one is a 400 from
+The chosen tab is a cookie (`z_view`, one year), not part of the URL. Pages are 20 posts. The cursor is opaque base64url JSON; a garbled one is a 400 from
 `/api/feed` and a fresh first page on the server-rendered pages.
 
 ## For You formula
@@ -56,8 +56,12 @@ aggregators. The constants are untested guesses, not derived from data. The need
   would drop the microseconds). Soft-deleted rows stay, so the cursor row always exists.
 - A reload starts a new snapshot. Back-navigation restores list and scroll position (Next's
   Activity cache keeps the last 3 routes; beyond that, the `sessionStorage` snapshot).
-- After a Server Action calls `refresh()`, only posts not yet loaded are added on top; the
-  visible list never re-sorts under the reader (following someone would otherwise reshuffle it).
+- After a Server Action calls `refresh()`, only the viewer's own posts published since the
+  snapshot go on top; the visible list never re-sorts under the reader (following someone
+  would otherwise reshuffle it).
+- For You and Following poll `/api/feed/new` every 60 s (and when the tab becomes visible) for
+  posts by others since the snapshot. The "show N new posts" pill puts those on top, followed by
+  a fresh first page, and resets the snapshot. Clicking the Z logo on the home page reloads it.
 
 ## Query plans
 
