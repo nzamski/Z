@@ -21,7 +21,7 @@ describe("posts", () => {
     const p = await s.createPost(a.id, "קצר");
     expect(p).toMatchObject({ preview: "קצר", hasMore: false, editedAt: null });
 
-    const long = "מילה ".repeat(300);
+    const long = Array.from({ length: 15 }, (_, i) => `שורה ${i}`).join("\n"); // > 10 lines
     const e = await s.editPost(a.id, p.id, long);
     expect(e.hasMore).toBe(true);
     expect(e.editedAt).not.toBeNull();
