@@ -20,6 +20,9 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Tables are plural (`users`, `posts`, `comments`, `likes`, `follows`): `user`/`like` are reserved words.
 - A new table needs: the `base` columns from `db/schema.ts`, an `updated_at` index, and a `CREATE TRIGGER ... set_updated_at()` in its migration. `tests/trigger.test.ts` lists every table; add it there.
 - Writes go through `lib/services.ts` and throw `ServiceError` (`invalid` / `not_found` / `forbidden` / `gone`).
+- Auth: `lib/auth/` (`AuthProvider`: Keycloak or dev switcher at `/dev/login`). Dev Keycloak users `dana`/`yossi`/`noa` (password = username) have fixed ids that the seed reuses as `keycloak_sub`. Claim mapping lives in `finishLogin` (`lib/auth/keycloak.ts`).
+- Server Actions (`app/actions.ts`) only check the session and input shape, call a service, then `refresh()`. Anything that reads cookies or the DB sits under `<Suspense>` after `await connection()`; route handlers that call out at request time also `await connection()` so `next build` never contacts the DB or Keycloak.
+- Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
 
 ## Commands
@@ -45,7 +48,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 
 - [x] M0 Skeleton
 - [x] M1 Data + seed
-- [ ] M2 Login, posting, edit/delete, likes, threaded comments, follows
+- [x] M2 Login, posting, edit/delete, likes, threaded comments, follows
 - [ ] M3 Feeds + infinite scroll + read more
 - [ ] M4 Search + chat deep link + polish
 - [ ] M5 Offline delivery
