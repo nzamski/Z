@@ -42,7 +42,9 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               <span dir="ltr">@{user.handle}</span>
             </p>
           </div>
-          {viewerId === user.id && <ProfileEditor handle={user.handle} bio={user.bio} />}
+          {viewerId === user.id && (
+            <ProfileEditor displayName={user.displayName} handle={user.handle} bio={user.bio} />
+          )}
           {viewerId !== user.id && (
             <div className="flex items-center gap-2">
               {chat && (

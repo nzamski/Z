@@ -1,5 +1,5 @@
 "use client";
-// Handle and bio (the display name comes from Keycloak), used by the first-login welcome and by "edit profile".
+// Display name (read-only, from Keycloak), handle and bio, used by the first-login welcome and by "edit profile".
 // The handle is checked live (format here, availability on the server) as you type.
 import { useActionState, useEffect, useRef, useState } from "react";
 import { checkHandleAction, updateProfileAction, type ProfileResult } from "@/app/actions";
@@ -14,6 +14,7 @@ const field =
   "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400";
 
 export function ProfileForm(p: {
+  displayName: string; // from Keycloak: shown, never editable
   initial: Profile;
   submitLabel: string;
   onSaved: (handle: string) => void;
@@ -76,6 +77,18 @@ export function ProfileForm(p: {
 
   return (
     <form action={action} className="space-y-4 text-start">
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">{he.profile.displayName}</span>
+        <input
+          value={p.displayName}
+          readOnly
+          aria-describedby="display-name-hint"
+          className={`${field} cursor-not-allowed bg-neutral-500/10 text-muted`}
+        />
+        <span id="display-name-hint" className="block text-xs text-muted">
+          {he.profile.displayNameHint}
+        </span>
+      </label>
       <label className="block space-y-1">
         <span className="text-sm font-medium">{he.profile.handle}</span>
         <span

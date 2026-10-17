@@ -136,6 +136,7 @@ export async function checkHandleAction(handle: string) {
 export async function finishOnboardingAction(next: string) {
   const viewer = await requireLogin();
   await s.finishOnboarding(viewer.id);
+  refresh(); // the shared layout (header: @handle, search) must re-render for a finished user
   redirect(safeNext(next));
 }
 

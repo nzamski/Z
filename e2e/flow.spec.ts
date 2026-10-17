@@ -300,26 +300,37 @@ test("first login: welcome, profile with a live handle check, follow suggestions
   await page.locator("#password").fill("noa");
   await page.locator("#kc-login").click();
   await expect(page).toHaveURL(/\/welcome/);
-  await expect(page.getByRole("heading", { name: "ברוכים הבאים ל-Z" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ברוכים הבאים ל־Z" })).toBeVisible();
   // Mandatory: no skip, and nothing else is reachable yet.
   await expect(page.getByRole("button", { name: "דילוג" })).toHaveCount(0);
   await page.goto("/u/yossi");
   await expect(page).toHaveURL(/\/welcome/);
   await expect(page.getByRole("button", { name: "המשך" })).toBeDisabled(); // no handle yet
 
-  const handle = page.getByLabel("כינוי");
+  const handle = page.getByLabel("שם משתמש");
+  await expect(page.getByLabel("שם תצוגה")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("שם תצוגה")).toHaveValue("נועה מזרחי");
   const next = page.getByRole("button", { name: "המשך" });
   await handle.fill("dana");
-  await expect(page.getByText("הכינוי הזה כבר תפוס")).toBeVisible();
+  await expect(page.getByText("שם המשתמש הזה כבר תפוס")).toBeVisible();
   await expect(next).toBeDisabled();
   await handle.fill("1abc");
   await expect(page.getByText(/4–15 תווים/)).toBeVisible();
   const fresh = `noa_${Date.now().toString(36).slice(-6)}`;
   await handle.fill(fresh);
-  await expect(page.getByText("הכינוי פנוי")).toBeVisible();
+  await expect(page.getByText("שם המשתמש פנוי")).toBeVisible();
   await next.click();
 
-  await expect(page.getByRole("heading", { name: "את מי לעקוב?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "אחרי מי לעקוב?" })).toBeVisible();
+  // Follow, then unfollow the same person: the row stays put.
+  const first = page.locator("main li").first();
+  const name = await first.locator("span").first().innerText();
+  await first.getByRole("button", { name: "מעקב", exact: true }).click();
+  await expect(first.getByRole("button", { name: "הפסקת מעקב" })).toBeVisible();
+  await page.waitForTimeout(800); // the follow's refresh lands
+  await expect(page.locator("main li").first()).toContainText(name);
+  await first.getByRole("button", { name: "הפסקת מעקב" }).click();
+  await expect(first.getByRole("button", { name: "מעקב", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "בואו נתחיל" }).click();
   await expect(page).toHaveURL("http://localhost:3000/");
   await expect(page.getByRole("link", { name: `@${fresh}` })).toBeVisible();
@@ -329,8 +340,8 @@ test("first login: welcome, profile with a live handle check, follow suggestions
   await page.getByRole("button", { name: "עריכת פרופיל" }).click();
   const dialog = page.getByRole("dialog", { name: "עריכת פרופיל" });
   const again = `${fresh}x`;
-  await dialog.getByLabel("כינוי").fill(again);
-  await expect(dialog.getByText("הכינוי פנוי")).toBeVisible();
+  await dialog.getByLabel("שם משתמש").fill(again);
+  await expect(dialog.getByText("שם המשתמש פנוי")).toBeVisible();
   await dialog.getByRole("button", { name: "שמירה" }).click();
   await expect(page).toHaveURL(new RegExp(`/u/${again}$`));
   // Back to "noa" for the other tests (3 letters: allowed for existing handles, not as a choice).

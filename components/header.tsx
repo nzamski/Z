@@ -8,8 +8,9 @@ import { getUser } from "@/lib/services";
 async function AuthStatus() {
   const session = await getSession();
   const user = session && (await getUser(session.uid));
-  // No session: the proxy sends them to login. No handle yet: they're in the welcome.
-  if (!user?.handle) return null;
+  // No session: the proxy sends them to login. Setup unfinished: they're in the welcome, where
+  // links to the rest of Z would only bounce back.
+  if (!user?.handle || !user.onboardedAt) return null;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   return (
     <>
