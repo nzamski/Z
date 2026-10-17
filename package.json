@@ -15,7 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "seed": "tsx --env-file-if-exists=.env db/seed.mts",
     "seed:large": "tsx --env-file-if-exists=.env db/seed.mts --large",
-    "build:images": "echo \"not yet: M5\" && exit 1",
+    "build:images": "sh scripts/build-images.sh",
     "test:e2e": "playwright test"
   },
   "dependencies": {

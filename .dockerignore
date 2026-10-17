@@ -1,0 +1,12 @@
+# Only what the image build needs; never secrets or local state.
+.git
+.env*
+!.env.example
+node_modules
+.next
+dist
+test-results
+playwright-report
+coverage
+*.tsbuildinfo
+.DS_Store
