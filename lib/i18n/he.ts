@@ -8,6 +8,7 @@ export const he = {
     search: "חיפוש",
     home: "לדף הבית",
     back: "חזרה",
+    skip: "דילוג לתוכן",
   },
   auth: {
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",
@@ -57,12 +58,23 @@ export const he = {
     addBio: "הוספת ביו",
     joined: (monthYear: string) => `מאז ${monthYear}`,
   },
+  pages: {
+    notFound: "העמוד לא נמצא.",
+    error: "משהו השתבש בטעינת העמוד.",
+    retry: "לנסות שוב",
+    home: "לדף הבית",
+  },
   errors: {
     invalid: "הקלט לא תקין.",
     not_found: "לא נמצא.",
     forbidden: "אין לך הרשאה לפעולה הזו.",
     gone: "התוכן נמחק.",
     unknown: "משהו השתבש. נסו שוב.",
+  },
+  search: {
+    placeholder: "חיפוש פוסטים",
+    hint: "חפשו מילים מתוך פוסטים. אפשר גם חלק ממילה.",
+    none: (q: string) => `לא נמצאו פוסטים עבור "${q}".`,
   },
   feed: {
     loading: "טוען…",

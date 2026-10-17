@@ -68,15 +68,15 @@ export function Composer(p: Props) {
           <button
             type="button"
             onClick={p.onCancel}
-            className="text-neutral-500 hover:text-foreground hover:underline"
+            className="text-muted hover:text-foreground hover:underline"
           >
             {he.composer.cancel}
           </button>
         )}
         <LengthRing length={body.length} max={p.max} />
-        {over && <span className="text-red-600">{he.composer.tooLong}</span>}
+        {over && <span className="text-danger">{he.composer.tooLong}</span>}
         {state.error && (
-          <span role="alert" className="text-red-600">
+          <span role="alert" className="text-danger">
             {state.error}
           </span>
         )}
@@ -92,7 +92,7 @@ function LengthRing({ length, max }: { length: number; max: number }) {
   const C = 2 * Math.PI * R;
   const near = length >= max * 0.9;
   const over = length > max;
-  const color = over ? "text-red-600" : near ? "text-amber-500" : "text-sky-500";
+  const color = over ? "text-danger" : near ? "text-amber-500" : "text-sky-500";
   return (
     <span className="flex items-center gap-2" dir="ltr">
       <svg viewBox="0 0 24 24" className="size-6 -rotate-90" aria-hidden>
@@ -118,7 +118,7 @@ function LengthRing({ length, max }: { length: number; max: number }) {
         />
       </svg>
       {near && (
-        <span className={over ? "text-red-600" : "text-neutral-500"}>
+        <span className={over ? "text-danger" : "text-muted"}>
           {length.toLocaleString()} / {max.toLocaleString()}
         </span>
       )}

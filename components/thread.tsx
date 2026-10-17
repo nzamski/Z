@@ -14,7 +14,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       id={`c-${n.id}`}
     >
       {n.deleted ? (
-        <p className="text-sm text-neutral-500 italic">{he.comment.deleted}</p>
+        <p className="text-sm text-muted italic">{he.comment.deleted}</p>
       ) : (
         <>
           <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
@@ -30,15 +30,12 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       )}
       {n.childCount > 0 &&
         (n.depth >= THREAD_DEPTH ? (
-          <Link
-            href={`/c/${n.id}`}
-            className="mt-2 inline-block text-sm text-sky-600 hover:underline"
-          >
+          <Link href={`/c/${n.id}`} className="mt-2 inline-block text-sm text-link hover:underline">
             {he.comment.continueThread} ←
           </Link>
         ) : (
           <details open className="group">
-            <summary className="mt-1 cursor-pointer list-none text-xs text-neutral-500 hover:underline">
+            <summary className="mt-1 cursor-pointer list-none text-xs text-muted hover:underline">
               <span className="group-open:hidden">{he.comment.expand(n.childCount)}</span>
               <span className="hidden group-open:inline">{he.comment.collapse}</span>
             </summary>
@@ -50,7 +47,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
             {hidden > 0 && (
               <Link
                 href={`/c/${n.id}?from=${REPLIES_PAGE}`}
-                className="mt-2 inline-block text-sm text-sky-600 hover:underline"
+                className="mt-2 inline-block text-sm text-link hover:underline"
               >
                 {he.comment.showMore(hidden)}
               </Link>

@@ -17,7 +17,7 @@ export function CommentActions(p: {
   const [mode, setMode] = useState<"idle" | "reply" | "edit">("idle");
   const close = () => setMode("idle");
   return (
-    <div className="mt-1 text-sm text-neutral-500">
+    <div className="mt-1 text-sm text-muted">
       <div className="flex gap-4">
         {p.canReply && (
           <button

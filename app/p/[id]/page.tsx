@@ -13,9 +13,7 @@ import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 import { getPost, getThread, ROOTS_PAGE } from "@/lib/services";
 
-const Notice = ({ text }: { text: string }) => (
-  <p className="p-8 text-center text-neutral-500">{text}</p>
-);
+const Notice = ({ text }: { text: string }) => <p className="p-8 text-center text-muted">{text}</p>;
 
 async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   await connection();
@@ -40,7 +38,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
         ) : (
           body
         )}
-        <div className="mt-3 flex gap-8 text-sm text-neutral-500">
+        <div className="mt-3 flex gap-8 text-sm text-muted">
           <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
           <CommentStat href="#reply" count={post.commentCount} />
         </div>
@@ -61,7 +59,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           {from + ROOTS_PAGE < thread.total && (
             <a
               href={`/p/${post.id}?from=${from + ROOTS_PAGE}`}
-              className="mt-4 inline-block text-sm text-sky-600 hover:underline"
+              className="mt-4 inline-block text-sm text-link hover:underline"
             >
               {he.comment.showMore(thread.total - from - ROOTS_PAGE)}
             </a>

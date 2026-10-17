@@ -29,7 +29,7 @@ export function PostOwnerActions(p: { postId: string; body: string; children: Re
   return (
     <>
       {p.children}
-      <div className="mt-2 flex gap-4 text-sm text-neutral-500">
+      <div className="mt-2 flex gap-4 text-sm text-muted">
         <button
           onClick={() => setEditing(true)}
           className="transition-colors hover:text-foreground hover:underline"

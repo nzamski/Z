@@ -28,7 +28,7 @@ export function PostPreview(p: { id: string; preview: string; hasMore: boolean }
               else router.push(`/p/${p.id}`); // deleted or failed: the page explains
             });
           }}
-          className="mt-1 inline-block text-sm text-sky-600 hover:underline"
+          className="mt-1 inline-block text-sm text-link hover:underline"
         >
           {pending ? he.feed.loading : he.post.readMore}
         </a>

@@ -26,6 +26,8 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
 - Deviations from PLAN.md at the user's request (2026-10-17): posts max 500 chars (`lib/limits.ts`); users have no `unit`/`role_title` (dropped in migration 0004).
 - Posts, comments and bios are plain text for now (markdown turned off at the user's request, 2026-10-17; PLAN.md still describes markdown). Render user text with `PlainText` (`components/post-card.tsx`), never as HTML.
+- Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. No `pg_trgm` until PLAN Q4 is answered.
+- Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
 - Feeds: ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands
@@ -54,5 +56,5 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - [x] M1 Data + seed
 - [x] M2 Login, posting, edit/delete, likes, threaded comments, follows
 - [x] M3 Feeds + infinite scroll + read more
-- [ ] M4 Search + chat deep link + polish
+- [x] M4 Search + chat deep link + polish
 - [ ] M5 Offline delivery

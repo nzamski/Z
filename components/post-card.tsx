@@ -41,7 +41,7 @@ export function PlainText({ text, className = "" }: { text: string; className?: 
 }
 
 const Dot = () => (
-  <span aria-hidden className="text-neutral-500">
+  <span aria-hidden className="text-muted">
     •
   </span>
 );
@@ -50,9 +50,10 @@ export function Byline(p: {
   author: { displayName: string; handle: string };
   createdAt: Date;
   editedAt: Date | null;
+  href?: string; // the timestamp links here (X-style; also the keyboard way into a post)
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-1 text-sm text-neutral-500">
+    <div className="flex flex-wrap items-baseline gap-x-1 text-sm text-muted">
       <UserHoverCard handle={p.author.handle}>
         <span className="inline-flex items-baseline gap-x-2">
           <Link
@@ -66,7 +67,13 @@ export function Byline(p: {
       </UserHoverCard>
       <Dot />
       {/* Also rendered on the client (feed pages), so a minute boundary may differ. */}
-      <span suppressHydrationWarning>{ago(p.createdAt)}</span>
+      {p.href ? (
+        <Link href={p.href} className="hover:underline" suppressHydrationWarning>
+          {ago(p.createdAt)}
+        </Link>
+      ) : (
+        <span suppressHydrationWarning>{ago(p.createdAt)}</span>
+      )}
       {p.editedAt && (
         <>
           <Dot />
@@ -83,9 +90,9 @@ export function PostCard({ post: p }: { post: PostSummary }) {
       href={`/p/${p.id}`}
       className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
+      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} href={`/p/${p.id}`} />
       <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
-      <div className="mt-2 flex gap-8 text-sm text-neutral-500">
+      <div className="mt-2 flex gap-8 text-sm text-muted">
         <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
         <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
       </div>

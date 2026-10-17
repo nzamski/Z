@@ -237,3 +237,28 @@ test("edit your own bio on your profile", async ({ page }) => {
   await page.goto("/u/yossi");
   await expect(page.getByRole("button", { name: /עריכת ביו|הוספת ביו/ })).toHaveCount(0);
 });
+
+test("search finds posts by Hebrew word forms; profiles link to the chat", async ({ page }) => {
+  await login(page, "noa");
+  await page.getByRole("link", { name: "חיפוש" }).click();
+  const box = page.getByRole("searchbox", { name: "חיפוש" });
+  await expect(box).toBeFocused();
+  await box.fill("הלוגים"); // seed has "העברנו את הלוגים ל-JSON..."; prefix ה is stripped too
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\/search\?q=/);
+  const hit = page.locator("main > ul > li", { hasText: "JSON" }).first();
+  await expect(hit).toBeVisible();
+  await hit.locator("p").first().click();
+  await expect(page).toHaveURL(/\/p\//);
+
+  await page.goto("/search?q=zzzzqqq");
+  await expect(page.getByText(/לא נמצאו פוסטים/)).toBeVisible();
+
+  await page.goto("/u/yossi");
+  await expect(page.getByRole("link", { name: "הודעה פרטית" })).toHaveAttribute(
+    "href",
+    "chat://user/yossi",
+  );
+  await page.goto("/u/noa");
+  await expect(page.getByRole("link", { name: "הודעה פרטית" })).toHaveCount(0);
+});

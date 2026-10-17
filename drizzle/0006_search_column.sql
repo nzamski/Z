@@ -1,0 +1,2 @@
+ALTER TABLE "posts" ADD COLUMN "search" "tsvector" GENERATED ALWAYS AS (z_search_vector(body)) STORED;--> statement-breakpoint
+CREATE INDEX "posts_search_idx" ON "posts" USING gin ("search") WHERE "posts"."deleted_at" is null;

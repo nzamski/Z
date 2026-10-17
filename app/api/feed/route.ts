@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const page = await feedPage(viewer.id, {
       view: parseView(q.get("view")),
       authorId: author ?? undefined,
+      query: q.get("q") ?? undefined,
       cursor: q.get("cursor"),
     });
     return NextResponse.json(page);

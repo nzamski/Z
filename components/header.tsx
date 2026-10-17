@@ -33,10 +33,29 @@ export function Header() {
           {he.appName}
         </span>
       </LogoLink>
-      <div className="justify-self-end">
+      <div className="flex items-center gap-2 justify-self-end">
         <Suspense>
           <AuthStatus />
         </Suspense>
+        <Link
+          href="/search"
+          aria-label={he.nav.search}
+          title={he.nav.search}
+          className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="size-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </Link>
       </div>
     </header>
   );

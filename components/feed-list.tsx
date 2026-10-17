@@ -52,17 +52,19 @@ function writeSnapshot(key: string, s: Snapshot) {
 export function FeedList(p: {
   view: FeedView;
   author?: string; // profile: that user's posts
+  q?: string; // search results
+  emptyText?: string;
   viewerId: string;
   first: PostSummary[];
   next: string | null;
   asOf: string;
 }) {
   const query = useMemo(
-    () => ({ view: p.view, ...(p.author ? { author: p.author } : {}) }),
-    [p.view, p.author],
+    () => ({ view: p.view, ...(p.author ? { author: p.author } : {}), ...(p.q ? { q: p.q } : {}) }),
+    [p.view, p.author, p.q],
   );
   const key = `z-feed:${new URLSearchParams(query)}`;
-  const announce = !p.author && p.view !== "latest";
+  const announce = !p.author && !p.q && p.view !== "latest";
   const [items, setItems] = useState(p.first);
   const [next, setNext] = useState(p.next);
   const [asOf, setAsOf] = useState(p.asOf);
@@ -198,7 +200,7 @@ export function FeedList(p: {
     <div className="sticky top-[calc(var(--header-h)+var(--tabs-h)+0.75rem)] z-10 flex h-0 justify-center">
       <button
         onClick={showNew}
-        className="h-9 rounded-full bg-sky-500 px-4 text-sm font-medium text-white shadow-md hover:bg-sky-600"
+        className="h-9 rounded-full bg-link px-4 text-sm font-medium text-background shadow-md transition-opacity hover:opacity-90"
       >
         {he.feed.showNew(newCount)}
       </button>
@@ -219,7 +221,7 @@ export function FeedList(p: {
     return (
       <>
         {pill}
-        <p className="p-4 text-start text-neutral-500">{he.feed.empty}</p>
+        <p className="p-4 text-start text-muted">{p.emptyText ?? he.feed.empty}</p>
       </>
     );
   }
@@ -231,18 +233,19 @@ export function FeedList(p: {
           <PostCard key={post.id} post={post} />
         ))}
       </ul>
-      <div ref={sentinel} className="p-4 text-center text-sm text-neutral-500">
+      <div ref={sentinel} className="p-4 text-center text-sm text-muted">
         {loading ? (
           he.feed.loading
         ) : next ? (
           <a
-            href={`?${new URLSearchParams({ cursor: next })}`} // no-JS: the page reads the view cookie
+            // No-JS: a plain page; home reads the view from its cookie, search keeps `q`.
+            href={`?${new URLSearchParams({ ...(p.q ? { q: p.q } : {}), cursor: next })}`}
             onClick={(e) => {
               e.preventDefault();
               setFailed(false);
               load();
             }}
-            className="text-sky-600 hover:underline"
+            className="text-link hover:underline"
           >
             {failed ? he.feed.retry : he.feed.loadMore}
           </a>

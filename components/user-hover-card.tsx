@@ -53,7 +53,7 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
               <Link href={href} className="block truncate text-base font-bold hover:underline">
                 {card.displayName}
               </Link>
-              <span className="text-neutral-500" dir="ltr">
+              <span className="text-muted" dir="ltr">
                 @{card.handle}
               </span>
             </div>
@@ -71,7 +71,7 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
             )}
           </div>
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
-          <div className="mt-3 flex gap-4 text-neutral-500">
+          <div className="mt-3 flex gap-4 text-muted">
             <span>
               <b className="text-foreground">{card.following}</b> {he.profile.following}
             </span>

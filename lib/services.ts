@@ -14,6 +14,7 @@ import {
 } from "@/lib/feed";
 import { BIO_MAX, COMMENT_MAX, POST_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
+import { toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
   constructor(public code: "invalid" | "not_found" | "forbidden" | "gone") {
@@ -297,11 +298,18 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
 
 export async function feedPage(
   viewerId: string,
-  opts: { view: FeedView; authorId?: string; cursor?: string | null; now?: Date },
+  opts: { view: FeedView; authorId?: string; query?: string; cursor?: string | null; now?: Date },
 ): Promise<FeedPage> {
   const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
   if (opts.cursor && !cursor) throw new ServiceError("invalid");
   const now = opts.now ?? new Date();
+  if (opts.query !== undefined) {
+    // Search: newest first over the stored vector (posts_search_idx; docs/search.md).
+    const q = toTsQuery(opts.query);
+    if (!q) return { items: [], next: null, asOf: now.toISOString() };
+    const match = sql`${posts.search} @@ to_tsquery('simple', ${q})`;
+    return newestPage(viewerId, match, cursor, now);
+  }
   if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
   if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor, now);
   if (opts.view === "latest") return newestPage(viewerId, undefined, cursor, now);

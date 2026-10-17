@@ -28,7 +28,7 @@ export function LikeButton(p: { postId: string; liked: boolean; count: number })
       aria-busy={pending}
       aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
       className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
-        state.liked ? "text-rose-600" : "hover:text-rose-600"
+        state.liked ? "text-like" : "hover:text-like"
       }`}
     >
       <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-rose-500/10 group-focus-visible:bg-rose-500/10">
@@ -74,7 +74,7 @@ export function FollowButton(p: {
       className={
         following
           ? // X-style: hovering "unfollow" turns it red.
-            "rounded-full border border-neutral-400 px-4 py-1.5 text-sm font-medium transition-colors hover:border-red-400 hover:bg-red-500/10 hover:text-red-600"
+            "rounded-full border border-neutral-400 px-4 py-1.5 text-sm font-medium transition-colors hover:border-red-400 hover:bg-red-500/10 hover:text-danger"
           : "rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-85"
       }
     >
@@ -92,7 +92,7 @@ export function DeleteButton(p: { id: string; action: (id: string) => Promise<Ac
     return (
       <button
         onClick={() => setArmed(true)}
-        className="transition-colors hover:text-red-600 hover:underline"
+        className="transition-colors hover:text-danger hover:underline"
       >
         {he.post.delete}
       </button>
@@ -104,7 +104,7 @@ export function DeleteButton(p: { id: string; action: (id: string) => Promise<Ac
       <button
         disabled={pending}
         onClick={() => start(async () => setError((await p.action(p.id))?.error))}
-        className="font-medium text-red-600 hover:underline"
+        className="font-medium text-danger hover:underline"
       >
         {he.post.delete}
       </button>
@@ -114,7 +114,7 @@ export function DeleteButton(p: { id: string; action: (id: string) => Promise<Ac
       >
         {he.composer.cancel}
       </button>
-      {error && <span className="text-red-600">{error}</span>}
+      {error && <span className="text-danger">{error}</span>}
     </span>
   );
 }

@@ -40,10 +40,7 @@ export function ProfileBio(p: { bio: string; isSelf: boolean; max: number }) {
     <>
       {bio && <PlainText text={bio} className="mt-2" />}
       {p.isSelf && (
-        <button
-          onClick={() => setEditing(true)}
-          className="mt-1 text-sm text-sky-600 hover:underline"
-        >
+        <button onClick={() => setEditing(true)} className="mt-1 text-sm text-link hover:underline">
           {bio ? he.profile.editBio : he.profile.addBio}
         </button>
       )}

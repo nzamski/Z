@@ -24,7 +24,7 @@ export function FeedTabs({ view }: { view: FeedView }) {
           name="view"
           value={v}
           aria-pressed={v === view}
-          className="group flex flex-1 items-end justify-center text-neutral-500 transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:text-foreground"
+          className="group flex flex-1 items-end justify-center text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:text-foreground"
         >
           <span className="block border-b-2 border-transparent px-1 pb-2 group-aria-pressed:border-current">
             {label}

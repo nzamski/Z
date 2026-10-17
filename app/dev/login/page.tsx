@@ -28,7 +28,7 @@ async function UserList({ next }: { next: Promise<string> }) {
             <input type="hidden" name="next" value={nextPath} />
             <button className="w-full px-4 py-3 text-start hover:bg-neutral-100 dark:hover:bg-neutral-900">
               <span className="font-bold">{u.displayName}</span>{" "}
-              <span className="text-neutral-500" dir="ltr">
+              <span className="text-muted" dir="ltr">
                 @{u.handle}
               </span>
             </button>
@@ -46,7 +46,7 @@ export default function DevLogin({ searchParams }: PageProps<"/dev/login">) {
       <h1 className="border-b border-neutral-200 p-4 text-start text-xl font-bold dark:border-neutral-800">
         {he.auth.devLoginTitle}
       </h1>
-      <Suspense fallback={<p className="p-4 text-neutral-500">{he.feed.loading}</p>}>
+      <Suspense fallback={<p className="p-4 text-muted">{he.feed.loading}</p>}>
         <UserList next={next} />
       </Suspense>
     </main>

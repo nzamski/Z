@@ -36,6 +36,20 @@
       "when": 1792263367171,
       "tag": "0004_drop_role_unit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792263957047,
+      "tag": "0005_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792264393383,
+      "tag": "0006_search_column",
+      "breakpoints": true
     }
   ]
 }

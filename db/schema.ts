@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   pgTable,
@@ -12,6 +13,8 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -57,8 +60,13 @@ export const posts = pgTable(
     likeCount: integer("like_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
     editedAt: ts("edited_at"),
+    // Search vector kept in sync by Postgres (z_search_vector: drizzle/0005_search.sql).
+    search: tsvector("search").generatedAlwaysAs(sql`z_search_vector(body)`),
   },
   (t) => [
+    index("posts_search_idx")
+      .using("gin", t.search)
+      .where(sql`${t.deletedAt} is null`),
     // Plain `ORDER BY ... DESC` is NULLS FIRST; drizzle's .desc() alone emits NULLS LAST, which
     // the planner won't use for that order.
     index("posts_feed_idx")

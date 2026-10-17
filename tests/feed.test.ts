@@ -183,3 +183,24 @@ describe("new posts pill", () => {
     expect(await s.countNewPosts(viewer.id, "forYou", since)).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("search", () => {
+  test("Hebrew prefixes match both ways, terms are ANDed, deleted posts never show", async () => {
+    const [viewer, a] = [await makeUser(), await makeUser()];
+    const tag = `zq${Math.random().toString(36).slice(2, 8)}`; // keeps other tests' posts out
+    const p1 = await s.createPost(a.id, `השרת קרס בלילה ${tag}`);
+    const p2 = await s.createPost(a.id, `שרת חדש עלה ${tag}`);
+    const p3 = await s.createPost(a.id, `ובמערכת הכול שקט ${tag}`);
+    const gone = await s.createPost(a.id, `השרת הישן ${tag}`);
+    await s.deletePost(a.id, gone.id);
+    const ids = async (query: string) =>
+      (await s.feedPage(viewer.id, { view: "latest", query })).items.map((x) => x.id).sort();
+
+    expect(await ids(`שרת ${tag}`)).toEqual([p1.id, p2.id].sort());
+    expect(await ids(`השרת ${tag}`)).toEqual([p1.id, p2.id].sort());
+    expect(await ids(`מערכת ${tag}`)).toEqual([p3.id]); // two prefixes (ו+ב) on the post
+    expect(await ids(`קר ${tag}`)).toEqual([p1.id]); // word prefix
+    expect(await ids(`שרת שקט ${tag}`)).toEqual([]); // AND
+    expect(await ids(`!!!`)).toEqual([]);
+  });
+});
