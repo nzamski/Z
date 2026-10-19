@@ -1,18 +1,25 @@
 "use client";
 import { useState } from "react";
-import { createCommentAction, deleteCommentAction, editCommentAction } from "@/app/actions";
+import {
+  createCommentAction,
+  deleteCommentAction,
+  editCommentAction,
+  removeCommentAction,
+} from "@/app/actions";
 import { DeleteButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
+import { ModerateButton } from "@/components/moderate-button";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 
-/** Reply / edit / delete controls under one comment. */
+/** Reply / edit / delete controls under one comment; admins also get a moderator removal. */
 export function CommentActions(p: {
   postId: string;
   commentId: string;
   body: string;
   canReply: boolean;
   isOwner: boolean;
+  isAdmin: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "reply" | "edit">("idle");
   const close = () => setMode("idle");
@@ -37,6 +44,13 @@ export function CommentActions(p: {
             </button>
             <DeleteButton id={p.commentId} action={deleteCommentAction} />
           </>
+        )}
+        {p.isAdmin && !p.isOwner && (
+          <ModerateButton
+            label={he.moderation.remove}
+            danger
+            action={(reason) => removeCommentAction(p.commentId, reason)}
+          />
         )}
       </div>
       {mode === "reply" && (

@@ -6,7 +6,7 @@ import { Loading } from "@/components/loading";
 import { Thread } from "@/components/thread";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
-import { getComment, getPost, getThread, getUser, REPLIES_PAGE } from "@/lib/services";
+import { getComment, getPost, getThread, getUser, isAdmin, REPLIES_PAGE } from "@/lib/services";
 import type { Metadata } from "next";
 import { snippet } from "@/lib/format";
 
@@ -22,13 +22,17 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
   const viewerId = (await requireViewer()).id;
   const post = await getPost(comment.postId, viewerId);
   if (!post || post.deletedAt)
-    return <p className="p-8 text-center text-muted">{he.post.deletedPage}</p>;
+    return (
+      <p className="p-8 text-center text-muted">
+        {post?.removedAt ? he.post.removedPage : he.post.deletedPage}
+      </p>
+    );
 
   // The comment alone, then a page of its replies (each with its own subtree) underneath.
   const [self] = (await getThread(post.id, comment.parentCommentId, 0, id)).nodes;
   if (!self) return notFound;
   const replies = await getThread(post.id, id, from);
-  const ctx = { postId: post.id, viewerId, postLive: true };
+  const ctx = { postId: post.id, viewerId, postLive: true, isAdmin: await isAdmin(viewerId) };
 
   return (
     <section className="p-4 text-start">

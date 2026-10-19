@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { getUser } from "@/lib/services";
+import { getUser, isAdmin } from "@/lib/services";
 
 /**
  * Logged in, setup possibly unfinished: only the welcome screen and its actions use this.
@@ -19,4 +19,11 @@ export async function requireViewer() {
   const user = await requireLogin();
   if (!user.onboardedAt || !user.handle) redirect("/welcome");
   return { ...user, handle: user.handle };
+}
+
+/** An admin (moderation pages). Everyone else gets a plain 404: the page doesn't exist for them. */
+export async function requireAdmin() {
+  const viewer = await requireViewer();
+  if (!(await isAdmin(viewer.id))) notFound();
+  return viewer;
 }

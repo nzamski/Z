@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import {
+  clearBioAction,
+  resetHandleAction,
+  suspendUserAction,
+  unsuspendUserAction,
+} from "@/app/actions";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
+import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
 import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
@@ -10,7 +17,7 @@ import { requireViewer } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { feedPage, followInfo, getUserByHandle, ServiceError } from "@/lib/services";
+import { feedPage, followInfo, getUserByHandle, isAdmin, ServiceError } from "@/lib/services";
 import type { Metadata } from "next";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
@@ -21,7 +28,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const viewerId = (await requireViewer()).id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };
-  const [info, page] = await Promise.all([
+  const [info, page, admin] = await Promise.all([
     followInfo(user.id, viewerId),
     feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
       (e) => {
@@ -29,6 +36,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
         throw e;
       },
     ),
+    isAdmin(viewerId),
   ]);
 
   const chat = chatLink(user.handle);
@@ -38,7 +46,14 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       <section className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold">{user.displayName}</h2>
+            <h2 className="text-xl font-bold">
+              {user.displayName}
+              {user.suspendedAt && (admin || viewerId === user.id) && (
+                <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
+                  {he.moderation.suspendedBadge}
+                </span>
+              )}
+            </h2>
             <p className="text-muted">
               <span dir="ltr">@{user.handle}</span>
             </p>
@@ -100,6 +115,35 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
             <b className="text-foreground">{info.followers}</b> {he.profile.followers}
           </Link>
         </div>
+        {admin && viewerId !== user.id && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-neutral-200 pt-3 text-sm text-muted dark:border-neutral-800">
+            <span className="font-medium">{he.moderation.title}:</span>
+            {user.suspendedAt ? (
+              <ModerateButton
+                label={he.moderation.unsuspend}
+                action={unsuspendUserAction.bind(null, user.id)}
+              />
+            ) : (
+              <ModerateButton
+                label={he.moderation.suspend}
+                danger
+                action={suspendUserAction.bind(null, user.id)}
+              />
+            )}
+            {user.bio && (
+              <ModerateButton
+                label={he.moderation.clearBio}
+                danger
+                action={clearBioAction.bind(null, user.id)}
+              />
+            )}
+            <ModerateButton
+              label={he.moderation.resetHandle}
+              danger
+              action={resetHandleAction.bind(null, user.id)}
+            />
+          </div>
+        )}
       </section>
       <FeedList
         key={user.id}

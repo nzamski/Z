@@ -16,7 +16,8 @@ import type { Metadata } from "next";
 async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const view = parseView((await cookies()).get(VIEW_COOKIE)?.value);
-  const viewerId = (await requireViewer()).id;
+  const viewer = await requireViewer();
+  const viewerId = viewer.id;
   // `cursor` is the no-JS "load more" link; a garbled one just starts over.
   const q = await searchParams;
   const cursor = typeof q.cursor === "string" ? q.cursor : null;
@@ -28,12 +29,18 @@ async function Home({ searchParams }: PageProps<"/">) {
     <>
       <FeedTabs view={view} />
       <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
-        <Composer
-          action={createPostAction}
-          max={POST_MAX}
-          placeholder={he.composer.placeholder}
-          submitLabel={he.composer.publish}
-        />
+        {viewer.suspendedAt ? (
+          <p role="status" className="text-start text-sm text-danger">
+            {he.moderation.suspendedBanner}
+          </p>
+        ) : (
+          <Composer
+            action={createPostAction}
+            max={POST_MAX}
+            placeholder={he.composer.placeholder}
+            submitLabel={he.composer.publish}
+          />
+        )}
       </div>
       <FeedList
         key={view}

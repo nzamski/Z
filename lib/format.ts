@@ -23,3 +23,8 @@ const my = new Intl.DateTimeFormat("he", { month: "long", year: "numeric" });
 
 /** "אוקטובר 2026" */
 export const monthYear = (d: Date) => my.format(d);
+
+const dt = new Intl.DateTimeFormat("he", { dateStyle: "short", timeStyle: "short" });
+
+/** "19.10.2026, 14:05": exact times for the moderation log. */
+export const dateTime = (d: Date) => dt.format(d);
