@@ -431,6 +431,30 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   return { items: applyAuthorPenalty(page), next, asOf };
 }
 
+// Top: the most liked posts of all time, keyset on (like_count DESC, id DESC) (posts_top_idx).
+// Counts move while someone pages, so a post can repeat or be skipped at a page boundary; the
+// client drops repeats (mergeById), and a skipped post is at most one page away from its spot.
+async function topPage(viewerId: string, cursor: Cursor | null, now: Date): Promise<FeedPage> {
+  const rows = await db
+    .select(postCols(viewerId))
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(
+      and(
+        active(posts),
+        cursor?.s !== undefined
+          ? sql`(${posts.likeCount}, ${posts.id}) < (${cursor.s}::int, ${cursor.id}::uuid)`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(posts.likeCount), desc(posts.id))
+    .limit(PAGE + 1);
+  const items = rows.slice(0, PAGE);
+  const last = items.at(-1);
+  const next = rows.length > PAGE && last ? encodeCursor({ s: last.likeCount, id: last.id }) : null;
+  return { items, next, asOf: now.toISOString() };
+}
+
 export async function feedPage(
   viewerId: string,
   opts: { view: FeedView; authorId?: string; query?: string; cursor?: string | null; now?: Date },
@@ -448,6 +472,7 @@ export async function feedPage(
   if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
   if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor, now);
   if (opts.view === "latest") return newestPage(viewerId, undefined, cursor, now);
+  if (opts.view === "top") return topPage(viewerId, cursor, now);
   return forYouPage(viewerId, cursor, now);
 }
 

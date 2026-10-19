@@ -94,6 +94,9 @@ export const posts = pgTable(
     index("posts_author_idx")
       .on(t.authorId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.deletedAt} is null`),
+    index("posts_top_idx")
+      .on(t.likeCount.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(sql`${t.deletedAt} is null`),
     index("posts_updated_at_idx").on(t.updatedAt),
     // Rate limits count recent rows per author, deleted ones included (RATE, lib/limits.ts).
     index("posts_rate_idx").on(t.authorId, t.createdAt),

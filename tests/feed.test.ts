@@ -204,3 +204,33 @@ describe("search", () => {
     expect(await ids(`!!!`)).toEqual([]);
   });
 });
+
+describe("Top", () => {
+  test("most liked first, ties by newest id, pages without gaps or repeats", async () => {
+    const a = await makeUser();
+    // Far above any other test's counts, so these are the first pages; pairs share a count.
+    const rows = await db
+      .insert(posts)
+      .values(
+        Array.from({ length: 45 }, (_, i) => ({
+          authorId: a.id,
+          body: `top ${i}`,
+          preview: `top ${i}`,
+          hasMore: false,
+          likeCount: 1_000_000 + Math.floor(i / 2),
+        })),
+      )
+      .returning();
+    const expected = [...rows]
+      .sort((x, y) => y.likeCount - x.likeCount || (y.id > x.id ? 1 : -1))
+      .map((r) => r.id);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    while (seen.length < expected.length) {
+      const page = await s.feedPage(a.id, { view: "top", cursor });
+      seen.push(...page.items.map((i) => i.id));
+      cursor = page.next;
+    }
+    expect(seen.slice(0, expected.length)).toEqual(expected);
+  });
+});

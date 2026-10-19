@@ -5,6 +5,7 @@ export const he = {
     forYou: "בשבילך",
     following: "נעקבים",
     latest: "אחרונים",
+    top: "מובילים",
     search: "חיפוש",
     home: "לדף הבית",
     back: "חזרה",
