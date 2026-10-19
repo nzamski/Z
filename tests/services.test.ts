@@ -1,10 +1,10 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql as dsql } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 import { db, sql } from "@/db/client";
 import { follows, likes, posts } from "@/db/schema";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
-import { POST_MAX } from "@/lib/limits";
+import { EDIT_WINDOW_MINUTES, POST_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -34,6 +34,26 @@ describe("posts", () => {
     const a = await makeUser();
     expect(await code(s.createPost(a.id, "א".repeat(POST_MAX + 1)))).toBe("invalid");
     expect(await code(s.createPost(a.id, "   "))).toBe("invalid");
+  });
+
+  test("posts can be edited only within the edit window", async () => {
+    const a = await makeUser();
+    const p = await s.createPost(a.id, "פוסט");
+    const back = async (minutes: number) =>
+      db
+        .update(posts)
+        .set({ createdAt: dsql`now() - make_interval(mins => ${minutes})` })
+        .where(eq(posts.id, p.id));
+    await back(EDIT_WINDOW_MINUTES - 1);
+    expect(await code(s.editPost(a.id, p.id, "עדיין אפשר"))).toBe("ok");
+    await back(EDIT_WINDOW_MINUTES + 1);
+    expect(await code(s.editPost(a.id, p.id, "מאוחר מדי"))).toBe("edit_window");
+    expect((await post(p.id)).body).toBe("עדיין אפשר");
+    expect(await code(s.deletePost(a.id, p.id))).toBe("ok"); // deleting has no window
+
+    const now = Date.now();
+    expect(s.canEditPost(new Date(now - (EDIT_WINDOW_MINUTES - 1) * 60_000), now)).toBe(true);
+    expect(s.canEditPost(new Date(now - (EDIT_WINDOW_MINUTES + 1) * 60_000), now)).toBe(false);
   });
 
   test("only the author can edit or delete", async () => {
@@ -89,13 +109,13 @@ describe("comments", () => {
     expect((await post(p.id)).commentCount).toBe(2);
   });
 
-  test("edit sets edited_at; only the author can edit or delete", async () => {
+  test("comments can't be edited; only the author can delete", async () => {
     const [a, b] = [await makeUser(), await makeUser()];
     const p = await s.createPost(a.id, "פוסט");
     const c = await s.createComment(b.id, p.id, "תגובה");
-    expect(await code(s.editComment(a.id, c.id, "x"))).toBe("forbidden");
+    expect("editComment" in s).toBe(false);
     expect(await code(s.deleteComment(a.id, c.id))).toBe("forbidden");
-    expect((await s.editComment(b.id, c.id, "ערוך")).editedAt).not.toBeNull();
+    expect(await code(s.deleteComment(b.id, c.id))).toBe("ok");
   });
 
   test("rejects comments on deleted posts, replies to deleted comments, cross-post parents", async () => {

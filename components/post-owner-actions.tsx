@@ -6,8 +6,16 @@ import { Composer } from "@/components/composer";
 import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
 
-/** Edit / delete for the post's author. While editing, the composer replaces the rendered body. */
-export function PostOwnerActions(p: { postId: string; body: string; children: React.ReactNode }) {
+/**
+ * Edit / delete for the post's author. Edit only while the edit window is open (`canEdit`; the
+ * service checks again). While editing, the composer replaces the rendered body.
+ */
+export function PostOwnerActions(p: {
+  postId: string;
+  body: string;
+  canEdit: boolean;
+  children: React.ReactNode;
+}) {
   const [editing, setEditing] = useState(false);
   if (editing) {
     return (
@@ -30,12 +38,14 @@ export function PostOwnerActions(p: { postId: string; body: string; children: Re
     <>
       {p.children}
       <div className="mt-2 flex gap-4 text-sm text-muted">
-        <button
-          onClick={() => setEditing(true)}
-          className="transition-colors hover:text-foreground hover:underline"
-        >
-          {he.post.edit}
-        </button>
+        {p.canEdit && (
+          <button
+            onClick={() => setEditing(true)}
+            className="transition-colors hover:text-foreground hover:underline"
+          >
+            {he.post.edit}
+          </button>
+        )}
         <DeleteButton id={p.postId} action={deletePostAction} />
       </div>
     </>

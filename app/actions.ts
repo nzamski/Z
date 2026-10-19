@@ -63,10 +63,6 @@ export async function createCommentAction(_: ActionResult, f: FormData) {
   );
 }
 
-export async function editCommentAction(_: ActionResult, f: FormData) {
-  return run((uid) => s.editComment(uid, Id.parse(field(f, "id")), Text.parse(field(f, "body"))));
-}
-
 export async function deleteCommentAction(commentId: string) {
   return run((uid) => s.deleteComment(uid, Id.parse(commentId)));
 }

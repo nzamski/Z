@@ -23,14 +23,29 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX, RATE, REASON_MAX } from "@/lib/limits";
+import {
+  BIO_MAX,
+  COMMENT_MAX,
+  EDIT_WINDOW_MINUTES,
+  HANDLE_RE,
+  POST_MAX,
+  RATE,
+  REASON_MAX,
+} from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
   constructor(
     public code:
-      "invalid" | "not_found" | "forbidden" | "gone" | "taken" | "suspended" | "rate_limited",
+      | "invalid"
+      | "not_found"
+      | "forbidden"
+      | "gone"
+      | "taken"
+      | "suspended"
+      | "rate_limited"
+      | "edit_window",
   ) {
     super(code);
   }
@@ -118,6 +133,7 @@ export async function createPost(actorId: string, body: string) {
   return row;
 }
 
+/** Only the author, and only within EDIT_WINDOW_MINUTES of publishing (the database's clock). */
 export async function editPost(actorId: string, postId: string, body: string) {
   const text = parse(PostBody, body);
   await assertCanWrite(actorId);
@@ -125,10 +141,20 @@ export async function editPost(actorId: string, postId: string, body: string) {
   const [row] = await db
     .update(posts)
     .set({ body: text, ...computePreview(text), editedAt: now, updatedAt: now })
-    .where(eq(posts.id, postId))
+    .where(
+      and(
+        eq(posts.id, postId),
+        sql`${posts.createdAt} > now() - make_interval(mins => ${EDIT_WINDOW_MINUTES})`,
+      ),
+    )
     .returning();
+  if (!row) throw new ServiceError("edit_window");
   return row;
 }
+
+/** Whether the post's edit window is still open (for showing the edit button). */
+export const canEditPost = (createdAt: Date, at = Date.now()) =>
+  at - createdAt.getTime() < EDIT_WINDOW_MINUTES * 60_000;
 
 export async function deletePost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
@@ -162,18 +188,6 @@ export async function createComment(
       .returning();
     return row;
   });
-}
-
-export async function editComment(actorId: string, commentId: string, body: string) {
-  const text = parse(CommentBody, body);
-  await assertCanWrite(actorId);
-  await ownActive(comments, commentId, actorId);
-  const [row] = await db
-    .update(comments)
-    .set({ body: text, editedAt: now, updatedAt: now })
-    .where(eq(comments.id, commentId))
-    .returning();
-  return row;
 }
 
 // Replies keep counting toward post.comment_count; only this comment is subtracted.

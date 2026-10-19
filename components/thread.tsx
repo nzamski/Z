@@ -40,7 +40,6 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
           <CommentActions
             postId={ctx.postId}
             commentId={n.id}
-            body={n.body!}
             canReply={!!ctx.viewerId && ctx.postLive}
             isOwner={ctx.viewerId === n.author!.id}
             isAdmin={ctx.isAdmin}

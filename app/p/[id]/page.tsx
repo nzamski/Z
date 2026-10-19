@@ -13,7 +13,7 @@ import { Thread } from "@/components/thread";
 import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
-import { getPost, getThread, isAdmin, ROOTS_PAGE } from "@/lib/services";
+import { canEditPost, getPost, getThread, isAdmin, ROOTS_PAGE } from "@/lib/services";
 import type { Metadata } from "next";
 import { snippet } from "@/lib/format";
 
@@ -39,7 +39,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
       <article className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
         {viewerId === post.authorId ? (
-          <PostOwnerActions postId={post.id} body={post.body}>
+          <PostOwnerActions postId={post.id} body={post.body} canEdit={canEditPost(post.createdAt)}>
             {body}
           </PostOwnerActions>
         ) : (
