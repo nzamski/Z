@@ -4,6 +4,7 @@
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ActionResult } from "@/app/actions";
 import { Markdown } from "@/components/markdown";
+import { useMentionSuggest } from "@/components/mention-suggest";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -28,6 +29,7 @@ export function Composer(p: Props) {
     if (typed && typed !== p.initial) setBody(typed);
   }, [p.initial]);
   const [tab, setTab] = useState<"write" | "preview">("write");
+  const mentions = useMentionSuggest(textarea, body, setBody);
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
@@ -77,17 +79,20 @@ export function Composer(p: Props) {
           )}
         </div>
       )}
-      <textarea
-        ref={textarea}
-        hidden={tab === "preview"}
-        title={he.composer.markdownHint}
-        name="body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder={p.placeholder}
-        rows={p.rows ?? 4}
-        className="block w-full resize-none overflow-hidden rounded-md border border-neutral-300 bg-transparent p-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400"
-      />
+      <div className="relative" hidden={tab === "preview"}>
+        <textarea
+          ref={textarea}
+          {...mentions.textareaProps}
+          title={he.composer.markdownHint}
+          name="body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={p.placeholder}
+          rows={p.rows ?? 4}
+          className="block w-full resize-none overflow-hidden rounded-md border border-neutral-300 bg-transparent p-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400"
+        />
+        {mentions.list}
+      </div>
       <div className="flex items-center gap-3 text-sm">
         <button
           disabled={pending || over || (!p.allowEmpty && !body.trim())}

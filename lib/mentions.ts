@@ -3,8 +3,9 @@
 
 export const MENTIONS_MAX = 10; // notified per post or comment, so a list of handles can't spam
 
-// A handle (lib/limits.ts HANDLE_RE, any case) after start or a non-word character.
-const MENTION = /(^|[^\p{L}\p{N}_@.])@([a-zA-Z][a-zA-Z0-9_]{3,14})(?![a-zA-Z0-9_])/gu;
+// A handle after start or a non-word character. Looser than HANDLE_RE (4+ characters, for new
+// handles) so older, shorter handles can be mentioned too; unknown handles are just not notified.
+const MENTION = /(^|[^\p{L}\p{N}_@.])@([a-zA-Z][a-zA-Z0-9_]{1,14})(?![a-zA-Z0-9_])/gu;
 
 /** Splits plain text into text and mention parts (handles lowercased). */
 export function splitMentions(text: string) {

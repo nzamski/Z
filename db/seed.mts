@@ -463,7 +463,8 @@ async function insert(table: string, rows: Row[]) {
 }
 
 const started = Date.now();
-await sql`truncate users, posts, comments, likes, comment_likes, follows, admins, moderation_actions`;
+await sql`truncate users, posts, comments, likes, comment_likes, follows, admins, moderation_actions,
+  notifications`;
 await insert("users", users);
 await insert("posts", posts);
 // Parents must exist before replies: comments were generated parent-first, insert in that order.
@@ -482,6 +483,30 @@ await sql`
   from (select comment_id, count(*)::int as n from comment_likes where deleted_at is null
     group by comment_id) l
   where l.comment_id = c.id`;
+// Notifications for what the seed did (as the services would have written them). Older than a
+// day: already read.
+await sql`
+  insert into notifications (recipient_id, actor_id, type, post_id, comment_id, created_at, updated_at)
+  select coalesce(pc.author_id, p.author_id), c.author_id,
+    case when c.parent_comment_id is null then 'comment' else 'reply' end,
+    c.post_id, c.id, c.created_at, c.created_at
+  from comments c join posts p on p.id = c.post_id
+    left join comments pc on pc.id = c.parent_comment_id
+  where c.deleted_at is null and c.author_id <> coalesce(pc.author_id, p.author_id)
+  union all
+  select p.author_id, l.user_id, 'like_post', p.id, null, l.created_at, l.created_at
+  from likes l join posts p on p.id = l.post_id where l.user_id <> p.author_id
+  union all
+  select c.author_id, l.user_id,
+    case when l.user_id = p.author_id then 'author_liked' else 'like_comment' end,
+    c.post_id, c.id, l.created_at, l.created_at
+  from comment_likes l join comments c on c.id = l.comment_id join posts p on p.id = c.post_id
+  where l.user_id <> c.author_id and c.deleted_at is null
+  union all
+  select f.followee_id, f.follower_id, 'follow', null, null, f.created_at, f.created_at
+  from follows f`;
+await sql`update notifications set read_at = created_at + interval '1 hour'
+  where created_at < now() - interval '1 day'`;
 await sql`analyze`; // fresh planner stats, so EXPLAIN on seed data reflects real plans
 await sql.end();
 

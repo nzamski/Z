@@ -1382,13 +1382,17 @@ const shownNotification = sql`(n.type like 'removed\_%' or n.type like 'restored
   and (n.comment_id is null
     or exists (select 1 from comments c where c.id = n.comment_id and c.deleted_at is null))))`;
 
+/** Unread count for the bell, capped at UNREAD_CAP (the badge shows "99+"), so the poll stays
+ * cheap however much someone has left unread. */
 export async function unreadNotifications(userId: string) {
   const [r] = await db.execute<{ n: number }>(sql`
-    select count(*)::int as n from notifications n
-    where n.recipient_id = ${userId} and n.read_at is null and n.deleted_at is null
-      and ${shownNotification}`);
+    select count(*)::int as n from (select 1 from notifications n
+      where n.recipient_id = ${userId} and n.read_at is null and n.deleted_at is null
+        and ${shownNotification}
+      limit ${UNREAD_CAP}) x`);
   return r.n;
 }
+export const UNREAD_CAP = 100;
 
 export const NOTIFICATIONS_PAGE = 100;
 

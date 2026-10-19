@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackLink, LogoLink } from "@/components/home-link";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeMenu } from "@/components/theme-menu";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
-import { getUser, isAdmin } from "@/lib/services";
+import { getUser, isAdmin, unreadNotifications } from "@/lib/services";
 
 async function AuthStatus() {
   const session = await getSession();
@@ -14,7 +15,7 @@ async function AuthStatus() {
   // Suspended: locked out, links would only bounce back to /suspended.
   if (!user?.handle || !user.onboardedAt || user.suspendedAt) return null;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
-  const admin = await isAdmin(user.id);
+  const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
   return (
     <>
       {admin && (
@@ -38,6 +39,7 @@ async function AuthStatus() {
           </svg>
         </Link>
       )}
+      <NotificationBell initial={unread} />
       <Link
         href={`/u/${encodeURIComponent(user.handle)}`}
         className="font-medium hover:underline"
