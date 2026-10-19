@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { getPostBodyAction } from "@/app/actions";
 import { Spinner } from "@/components/loading";
-import { PlainText } from "@/components/post-card";
+import { Markdown } from "@/components/markdown";
 import { he } from "@/lib/i18n/he";
 
 export function PostPreview(p: { id: string; preview: string; hasMore: boolean }) {
@@ -15,7 +15,7 @@ export function PostPreview(p: { id: string; preview: string; hasMore: boolean }
   const more = p.hasMore && body === null;
   return (
     <>
-      <PlainText text={body ?? (more ? `${p.preview}…` : p.preview)} className="mt-1" />
+      <Markdown text={body ?? (more ? `${p.preview}…` : p.preview)} className="mt-1" />
       {more && (
         <a
           href={`/p/${p.id}`}

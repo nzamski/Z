@@ -6,7 +6,8 @@ import { LikeButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
-import { Byline, CommentStat, PlainText } from "@/components/post-card";
+import { Markdown } from "@/components/markdown";
+import { Byline, CommentStat } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
@@ -32,7 +33,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
     return <Notice text={post.removedAt ? he.post.removedPage : he.post.deletedPage} />;
 
   const thread = await getThread(post.id, null, from);
-  const body = <PlainText text={post.body} className="mt-2 text-lg" />;
+  const body = <Markdown text={post.body} className="mt-2 text-lg" />;
   return (
     <>
       <article className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
@@ -96,7 +97,7 @@ function RemovedPost({ post }: { post: NonNullable<Awaited<ReturnType<typeof get
       <div className="rounded-lg border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
         <p className="mb-2 text-sm text-muted">{he.moderation.removedBody}</p>
         <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
-        <PlainText text={post.body} className="mt-2" />
+        <Markdown text={post.body} className="mt-2" />
       </div>
       <div className="text-sm text-muted">
         <ModerateButton

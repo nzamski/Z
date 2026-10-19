@@ -33,7 +33,7 @@ export function CommentStat({ href, count }: { href: string; count: number }) {
   );
 }
 
-/** User text, as typed: React escapes it, newlines are kept, long words wrap. */
+/** Plain user text (bios), as typed: React escapes it, newlines are kept, long words wrap. */
 export function PlainText({ text, className = "" }: { text: string; className?: string }) {
   return (
     <p className={`leading-relaxed whitespace-pre-wrap wrap-break-word ${className}`}>{text}</p>

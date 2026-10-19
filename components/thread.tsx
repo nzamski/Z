@@ -2,7 +2,8 @@ import Link from "next/link";
 import { restoreCommentAction } from "@/app/actions";
 import { CommentActions } from "@/components/comment-actions";
 import { ModerateButton } from "@/components/moderate-button";
-import { Byline, PlainText } from "@/components/post-card";
+import { Markdown } from "@/components/markdown";
+import { Byline } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 
@@ -28,7 +29,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       ) : (
         <>
           <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
-          <PlainText text={n.body!} className="mt-1" />
+          <Markdown text={n.body!} className="mt-1" />
           <CommentActions
             postId={ctx.postId}
             commentId={n.id}

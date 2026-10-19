@@ -4,7 +4,6 @@
 // Wipes the dev database first; refuses to run in production.
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
-import { POST_MAX } from "../lib/limits";
 import { computePreview } from "../lib/preview";
 
 if (process.env.NODE_ENV === "production") throw new Error("seed is dev-only");
@@ -310,8 +309,7 @@ for (let i = 0; i < N_POSTS; i++) {
   const longEvery = large ? 50 : 15;
   const body =
     i % longEvery === 0
-      ? // Cut to the post limit like a real user would have to (by length only, keeping lines).
-        computePreview(LONG[(i / longEvery) % LONG.length], POST_MAX, Infinity).preview
+      ? LONG[(i / longEvery) % LONG.length]
       : !large && i < SHORT.length
         ? SHORT[i]
         : large && rand() < 0.3

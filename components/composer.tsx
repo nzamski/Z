@@ -1,7 +1,9 @@
 "use client";
-// Plain-text composer (markdown is off for now) with a character counter.
+// Markdown composer (posts, comments) with a live preview from the server's own renderer and a
+// character counter.
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ActionResult } from "@/app/actions";
+import { Markdown } from "@/components/markdown";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -25,10 +27,12 @@ export function Composer(p: Props) {
     const typed = textarea.current?.value;
     if (typed && typed !== p.initial) setBody(typed);
   }, [p.initial]);
+  const [tab, setTab] = useState<"write" | "preview">("write");
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
       setBody(p.initial ?? "");
+      setTab("write");
       p.onDone?.();
     }
     return r;
@@ -48,8 +52,35 @@ export function Composer(p: Props) {
       {Object.entries(p.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
+      {body && (
+        <div role="tablist" className="flex gap-4 text-sm">
+          {(["write", "preview"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className="text-muted transition-colors hover:text-foreground aria-selected:font-bold aria-selected:text-foreground"
+            >
+              {he.composer[t]}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === "preview" && (
+        <div className="min-h-16 rounded-md border border-dashed border-neutral-300 p-2 dark:border-neutral-700">
+          {body.trim() ? (
+            <Markdown text={body} />
+          ) : (
+            <p className="text-muted">{he.composer.previewEmpty}</p>
+          )}
+        </div>
+      )}
       <textarea
         ref={textarea}
+        hidden={tab === "preview"}
+        title={he.composer.markdownHint}
         name="body"
         value={body}
         onChange={(e) => setBody(e.target.value)}

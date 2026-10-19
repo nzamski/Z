@@ -33,6 +33,11 @@ export const he = {
     save: "שמירה",
     cancel: "ביטול",
     tooLong: "ארוך מדי",
+    write: "כתיבה",
+    preview: "תצוגה מקדימה",
+    previewEmpty: "אין מה להציג.",
+    markdownHint:
+      "אפשר לעצב ב־Markdown: **מודגש**, _נטוי_, `קוד`, ```בלוק קוד```, רשימות וקישורים.",
   },
   comment: {
     placeholder: "כתבו תגובה…",
