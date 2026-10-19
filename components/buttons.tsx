@@ -1,11 +1,21 @@
 "use client";
 import { useState, useTransition } from "react";
-import { setFollowAction, setLikeAction, type ActionResult } from "@/app/actions";
+import {
+  setCommentLikeAction,
+  setFollowAction,
+  setLikeAction,
+  type ActionResult,
+} from "@/app/actions";
 import { he } from "@/lib/i18n/he";
 
 // Local state, not useOptimistic: feed pages fetched on the client have no server prop that
 // refresh() would update, so an optimistic value would snap back. Fresh server props still win.
-export function LikeButton(p: { postId: string; liked: boolean; count: number }) {
+export function LikeButton(p: {
+  id: string;
+  kind?: "post" | "comment";
+  liked: boolean;
+  count: number;
+}) {
   const [state, setState] = useState({ liked: p.liked, count: p.count });
   const [prop, setProp] = useState(state);
   if (prop.liked !== p.liked || prop.count !== p.count) {
@@ -18,7 +28,7 @@ export function LikeButton(p: { postId: string; liked: boolean; count: number })
       const before = state;
       const liked = !state.liked;
       setState({ liked, count: state.count + (liked ? 1 : -1) });
-      const r = await setLikeAction(p.postId, liked);
+      const r = await (p.kind === "comment" ? setCommentLikeAction : setLikeAction)(p.id, liked);
       if (r.error) setState(before);
     });
   return (

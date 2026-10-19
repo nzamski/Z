@@ -14,6 +14,7 @@ export const RATE = {
   posts: { max: 10, minutes: 10 },
   comments: { max: 30, minutes: 10 },
   likes: { max: 120, minutes: 10 }, // likes rows: each re-like after an unlike counts
+  commentLikes: { max: 120, minutes: 10 },
   follows: { max: 50, minutes: 10 },
   search: { max: 30, minutes: 1 },
 };

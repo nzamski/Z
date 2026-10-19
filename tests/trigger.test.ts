@@ -13,6 +13,8 @@ test("set_updated_at() advances updated_at on every table", async () => {
   await s.likePost(b.id, p.id);
   await s.follow(a.id, b.id);
   const [like] = await sql`select id from likes where post_id = ${p.id}`;
+  await s.likeComment(a.id, c.id);
+  const [clike] = await sql`select id from comment_likes where comment_id = ${c.id}`;
   const [fol] = await sql`select id from follows where follower_id = ${a.id}`;
   const [adm] = await sql`insert into admins (user_id) values (${a.id}) returning id`;
   const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
@@ -23,6 +25,7 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["posts", p.id, "body = 'x'"],
     ["comments", c.id, "body = 'x'"],
     ["likes", like.id, "deleted_at = now()"],
+    ["comment_likes", clike.id, "deleted_at = now()"],
     ["follows", fol.id, "deleted_at = now()"],
     ["posts", p.id, "deleted_at = now()"],
     ["admins", adm.id, "deleted_at = now()"],

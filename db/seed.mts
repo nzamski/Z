@@ -112,6 +112,9 @@ const SHORT = [
   "השבוע למדתי ש-EXPLAIN ANALYZE על טבלה ריקה לא אומר כלום. צריך נתונים אמיתיים.",
   "שאלה לאנשי דאטה: איך אתם מנהלים schema evolution בטבלאות אנליטיות?",
   "מחר בעשר: הדגמה של כלי ה-feature flags החדש. פתוח לכולם.",
+  // Markdown (posts and comments render it; bios don't).
+  "שאלה: ה-init container של ה-migrations נופל אצלנו עם **permission denied**.\n\n\`\`\`sh\nnode migrate.mjs\n\`\`\`\n\nמישהו נתקל? ה-UID אקראי (restricted SCC).",
+  "שלושה דברים שכדאי לבדוק לפני שמוסיפים אינדקס:\n\n1. האם השאילתה באמת איטית (\`EXPLAIN ANALYZE\`)\n2. כמה כתיבות יש לטבלה\n3. האם אינדקס **חלקי** מספיק\n\n> אינדקס שלא משתמשים בו הוא רק עוד כתיבה.",
 ];
 
 const LONG = [
@@ -125,8 +128,10 @@ const LONG = [
 2. restricted SCC זה לא באג
 רוב הבעיות היו images שמניחים UID קבוע. הפתרון:
 
+\`\`\`dockerfile
 RUN chgrp -R 0 /app && chmod -R g=u /app
 USER 1001
+\`\`\`
 
 3. probes אמיתיים
 - readiness בודק תלויות
@@ -408,6 +413,45 @@ for (let f = 0; f < N_USERS; f++) {
   }
 }
 
+// Comment likes. On question-like posts, the post's author often likes one answer: the
+// "liked by the author" mark that puts it first.
+const commentLikes: Row[] = [];
+const likedComment = new Set<string>(); // `${commentId}:${userId}`
+const likeComment = (c: Row, u: number) => {
+  likedComment.add(`${c.id}:${uid(u)}`);
+  const t = Math.min(NOW - 1000, ts(c) + int(24 * HOUR) + 1000);
+  commentLikes.push({
+    id: uuidv7(t),
+    created_at: new Date(t),
+    updated_at: new Date(t),
+    user_id: uid(u),
+    comment_id: c.id,
+  });
+  return t;
+};
+const live = comments.filter((c) => !c.deleted_at);
+for (const c of live) {
+  const seen = new Set<number>();
+  const n = pareto(large ? 20 : 4, 1.4) - 1;
+  while (seen.size < n) seen.add(popular());
+  for (const u of seen) likeComment(c, u);
+}
+const postsById = new Map(posts.map((p) => [p.id, p]));
+const byPost = Map.groupBy(
+  live.filter((c) => !c.parent_comment_id),
+  (c) => c.post_id as string,
+);
+for (const [postId, tops] of byPost) {
+  const post = postsById.get(postId)!;
+  const question = /שאלה|\?/.test(post.body as string);
+  if (!(question ? rand() < 0.8 : rand() < 0.3)) continue;
+  const answer = tops.find((c) => c.author_id !== post.author_id);
+  if (!answer) continue;
+  const authorIndex = users.findIndex((u) => u.id === post.author_id);
+  if (likedComment.has(`${answer.id}:${post.author_id}`)) continue;
+  answer.author_liked_at = new Date(likeComment(answer, authorIndex));
+}
+
 // ---------- write ----------
 
 async function insert(table: string, rows: Row[]) {
@@ -419,12 +463,13 @@ async function insert(table: string, rows: Row[]) {
 }
 
 const started = Date.now();
-await sql`truncate users, posts, comments, likes, follows, admins, moderation_actions`;
+await sql`truncate users, posts, comments, likes, comment_likes, follows, admins, moderation_actions`;
 await insert("users", users);
 await insert("posts", posts);
 // Parents must exist before replies: comments were generated parent-first, insert in that order.
 await insert("comments", comments);
 await insert("likes", likes);
+await insert("comment_likes", commentLikes);
 await insert("follows", follows);
 // dana moderates in dev (docs/moderation.md), so /admin can be tried right after seeding.
 await sql`insert into admins (user_id) values (${uid(0)})`;
@@ -432,6 +477,11 @@ await sql`
   update posts p set
     like_count = (select count(*) from likes l where l.post_id = p.id and l.deleted_at is null),
     comment_count = (select count(*) from comments c where c.post_id = p.id and c.deleted_at is null)`;
+await sql`
+  update comments c set like_count = l.n
+  from (select comment_id, count(*)::int as n from comment_likes where deleted_at is null
+    group by comment_id) l
+  where l.comment_id = c.id`;
 await sql`analyze`; // fresh planner stats, so EXPLAIN on seed data reflects real plans
 await sql.end();
 

@@ -32,7 +32,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   if (post.deletedAt)
     return <Notice text={post.removedAt ? he.post.removedPage : he.post.deletedPage} />;
 
-  const thread = await getThread(post.id, null, from);
+  const thread = await getThread(post.id, null, from, undefined, viewerId);
   const body = <Markdown text={post.body} className="mt-2 text-lg" />;
   return (
     <>
@@ -46,7 +46,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           body
         )}
         <div className="mt-3 flex gap-8 text-sm text-muted">
-          <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
+          <LikeButton id={post.id} liked={post.liked} count={post.likeCount} />
           <CommentStat href="#reply" count={post.commentCount} />
         </div>
         {admin && viewerId !== post.authorId && (

@@ -20,12 +20,14 @@ export function CommentActions(p: {
   canReply: boolean;
   isOwner: boolean;
   isAdmin: boolean;
+  like?: React.ReactNode; // the comment's like button, first in the row
 }) {
   const [mode, setMode] = useState<"idle" | "reply" | "edit">("idle");
   const close = () => setMode("idle");
   return (
     <div className="mt-1 text-sm text-muted">
-      <div className="flex gap-4">
+      <div className="flex items-center gap-4">
+        {p.like}
         {p.canReply && (
           <button
             onClick={() => setMode("reply")}

@@ -75,6 +75,10 @@ export async function setLikeAction(postId: string, liked: boolean) {
   return run((uid) => (liked ? s.likePost : s.unlikePost)(uid, Id.parse(postId)));
 }
 
+export async function setCommentLikeAction(commentId: string, liked: boolean) {
+  return run((uid) => (liked ? s.likeComment : s.unlikeComment)(uid, Id.parse(commentId)));
+}
+
 export async function setFollowAction(userId: string, following: boolean) {
   // "handle": also from the welcome's who-to-follow step.
   return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)), "handle");

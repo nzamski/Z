@@ -84,6 +84,28 @@ export function Byline(p: {
   );
 }
 
+/** The author liked a comment on this post: usually "this answered my question". */
+function AnsweredMark() {
+  return (
+    <span
+      title={he.post.answeredHint}
+      className="ms-auto flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
+    >
+      <AuthorHeart />
+      {he.post.answered}
+    </span>
+  );
+}
+
+/** Small filled heart for the post author's like on a comment. */
+export function AuthorHeart() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="size-3.5" fill="currentColor">
+      <path d="M12 20.5s-7.5-4.6-9.4-9.3C1.3 7.9 3.4 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.4 0 5.5 3.4 4.2 6.7-1.9 4.7-9.4 9.3-9.4 9.3Z" />
+    </svg>
+  );
+}
+
 export function PostCard({ post: p }: { post: PostSummary }) {
   return (
     <ClickableCard
@@ -93,8 +115,9 @@ export function PostCard({ post: p }: { post: PostSummary }) {
       <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} href={`/p/${p.id}`} />
       <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
       <div className="mt-2 flex gap-8 text-sm text-muted">
-        <LikeButton postId={p.id} liked={p.liked} count={p.likeCount} />
+        <LikeButton id={p.id} liked={p.liked} count={p.likeCount} />
         <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
+        {p.answered && <AnsweredMark />}
       </div>
     </ClickableCard>
   );

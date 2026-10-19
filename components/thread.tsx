@@ -3,7 +3,8 @@ import { restoreCommentAction } from "@/app/actions";
 import { CommentActions } from "@/components/comment-actions";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
-import { Byline } from "@/components/post-card";
+import { LikeButton } from "@/components/buttons";
+import { AuthorHeart, Byline } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 
@@ -29,6 +30,12 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       ) : (
         <>
           <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
+          {n.authorLiked && (
+            <p className="mt-1 flex items-center gap-1 text-xs font-medium text-like">
+              <AuthorHeart />
+              {he.comment.authorLiked}
+            </p>
+          )}
           <Markdown text={n.body!} className="mt-1" />
           <CommentActions
             postId={ctx.postId}
@@ -37,6 +44,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
             canReply={!!ctx.viewerId && ctx.postLive}
             isOwner={ctx.viewerId === n.author!.id}
             isAdmin={ctx.isAdmin}
+            like={<LikeButton id={n.id} kind="comment" liked={n.liked} count={n.likeCount} />}
           />
         </>
       )}

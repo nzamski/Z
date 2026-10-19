@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import {
   admins,
+  commentLikes,
   comments,
   follows,
   likes,
@@ -76,11 +77,12 @@ async function ownActive<T extends typeof posts | typeof comments>(
   if (row.authorId !== actorId) throw new ServiceError("forbidden");
 }
 
-type WriteKind = "posts" | "comments" | "likes" | "follows";
+type WriteKind = "posts" | "comments" | "likes" | "commentLikes" | "follows";
 const RATE_ROWS = {
   posts: [posts, posts.authorId],
   comments: [comments, comments.authorId],
   likes: [likes, likes.userId],
+  commentLikes: [commentLikes, commentLikes.userId],
   follows: [follows, follows.followerId],
 } as const;
 
@@ -227,6 +229,80 @@ export async function unlikePost(actorId: string, postId: string) {
   });
 }
 
+// ---- comment likes ----
+// The post author's like on someone else's comment also sets comments.author_liked_at: the
+// "liked by the author" mark, which puts the comment first in the thread.
+
+async function commentContext(tx: Tx, commentId: string) {
+  const [c] = await tx
+    .select({
+      authorId: comments.authorId,
+      postAuthorId: posts.authorId,
+      deletedAt: comments.deletedAt,
+      postDeletedAt: posts.deletedAt,
+    })
+    .from(comments)
+    .innerJoin(posts, eq(posts.id, comments.postId))
+    .where(eq(comments.id, commentId));
+  if (!c) throw new ServiceError("not_found");
+  return {
+    ...c,
+    byPostAuthor: (actorId: string) => actorId === c.postAuthorId && actorId !== c.authorId,
+  };
+}
+
+export async function likeComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId, "commentLikes");
+  await db.transaction(async (tx) => {
+    const c = await commentContext(tx, commentId);
+    if (c.deletedAt || c.postDeletedAt) throw new ServiceError("gone");
+    const inserted = await tx
+      .insert(commentLikes)
+      .values({ userId: actorId, commentId })
+      .onConflictDoNothing({
+        target: [commentLikes.userId, commentLikes.commentId],
+        where: active(commentLikes),
+      })
+      .returning({ id: commentLikes.id });
+    if (!inserted.length) return;
+    await tx
+      .update(comments)
+      .set({
+        likeCount: sql`${comments.likeCount} + 1`,
+        ...(c.byPostAuthor(actorId) ? { authorLikedAt: now } : {}),
+        updatedAt: now,
+      })
+      .where(eq(comments.id, commentId));
+  });
+}
+
+export async function unlikeComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId);
+  await db.transaction(async (tx) => {
+    const c = await commentContext(tx, commentId);
+    const removed = await tx
+      .update(commentLikes)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(commentLikes.userId, actorId),
+          eq(commentLikes.commentId, commentId),
+          active(commentLikes),
+        ),
+      )
+      .returning({ id: commentLikes.id });
+    if (!removed.length) return;
+    await tx
+      .update(comments)
+      .set({
+        likeCount: sql`${comments.likeCount} - 1`,
+        ...(c.byPostAuthor(actorId) ? { authorLikedAt: null } : {}),
+        updatedAt: now,
+      })
+      .where(eq(comments.id, commentId));
+  });
+}
+
 // ---- follows ----
 
 export async function follow(actorId: string, followeeId: string) {
@@ -274,6 +350,9 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  // The author liked a comment on it: the "answered" mark (comments_author_liked_idx).
+  answered: sql<boolean>`exists (select 1 from ${comments} ac where ac.post_id = ${posts.id}
+    and ac.author_liked_at is not null and ac.deleted_at is null)`,
   // Authors always have a handle: posting requires finishing the welcome.
   author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
 });
@@ -441,6 +520,9 @@ export type ThreadNode = {
   removed: boolean; // deleted by a moderator
   body: string | null; // null when deleted
   author: { id: string; handle: string; displayName: string } | null;
+  likeCount: number;
+  liked: boolean; // by the viewer
+  authorLiked: boolean; // by the post's author: shown with a mark, sorted first among top-level
   createdAt: Date;
   editedAt: Date | null;
   /** Visible children in the DB (live, or deleted with replies), loaded or not. */
@@ -452,13 +534,19 @@ export type ThreadNode = {
  * Loads children of `parentId` (null = top-level) starting at `offset`, each with its subtree
  * down to THREAD_DEPTH levels, at most REPLIES_PAGE children per comment.
  * Deleted comments without replies are hidden; deleted ones with replies become placeholders.
+ * Top-level comments: the ones the post's author liked first, then most liked, then oldest.
+ * Replies stay oldest first (a conversation).
  */
 export async function getThread(
   postId: string,
   parentId: string | null,
   offset = 0,
   onlyId?: string,
+  viewerId: string | null = null,
 ) {
+  const byScore = !parentId && !onlyId;
+  const authorLiked = (a: string) =>
+    sql.raw(`(${a}.author_liked_at is not null and ${a}.deleted_at is null)`);
   const visible = sql`(x.deleted_at is null or exists (
     select 1 from comments y where y.post_id = x.post_id and y.parent_comment_id = x.id))`;
   const rows = await db.execute<{
@@ -467,6 +555,9 @@ export async function getThread(
     depth: number;
     deleted_at: string | null;
     removed_at: string | null;
+    like_count: number;
+    author_liked: boolean;
+    liked: boolean;
     body: string;
     author_id: string;
     handle: string;
@@ -482,7 +573,7 @@ export async function getThread(
           and ${parentId ? sql`x.parent_comment_id = ${parentId}` : sql`x.parent_comment_id is null`}
           and ${onlyId ? sql`x.id = ${onlyId}` : sql`true`}
           and ${visible}
-        order by x.created_at, x.id
+        order by ${byScore ? sql`${authorLiked("x")} desc, x.like_count desc,` : sql``} x.created_at, x.id
         limit ${parentId ? REPLIES_PAGE : ROOTS_PAGE} offset ${offset}) x
       union all
       select c.*, t.depth + 1 from t cross join lateral (
@@ -493,11 +584,15 @@ export async function getThread(
       where t.depth < ${THREAD_DEPTH}
     )
     select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.removed_at, t.body, t.author_id, t.created_at,
-      t.edited_at, u.handle, u.display_name,
+      t.edited_at, u.handle, u.display_name, t.like_count, ${authorLiked("t")} as author_liked,
+      exists (select 1 from comment_likes cl where cl.comment_id = t.id
+        and cl.user_id = ${viewerId} and cl.deleted_at is null) as liked,
       (select count(*)::int from comments x
         where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}) as child_count
     from t join users u on u.id = t.author_id
-    order by t.depth, t.created_at, t.id`);
+    order by t.depth,
+      ${byScore ? sql`case when t.depth = 1 then ${authorLiked("t")} end desc, case when t.depth = 1 then t.like_count end desc,` : sql``}
+      t.created_at, t.id`);
 
   const byId = new Map<string, ThreadNode>();
   const roots: ThreadNode[] = [];
@@ -511,6 +606,9 @@ export async function getThread(
       removed: r.removed_at !== null,
       body: deleted ? null : r.body,
       author: deleted ? null : { id: r.author_id, handle: r.handle, displayName: r.display_name },
+      likeCount: r.like_count,
+      liked: r.liked,
+      authorLiked: r.author_liked,
       createdAt: new Date(r.created_at),
       editedAt: r.edited_at ? new Date(r.edited_at) : null,
       childCount: r.child_count,

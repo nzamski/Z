@@ -29,9 +29,9 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
     );
 
   // The comment alone, then a page of its replies (each with its own subtree) underneath.
-  const [self] = (await getThread(post.id, comment.parentCommentId, 0, id)).nodes;
+  const [self] = (await getThread(post.id, comment.parentCommentId, 0, id, viewerId)).nodes;
   if (!self) return notFound;
-  const replies = await getThread(post.id, id, from);
+  const replies = await getThread(post.id, id, from, undefined, viewerId);
   const ctx = { postId: post.id, viewerId, postLive: true, isAdmin: await isAdmin(viewerId) };
 
   return (
