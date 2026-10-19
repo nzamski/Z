@@ -118,6 +118,12 @@ export const he = {
     },
     was: (v: string) => `היה: ${v}`,
   },
+  theme: {
+    label: "ערכת צבעים",
+    system: "לפי המערכת",
+    light: "בהיר",
+    dark: "כהה",
+  },
   likers: {
     title: "אהבו את זה",
     none: "עדיין אין לייקים.",

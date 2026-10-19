@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Header } from "@/components/header";
 import { he } from "@/lib/i18n/he";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 const heebo = localFont({
@@ -17,7 +18,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
+    // data-theme is set by the inline script before React hydrates (lib/theme.ts).
+    <html
+      lang="he"
+      dir="rtl"
+      className={`${heebo.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full">
         <a
           href="#content"

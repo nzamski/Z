@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Dark mode follows <html data-theme> (lib/theme.ts); without it (no JS), the system setting. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -11,6 +23,7 @@
   /* Sticky stack: header, then the feed tabs right under it. */
   --header-h: 4.5rem;
   --tabs-h: 2.75rem;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -23,14 +36,25 @@
   --font-sans: var(--font-heebo), system-ui, sans-serif;
 }
 
+/* Dark tokens: chosen dark theme, or no choice made yet and the system is dark. */
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --muted: #a3a3a3; /* neutral-400: 7.9:1 */
+  --link: #38bdf8; /* sky-400: 9.2:1 */
+  --danger: #f87171; /* red-400: 7.2:1 */
+  --like: #f43f5e; /* rose-500: 5.4:1 */
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --background: #0a0a0a;
     --foreground: #ededed;
-    --muted: #a3a3a3; /* neutral-400: 7.9:1 */
-    --link: #38bdf8; /* sky-400: 9.2:1 */
-    --danger: #f87171; /* red-400: 7.2:1 */
-    --like: #f43f5e; /* rose-500: 5.4:1 */
+    --muted: #a3a3a3;
+    --link: #38bdf8;
+    --danger: #f87171;
+    --like: #f43f5e;
+    color-scheme: dark;
   }
 }
 
