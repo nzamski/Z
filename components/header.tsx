@@ -10,7 +10,8 @@ async function AuthStatus() {
   const user = session && (await getUser(session.uid));
   // No session: the proxy sends them to login. Setup unfinished: they're in the welcome, where
   // links to the rest of Z would only bounce back.
-  if (!user?.handle || !user.onboardedAt) return null;
+  // Suspended: locked out, links would only bounce back to /suspended.
+  if (!user?.handle || !user.onboardedAt || user.suspendedAt) return null;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   const admin = await isAdmin(user.id);
   return (

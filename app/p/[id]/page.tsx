@@ -9,7 +9,7 @@ import { ModerateButton } from "@/components/moderate-button";
 import { Byline, CommentStat, PlainText } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
-import { requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 import { getPost, getThread, isAdmin, ROOTS_PAGE } from "@/lib/services";
@@ -110,6 +110,7 @@ function RemovedPost({ post }: { post: NonNullable<Awaited<ReturnType<typeof get
 
 // X-style: "Name ב־Z: "first words of the post"". The proxy already required a session.
 export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promise<Metadata> {
+  if (!(await canSeeContent())) return { title: { absolute: he.appName } };
   const { id } = await params;
   const post = z.uuid().safeParse(id).success ? await getPost(id, null) : null;
   if (!post) return { title: he.post.notFound };

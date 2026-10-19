@@ -81,8 +81,8 @@ export const he = {
     reason: "סיבה (נשמרת ביומן)",
     confirm: "אישור",
     suspendedBadge: "מושעה",
-    suspendedBanner:
-      "החשבון שלך מושעה על ידי מנהל: אפשר לקרוא, אבל לא לפרסם, להגיב, לעשות לייק או לעקוב.",
+    suspendedTitle: "החשבון שלך מושעה",
+    suspendedText: "מנהל השעה את החשבון שלך, ולכן אין לך גישה ל־Z כרגע. לפרטים פנו למנהלי המערכת.",
     removedBody: "התוכן שהוסר (גלוי רק למנהלים):",
     admins: "מנהלים",
     grant: "הוספת מנהל",
@@ -122,7 +122,7 @@ export const he = {
     gone: "התוכן נמחק.",
     taken: "שם המשתמש הזה כבר תפוס.",
     rate_limited: "יותר מדי פעולות בזמן קצר. נסו שוב בעוד כמה דקות.",
-    suspended: "החשבון שלך מושעה: אפשר לקרוא, אבל לא לפרסם, להגיב, לעשות לייק או לעקוב.",
+    suspended: "החשבון שלך מושעה.",
     unknown: "משהו השתבש. נסו שוב.",
   },
   // Browser tab titles, X-style "<page> / Z" (the " / Z" comes from the root layout template).
@@ -133,6 +133,7 @@ export const he = {
     welcome: "ברוכים הבאים",
     post: (name: string, text: string) => `${name} ב־Z: "${text}"`,
     admin: "ניהול",
+    suspended: "החשבון מושעה",
     profile: (name: string, handle: string) => `${name} (@${handle})`,
     followers: (name: string, handle: string) => `העוקבים של ${name} (@${handle})`,
     following: (name: string, handle: string) => `הנעקבים של ${name} (@${handle})`,

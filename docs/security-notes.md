@@ -45,7 +45,7 @@ integrity of posts and identities, the availability of the service, and the sess
   restart. The router/ingress can add per-IP limits in front.
 - **Session revocation**: sessions are stateless cookies. A user disabled in Keycloak keeps using
   Z until their session ends (4 h by default, `SESSION_MAX_AGE_HOURS`). To cut someone off at
-  once, suspend them (`docs/moderation.md`); that stops writes but not reading. Rotating
+  once, suspend them (`docs/moderation.md`): that locks them out of Z on their next request. Rotating
   `SESSION_SECRET` logs everyone out.
 - **Moderation is reactive**: no user reports, no notifications to affected users
   (`docs/moderation.md`).

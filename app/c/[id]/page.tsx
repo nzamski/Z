@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { z } from "zod";
 import { Loading } from "@/components/loading";
 import { Thread } from "@/components/thread";
-import { requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { getComment, getPost, getThread, getUser, isAdmin, REPLIES_PAGE } from "@/lib/services";
 import type { Metadata } from "next";
@@ -58,6 +58,7 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
 }
 
 export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promise<Metadata> {
+  if (!(await canSeeContent())) return { title: { absolute: he.appName } };
   const { id } = await params;
   const comment = z.uuid().safeParse(id).success ? await getComment(id) : null;
   const author = comment && !comment.deletedAt ? await getUser(comment.authorId) : null;

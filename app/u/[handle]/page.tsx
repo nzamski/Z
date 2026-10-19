@@ -13,7 +13,7 @@ import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
 import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
-import { requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -48,7 +48,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           <div>
             <h2 className="text-xl font-bold">
               {user.displayName}
-              {user.suspendedAt && (admin || viewerId === user.id) && (
+              {user.suspendedAt && admin && (
                 <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
                   {he.moderation.suspendedBadge}
                 </span>
@@ -159,6 +159,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
 }
 
 export async function generateMetadata({ params }: PageProps<"/u/[handle]">): Promise<Metadata> {
+  if (!(await canSeeContent())) return { title: { absolute: he.appName } };
   const user = await getUserByHandle(decodeURIComponent((await params).handle));
   return { title: user ? he.titles.profile(user.displayName, user.handle) : he.profile.notFound };
 }

@@ -85,9 +85,9 @@ const RATE_ROWS = {
 } as const;
 
 /**
- * Suspended users can read, and undo (delete, unlike, unfollow), but not add or change anything.
- * `kind`: also enforce that rate limit (RATE): the user's rows of that kind in the trailing window,
- * soft-deleted ones included, so deleting doesn't buy more.
+ * Suspended users can't write anything at all, not even delete or undo (they can't read either:
+ * requireLogin sends them to /suspended). `kind`: also enforce that rate limit (RATE): the user's
+ * rows of that kind in the trailing window, soft-deleted ones included, so deleting doesn't buy more.
  */
 async function assertCanWrite(actorId: string, kind?: WriteKind) {
   let recent = sql<number>`0`;
@@ -129,6 +129,7 @@ export async function editPost(actorId: string, postId: string, body: string) {
 }
 
 export async function deletePost(actorId: string, postId: string) {
+  await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
   await db.update(posts).set({ deletedAt: now, updatedAt: now }).where(eq(posts.id, postId));
 }
@@ -175,6 +176,7 @@ export async function editComment(actorId: string, commentId: string, body: stri
 
 // Replies keep counting toward post.comment_count; only this comment is subtracted.
 export async function deleteComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId);
   await ownActive(comments, commentId, actorId);
   await db.transaction(async (tx) => {
     const [row] = await tx
@@ -209,6 +211,7 @@ export async function likePost(actorId: string, postId: string) {
 }
 
 export async function unlikePost(actorId: string, postId: string) {
+  await assertCanWrite(actorId);
   await db.transaction(async (tx) => {
     const removed = await tx
       .update(likes)
@@ -244,6 +247,7 @@ export async function follow(actorId: string, followeeId: string) {
 }
 
 export async function unfollow(actorId: string, followeeId: string) {
+  await assertCanWrite(actorId);
   await db
     .update(follows)
     .set({ deletedAt: now, updatedAt: now })
@@ -631,6 +635,7 @@ export async function updateProfile(actorId: string, input: { handle: string; bi
 
 /** Done with the first-login welcome. Needs a handle (the one thing setup must produce). */
 export async function finishOnboarding(actorId: string) {
+  await assertCanWrite(actorId);
   const [u] = await db.select({ handle: users.handle }).from(users).where(eq(users.id, actorId));
   if (!u?.handle) throw new ServiceError("invalid");
   await db

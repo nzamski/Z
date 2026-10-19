@@ -106,12 +106,13 @@ describe("posts and comments", () => {
 });
 
 describe("users", () => {
-  test("a suspended user can read and undo, but not post, comment, like, follow or edit", async () => {
+  test("a suspended user can't write anything, not even delete or undo", async () => {
     const [a, b] = [await makeUser(), await makeUser()];
     const own = await s.createPost(a.id, "שלי");
     const other = await s.createPost(b.id, "של אחר");
     await s.likePost(a.id, other.id);
     await s.follow(a.id, b.id);
+    const mine = await s.createComment(a.id, other.id, "תגובה שלי");
 
     await s.suspendUser(admin.id, a.id, "הטרדה");
     await s.suspendUser(admin.id, a.id, "שוב"); // no-op, not logged twice
@@ -123,13 +124,16 @@ describe("users", () => {
     expect(await code(s.likePost(a.id, own.id))).toBe("suspended");
     expect(await code(s.follow(a.id, admin.id))).toBe("suspended");
     expect(await code(s.updateProfile(a.id, { handle: a.handle, bio: "x" }))).toBe("suspended");
-    expect(await code(s.unlikePost(a.id, other.id))).toBe("ok");
-    expect(await code(s.unfollow(a.id, b.id))).toBe("ok");
-    expect(await code(s.deletePost(a.id, own.id))).toBe("ok");
+    expect(await code(s.unlikePost(a.id, other.id))).toBe("suspended");
+    expect(await code(s.unfollow(a.id, b.id))).toBe("suspended");
+    expect(await code(s.deletePost(a.id, own.id))).toBe("suspended");
+    expect(await code(s.deleteComment(a.id, mine.id))).toBe("suspended");
+    expect(await code(s.finishOnboarding(a.id))).toBe("suspended");
     expect((await s.suspendedUsers()).map((u) => u.id)).toContain(a.id);
 
     await s.unsuspendUser(admin.id, a.id, "הסתיים");
     expect(await code(s.createPost(a.id, "חזרתי"))).toBe("ok");
+    expect(await code(s.deletePost(a.id, own.id))).toBe("ok");
   });
 
   test("admins can't be suspended until revoked", async () => {
