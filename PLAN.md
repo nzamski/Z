@@ -245,6 +245,7 @@ Topics/tags and interest-based personalization, typed pages (ideas backlog, RFC 
 **Decided**: Keycloak for identity (a client can be obtained), OpenShift with the existing Helm libchart (values-only deployment), platform-managed Postgres, threaded comments, no leader concept, soft delete everywhere with a guaranteed, indexed `updated_at`, `openid-client` for OIDC, `markdown-it` for markdown. Hosting, registry and security-review ownership are handled outside this plan.
 
 **Deferred (revisit before broad rollout)**: moderation. Phase 1 has no way for anyone other than the author to remove a post. Before the pilot expands beyond a small trusted group, decide on at least a documented takedown path (e.g. a CLI that soft-deletes through the service layer) and an audit log of deletions.
+_Done 2026-10-19 at the user's request_: admins (granted by CLI, then on `/admin`) remove/restore posts and comments, suspend users, clear bios and reset handles, all with a reason in an audit log (`docs/moderation.md`).
 
 **Open (for Noam)**:
 
@@ -252,3 +253,4 @@ Topics/tags and interest-based personalization, typed pages (ideas backlog, RFC 
 2. Which Keycloak claims are available for handle, display name and unit/organization, and is `preferred_username` stable and unique? (Needed in M2; the plan falls back to `sub` + `name` if not.)
 3. Run the needs survey from the concept doc before M3, so ranking and later features reflect real pain points.
 4. Is the `pg_trgm` extension available (or installable by the DBA) on the managed Postgres? Needed before M4; without it, search ships with `simple` + prefix handling only.
+   _Answered 2026-10-19: available._ Used for substring/fuzzy people search and a typo-tolerant post search fallback (migration 0009, `docs/search.md`). Hebrew needs a UTF-8 aware database `LC_CTYPE`: confirm with the DBA.

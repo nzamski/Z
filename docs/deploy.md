@@ -22,7 +22,8 @@ Output in `dist/`:
 | `z-app-<tag>.sha256`         | checksum file                                      |
 | `z-app-<tag>.sbom.spdx.json` | SBOM (only if `syft` is installed)                 |
 
-The image: Next.js standalone server on 8080 (`node server.js`) plus `node migrate.mjs`. No npm,
+The image: Next.js standalone server on 8080 (`node server.js`) plus `node migrate.mjs` and
+`node admin.mjs` (`docs/moderation.md`). No npm,
 no dev dependencies, no build tools. Runs as any UID in group 0; root filesystem can be read-only
 (writable `emptyDir` at `/tmp` and `/app/.next/cache`). The base image is pinned by digest in
 the `Dockerfile`.
@@ -40,8 +41,12 @@ skopeo copy oci-archive:z-app-<tag>.oci.tar docker://<internal-registry>/z/z-app
 **Postgres** (platform-managed, Postgres 16, core features only): ask the DBA for a dedicated
 database and a role that owns its `public` schema (migrations create tables, functions,
 triggers and indexes), or a separate migration role plus a runtime role with DML only.
-No extensions are required. `pg_trgm` is not used (PLAN Q4). TLS: `?sslmode=verify-full` in
-`DATABASE_URL`; mount a private CA and set `DATABASE_CA_FILE` if needed.
+One extension: `pg_trgm` (PLAN Q4: available). Migration 0009 runs `CREATE EXTENSION IF NOT
+EXISTS pg_trgm`; it is a trusted extension, so the database owner may create it, or the DBA can
+create it beforehand. Ask the DBA which `LC_CTYPE` the database has: it must be UTF-8 aware
+(`C.UTF-8`, `he_IL.UTF-8`, `en_US.UTF-8`) for fuzzy search to see Hebrew (`docs/search.md`).
+TLS: `?sslmode=verify-full` in `DATABASE_URL`; mount a private CA and set `DATABASE_CA_FILE` if
+needed.
 
 **Keycloak**: see `docs/keycloak.md`.
 
@@ -94,6 +99,9 @@ browser tab opened on the old version may get one failed action and must reload.
 - `/api/health?live` and `/api/health` return `{"ok":true}`.
 - Opening the Route redirects to Keycloak; logging in lands on the feed.
 - Post, like, comment, follow; search finds the post.
+- After the first login, make the first admin: `oc exec deploy/z -- node admin.mjs grant
+<handle> "<reason>"`; the shield icon appears in their header and `/admin` opens.
+- Response headers include `content-security-policy` and `strict-transport-security`.
 
 ## Dry run (what was verified locally)
 
