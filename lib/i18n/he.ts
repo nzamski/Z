@@ -79,6 +79,7 @@ export const he = {
     forbidden: "אין לך הרשאה לפעולה הזו.",
     gone: "התוכן נמחק.",
     taken: "שם המשתמש הזה כבר תפוס.",
+    suspended: "החשבון שלך מושעה: אפשר לקרוא, אבל לא לפרסם, להגיב, לעשות לייק או לעקוב.",
     unknown: "משהו השתבש. נסו שוב.",
   },
   // Browser tab titles, X-style "<page> / Z" (the " / Z" comes from the root layout template).

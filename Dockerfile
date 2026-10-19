@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-# Z production image (PLAN.md §9). One image: `node server.js` (default) and `node migrate.mjs`.
+# Z production image (PLAN.md §9). One image: `node server.js` (default), `node migrate.mjs`, and
+# `node admin.mjs` (grant/revoke admins; docs/moderation.md).
 # Build on a connected machine: `npm run build:images` (docs/deploy.md).
 #
 # Base: pinned by digest. Replace with the organization's approved Node 22 base (PLAN.md Q3):
@@ -30,9 +31,11 @@ WORKDIR /app
 COPY --from=build /src/.next/standalone ./
 COPY --from=build /src/.next/static ./.next/static
 COPY --from=build /src/public ./public
-# Migrations: SQL files + the runner and its two (dependency-free) packages, complete.
+# Migrations: SQL files + the runner and its two (dependency-free) packages, complete. admin.mjs
+# needs only `postgres`.
 COPY --from=build /src/drizzle ./drizzle
 COPY --from=build /src/scripts/migrate.mjs ./migrate.mjs
+COPY --from=build /src/scripts/admin.mjs ./admin.mjs
 COPY --from=deps /src/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=deps /src/node_modules/postgres ./node_modules/postgres
 # OpenShift restricted SCC: arbitrary UID in group 0. The root FS can be read-only; mount

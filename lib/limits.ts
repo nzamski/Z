@@ -5,3 +5,4 @@ export const BIO_MAX = 70;
 // Handles: 4-15 chars, starting with a letter; then lowercase latin letters, digits and _.
 export const HANDLE_RE = /^[a-z][a-z0-9_]{3,14}$/;
 export const HANDLE_MAX = 15;
+export const REASON_MAX = 300; // moderation reasons

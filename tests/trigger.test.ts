@@ -14,6 +14,9 @@ test("set_updated_at() advances updated_at on every table", async () => {
   await s.follow(a.id, b.id);
   const [like] = await sql`select id from likes where post_id = ${p.id}`;
   const [fol] = await sql`select id from follows where follower_id = ${a.id}`;
+  const [adm] = await sql`insert into admins (user_id) values (${a.id}) returning id`;
+  const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
+    values ('suspend_user', ${b.id}, 'test') returning id`;
 
   const rows: [string, string, string][] = [
     ["users", a.id, "bio = 'x'"],
@@ -22,6 +25,8 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["likes", like.id, "deleted_at = now()"],
     ["follows", fol.id, "deleted_at = now()"],
     ["posts", p.id, "deleted_at = now()"],
+    ["admins", adm.id, "deleted_at = now()"],
+    ["moderation_actions", mod.id, "reason = 'x'"],
   ];
   for (const [table, id, set] of rows) {
     const [before] = await sql`select updated_at::text as t from ${sql(table)} where id = ${id}`;
