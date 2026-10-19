@@ -2,10 +2,11 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { FeedList } from "@/components/feed-list";
 import { Loading } from "@/components/loading";
+import { PostCard } from "@/components/post-card";
 import { UserRow } from "@/components/user-row";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
-import { feedPage, searchUsers, ServiceError } from "@/lib/services";
+import { feedPage, searchUsers, ServiceError, similarPosts } from "@/lib/services";
 import type { Metadata } from "next";
 
 const heading =
@@ -53,6 +54,8 @@ async function SearchResults(p: { viewerId: string; q: string; cursor: string | 
       throw e;
     }),
   ]);
+  // Nothing matched exactly: offer the closest posts instead (typos, inflections; docs/search.md).
+  const similar = !p.cursor && !page.items.length ? await similarPosts(p.viewerId, p.q) : [];
   return (
     <>
       {people.length > 0 && (
@@ -73,16 +76,29 @@ async function SearchResults(p: { viewerId: string; q: string; cursor: string | 
           <h2 className={heading}>{he.search.posts}</h2>
         </section>
       )}
-      <FeedList
-        key={p.q}
-        view="latest"
-        q={p.q}
-        viewerId={p.viewerId}
-        first={page.items}
-        next={page.next}
-        asOf={page.asOf}
-        emptyText={people.length ? he.search.noPosts : he.search.none(p.q)}
-      />
+      {similar.length > 0 ? (
+        <section aria-labelledby="similar-title">
+          <p id="similar-title" className="px-4 py-3 text-start text-sm text-muted">
+            {he.search.similar(p.q)}
+          </p>
+          <ul>
+            {similar.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <FeedList
+          key={p.q}
+          view="latest"
+          q={p.q}
+          viewerId={p.viewerId}
+          first={page.items}
+          next={page.next}
+          asOf={page.asOf}
+          emptyText={people.length ? he.search.noPosts : he.search.none(p.q)}
+        />
+      )}
     </>
   );
 }

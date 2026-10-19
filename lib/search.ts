@@ -15,12 +15,9 @@ export function variants(term: string): string[] {
   return out;
 }
 
-/**
- * Every term must match (AND); each term matches any of its variants as a word prefix
- * (`קוב` finds `קוברנטיס`). Returns null when nothing searchable is left.
- */
-export function toTsQuery(input: string): string | null {
-  const terms = [
+/** Searchable terms: runs of letters/digits, 2+ chars, deduped, at most MAX_TERMS. */
+export function terms(input: string): string[] {
+  return [
     ...new Set(
       input
         .normalize("NFD")
@@ -31,8 +28,16 @@ export function toTsQuery(input: string): string | null {
         .map((t) => t.slice(0, 50)),
     ),
   ].slice(0, MAX_TERMS);
-  if (!terms.length) return null;
-  return terms
+}
+
+/**
+ * Every term must match (AND); each term matches any of its variants as a word prefix
+ * (`קוב` finds `קוברנטיס`). Returns null when nothing searchable is left.
+ */
+export function toTsQuery(input: string): string | null {
+  const ts = terms(input);
+  if (!ts.length) return null;
+  return ts
     .map(
       (t) =>
         `(${variants(t)
@@ -40,4 +45,21 @@ export function toTsQuery(input: string): string | null {
           .join(" | ")})`,
     )
     .join(" & ");
+}
+
+// pg_trgm (docs/search.md). word_similarity(query, text) is 0..1: how well the query matches the
+// best stretch of the text. Below these thresholds, matches are mostly noise.
+export const FUZZY = {
+  /** Post search fallback, when full-text search finds nothing. */
+  posts: 0.5,
+  /** People search: handle and display name. */
+  people: 0.4,
+  /** Shorter queries match too much to be useful. */
+  minLength: 3,
+} as const;
+
+/** The query as plain words for pg_trgm, or null if it's too short to match fuzzily. */
+export function fuzzyText(input: string): string | null {
+  const text = terms(input).join(" ");
+  return text.length >= FUZZY.minLength ? text : null;
 }

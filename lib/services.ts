@@ -14,7 +14,7 @@ import {
 } from "@/lib/feed";
 import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
-import { toTsQuery } from "@/lib/search";
+import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
   constructor(public code: "invalid" | "not_found" | "forbidden" | "gone" | "taken") {
@@ -469,35 +469,72 @@ export async function getThread(
 // ---- users ----
 
 /**
- * People search: handle prefix (a leading @ is ignored) or display-name substring.
- * Exact handle first, then the most followed. ponytail: ILIKE scans users; fine for thousands
- * of users, add a trigram index (pg_trgm, PLAN Q4) if it ever isn't.
+ * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
+ * (pg_trgm) for typos. Exact handle first, then handle prefix, then closest, then most followed.
  */
 export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const q = query.trim().replace(/^@/, "").slice(0, 50);
   if (!q) return [];
   const like = q.replace(/[\\%_]/g, (c) => `\\${c}`); // user input is literal text
-  return db
-    .select({
-      ...userCard,
-      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
-        and v.followee_id = ${users.id} and v.deleted_at is null)`,
-    })
-    .from(users)
-    .where(
-      and(
-        active(users),
-        hasHandle,
-        sql`(${users.handle} ilike ${like + "%"} or ${users.displayName} ilike ${"%" + like + "%"})`,
-      ),
-    )
-    .orderBy(
-      desc(sql`${users.handle} = lower(${q})`),
-      desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
-        and f.deleted_at is null)`),
-      users.handle,
-    )
-    .limit(limit);
+  const fuzzy = fuzzyText(q);
+  const closeness = fuzzy
+    ? sql`greatest(word_similarity(${fuzzy}, ${users.handle}), word_similarity(${fuzzy}, ${users.displayName}))`
+    : sql`0::float8`; // a bare 0 in ORDER BY would mean "column 0"
+  return withTrigramThreshold(FUZZY.people, (tx) =>
+    tx
+      .select({
+        ...userCard,
+        viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+          and v.followee_id = ${users.id} and v.deleted_at is null)`,
+      })
+      .from(users)
+      .where(
+        and(
+          active(users),
+          hasHandle,
+          sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
+            ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`,
+        ),
+      )
+      .orderBy(
+        desc(sql`${users.handle} = lower(${q})`),
+        desc(sql`${users.handle} ilike ${like + "%"}`),
+        desc(closeness),
+        desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+          and f.deleted_at is null)`),
+        users.handle,
+      )
+      .limit(limit),
+  );
+}
+
+/**
+ * Typo-tolerant post search (pg_trgm), for when full-text search finds nothing: one page of the
+ * closest live posts, best match first. Not paged (no stable cursor for a similarity order).
+ */
+export async function similarPosts(viewerId: string, query: string) {
+  const fuzzy = fuzzyText(query);
+  if (!fuzzy) return [];
+  return withTrigramThreshold(FUZZY.posts, (tx) =>
+    tx
+      .select(postCols(viewerId))
+      .from(posts)
+      .innerJoin(users, eq(users.id, posts.authorId))
+      .where(and(active(posts), sql`${fuzzy} <% ${posts.body}`))
+      .orderBy(desc(sql`word_similarity(${fuzzy}, ${posts.body})`), desc(posts.createdAt))
+      .limit(PAGE),
+  );
+}
+
+// `a <% b` (word_similarity above the threshold) is what the trigram GIN indexes can answer; the
+// threshold is a setting, so set it for this transaction only.
+function withTrigramThreshold<T>(threshold: number, fn: (tx: Tx) => Promise<T>) {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select set_config('pg_trgm.word_similarity_threshold', ${String(threshold)}, true)`,
+    );
+    return fn(tx);
+  });
 }
 
 /** Whether a handle can be taken by this user ("ok" includes the user's current handle). */

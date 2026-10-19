@@ -47,6 +47,13 @@ export const users = pgTable(
     uniqueIndex("users_handle_active_uq")
       .on(t.handle)
       .where(sql`${t.deletedAt} is null`),
+    // pg_trgm (drizzle/0009_trgm.sql): substring and fuzzy people search.
+    index("users_handle_trgm_idx")
+      .using("gin", t.handle.op("gin_trgm_ops"))
+      .where(sql`${t.deletedAt} is null`),
+    index("users_display_name_trgm_idx")
+      .using("gin", t.displayName.op("gin_trgm_ops"))
+      .where(sql`${t.deletedAt} is null`),
     index("users_updated_at_idx").on(t.updatedAt),
   ],
 );
@@ -70,6 +77,10 @@ export const posts = pgTable(
   (t) => [
     index("posts_search_idx")
       .using("gin", t.search)
+      .where(sql`${t.deletedAt} is null`),
+    // pg_trgm: typo-tolerant fallback when full-text search finds nothing (docs/search.md).
+    index("posts_body_trgm_idx")
+      .using("gin", t.body.op("gin_trgm_ops"))
       .where(sql`${t.deletedAt} is null`),
     // Plain `ORDER BY ... DESC` is NULLS FIRST; drizzle's .desc() alone emits NULLS LAST, which
     // the planner won't use for that order.

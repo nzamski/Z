@@ -1,8 +1,9 @@
 # Search
 
-Code: `lib/search.ts` (query builder), `feedPage({ query })` in `lib/services.ts`, page
-`app/search/page.tsx`, SQL in `drizzle/0005_search.sql` (function) and
-`drizzle/0006_search_column.sql` (column + index). Spec: PLAN.md §7.7.
+Code: `lib/search.ts` (query builder, fuzzy thresholds), `feedPage({ query })`, `similarPosts()`
+and `searchUsers()` in `lib/services.ts`, page `app/search/page.tsx`, SQL in
+`drizzle/0005_search.sql` (function), `drizzle/0006_search_column.sql` (column + index) and
+`drizzle/0009_trgm.sql` (pg_trgm). Spec: PLAN.md §7.7.
 
 ## How it works
 
@@ -39,11 +40,35 @@ So `שרת` finds "השרת", `השרת` finds "שרת", and `מערכת` finds 
   relevance-ranked, so noise is visible but bounded.
 - **No stemming**: plural/gender/construct forms (`שרתים`, `שרתי`) only match as word
   prefixes of what was typed, not as the same lemma.
-- **No typo tolerance / substring match**: that needs `pg_trgm`, pending PLAN.md open
-  question 4. Nothing depends on it yet; if confirmed, add a trigram index in its own,
-  clearly marked migration.
+- **Typo tolerance is a fallback only** (see pg_trgm below): it kicks in when full-text search
+  finds nothing, shows one page, and is not paged.
 - **No relevance ranking**: newest first. `ts_rank` would need a different (non-keyset) cursor.
-- Comments and user names are not searched.
+- Comments are not searched.
+
+## pg_trgm (migration 0009)
+
+Confirmed available on the managed Postgres (PLAN.md Q4, 2026-10-19). The migration runs
+`CREATE EXTENSION IF NOT EXISTS pg_trgm` (a trusted extension: the database owner may create it).
+
+- **People search** (`searchUsers`): handle or display name contains the query (ILIKE, literal:
+  `%`/`_` are escaped), or is close to it (`word_similarity >= 0.4`, for 3+ characters). Order:
+  exact handle, handle prefix, closest, most followed. Indexes: `users_handle_trgm_idx`,
+  `users_display_name_trgm_idx`.
+- **Post search fallback** (`similarPosts`): when full-text search returns nothing on the first
+  page, the page shows up to 20 live posts with `word_similarity(query, body) >= 0.5`, best
+  first, under "no exact matches". Index: `posts_body_trgm_idx`.
+- Thresholds live in `FUZZY` (`lib/search.ts`). The `<%` operator reads the threshold from a
+  setting, so each query sets it with `set_config(..., true)` inside its own transaction.
+
+**Locale requirement**: pg_trgm only sees letters the database's `LC_CTYPE` classifies as
+alphanumeric. With `C.UTF-8`, `he_IL.UTF-8` or `en_US.UTF-8` Hebrew works; with plain `C`, every
+Hebrew letter is dropped and fuzzy matching silently finds nothing for Hebrew (ILIKE substring
+and full-text search are unaffected). Check with:
+
+```sql
+SELECT datctype FROM pg_database WHERE datname = current_database();
+SELECT show_trgm('שלום');  -- must not be {}
+```
 
 ## Query plans
 
@@ -54,6 +79,8 @@ So `שרת` finds "השרת", `השרת` finds "שרת", and `מערכת` finds 
 | common word (`postgres`)   | index scan `posts_feed_idx`, filter   | 1.1 ms |
 | rare Hebrew word (`השרת`)  | bitmap scan `posts_search_idx` + sort | ~2 ms  |
 | two terms, mixed languages | bitmap scan `posts_search_idx` + sort | ~3 ms  |
+
+| fuzzy fallback (`קוברנטס`) | bitmap scan `posts_body_trgm_idx` | 0.8 ms |
 
 The first version indexed the expression `z_search_vector(body)` without storing it; for rare
 words the planner walked `posts_feed_idx` and recomputed the regex per row (146 ms). The
