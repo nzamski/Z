@@ -95,6 +95,8 @@ export const posts = pgTable(
       .on(t.authorId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.deletedAt} is null`),
     index("posts_updated_at_idx").on(t.updatedAt),
+    // Rate limits count recent rows per author, deleted ones included (RATE, lib/limits.ts).
+    index("posts_rate_idx").on(t.authorId, t.createdAt),
   ],
 );
 
@@ -117,6 +119,7 @@ export const comments = pgTable(
   (t) => [
     index("comments_thread_idx").on(t.postId, t.parentCommentId, t.createdAt),
     index("comments_updated_at_idx").on(t.updatedAt),
+    index("comments_rate_idx").on(t.authorId, t.createdAt),
   ],
 );
 
@@ -139,6 +142,7 @@ export const likes = pgTable(
       .on(t.postId)
       .where(sql`${t.deletedAt} is null`),
     index("likes_updated_at_idx").on(t.updatedAt),
+    index("likes_rate_idx").on(t.userId, t.createdAt),
   ],
 );
 
@@ -162,6 +166,7 @@ export const follows = pgTable(
       .where(sql`${t.deletedAt} is null`),
     check("follows_not_self", sql`${t.followerId} <> ${t.followeeId}`),
     index("follows_updated_at_idx").on(t.updatedAt),
+    index("follows_rate_idx").on(t.followerId, t.createdAt),
   ],
 );
 

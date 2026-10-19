@@ -6,6 +6,7 @@ import { PostCard } from "@/components/post-card";
 import { UserRow } from "@/components/user-row";
 import { requireViewer } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
+import { allowSearch } from "@/lib/rate-limit";
 import { feedPage, searchUsers, ServiceError, similarPosts } from "@/lib/services";
 import type { Metadata } from "next";
 
@@ -46,6 +47,8 @@ async function Results({ searchParams }: PageProps<"/search">) {
 }
 
 async function SearchResults(p: { viewerId: string; q: string; cursor: string | null }) {
+  if (!allowSearch(p.viewerId))
+    return <p className="p-4 text-start text-danger">{he.search.rateLimited}</p>;
   const opts = { view: "latest" as const, query: p.q };
   const [people, page] = await Promise.all([
     p.cursor ? [] : searchUsers(p.viewerId, p.q), // people only on the first page

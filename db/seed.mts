@@ -421,13 +421,15 @@ async function insert(table: string, rows: Row[]) {
 }
 
 const started = Date.now();
-await sql`truncate users, posts, comments, likes, follows`;
+await sql`truncate users, posts, comments, likes, follows, admins, moderation_actions`;
 await insert("users", users);
 await insert("posts", posts);
 // Parents must exist before replies: comments were generated parent-first, insert in that order.
 await insert("comments", comments);
 await insert("likes", likes);
 await insert("follows", follows);
+// dana moderates in dev (docs/moderation.md), so /admin can be tried right after seeding.
+await sql`insert into admins (user_id) values (${uid(0)})`;
 await sql`
   update posts p set
     like_count = (select count(*) from likes l where l.post_id = p.id and l.deleted_at is null),

@@ -22,12 +22,15 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX, REASON_MAX } from "@/lib/limits";
+import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX, RATE, REASON_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
-  constructor(public code: "invalid" | "not_found" | "forbidden" | "gone" | "taken" | "suspended") {
+  constructor(
+    public code:
+      "invalid" | "not_found" | "forbidden" | "gone" | "taken" | "suspended" | "rate_limited",
+  ) {
     super(code);
   }
 }
@@ -73,20 +76,39 @@ async function ownActive<T extends typeof posts | typeof comments>(
   if (row.authorId !== actorId) throw new ServiceError("forbidden");
 }
 
-// Suspended users can read, and undo (delete, unlike, unfollow), but not add or change anything.
-async function assertCanWrite(actorId: string) {
+type WriteKind = "posts" | "comments" | "likes" | "follows";
+const RATE_ROWS = {
+  posts: [posts, posts.authorId],
+  comments: [comments, comments.authorId],
+  likes: [likes, likes.userId],
+  follows: [follows, follows.followerId],
+} as const;
+
+/**
+ * Suspended users can read, and undo (delete, unlike, unfollow), but not add or change anything.
+ * `kind`: also enforce that rate limit (RATE): the user's rows of that kind in the trailing window,
+ * soft-deleted ones included, so deleting doesn't buy more.
+ */
+async function assertCanWrite(actorId: string, kind?: WriteKind) {
+  let recent = sql<number>`0`;
+  if (kind) {
+    const [table, by] = RATE_ROWS[kind];
+    recent = sql<number>`(select count(*)::int from ${table} where ${by} = ${actorId}
+      and ${table.createdAt} > now() - make_interval(mins => ${RATE[kind].minutes}))`;
+  }
   const [u] = await db
-    .select({ suspendedAt: users.suspendedAt })
+    .select({ suspendedAt: users.suspendedAt, recent })
     .from(users)
     .where(eq(users.id, actorId));
   if (u?.suspendedAt) throw new ServiceError("suspended");
+  if (kind && u && u.recent >= RATE[kind].max) throw new ServiceError("rate_limited");
 }
 
 // ---- posts ----
 
 export async function createPost(actorId: string, body: string) {
   const text = parse(PostBody, body);
-  await assertCanWrite(actorId);
+  await assertCanWrite(actorId, "posts");
   const [row] = await db
     .insert(posts)
     .values({ authorId: actorId, body: text, ...computePreview(text) })
@@ -120,7 +142,7 @@ export async function createComment(
   parentCommentId?: string,
 ) {
   const text = parse(CommentBody, body);
-  await assertCanWrite(actorId);
+  await assertCanWrite(actorId, "comments");
   return db.transaction(async (tx) => {
     if (parentCommentId) {
       const [parent] = await tx
@@ -171,7 +193,7 @@ export async function deleteComment(actorId: string, commentId: string) {
 // ---- likes ----
 
 export async function likePost(actorId: string, postId: string) {
-  await assertCanWrite(actorId);
+  await assertCanWrite(actorId, "likes");
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(likes)
@@ -206,7 +228,7 @@ export async function unlikePost(actorId: string, postId: string) {
 
 export async function follow(actorId: string, followeeId: string) {
   if (actorId === followeeId) throw new ServiceError("invalid");
-  await assertCanWrite(actorId);
+  await assertCanWrite(actorId, "follows");
   const [target] = await db
     .select({ id: users.id })
     .from(users)
