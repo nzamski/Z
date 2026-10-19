@@ -118,6 +118,12 @@ export const he = {
     },
     was: (v: string) => `היה: ${v}`,
   },
+  likers: {
+    title: "אהבו את זה",
+    none: "עדיין אין לייקים.",
+    backToComment: "חזרה לתגובה",
+    show: (n: number) => `${n} לייקים: מי אהב`,
+  },
   pages: {
     notFound: "העמוד לא נמצא.",
     error: "משהו השתבש בטעינת העמוד.",

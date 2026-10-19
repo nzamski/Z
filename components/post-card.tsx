@@ -115,7 +115,7 @@ export function PostCard({ post: p }: { post: PostSummary }) {
       <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} href={`/p/${p.id}`} />
       <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
       <div className="mt-2 flex gap-8 text-sm text-muted">
-        <LikeButton id={p.id} liked={p.liked} count={p.likeCount} />
+        <LikeButton id={p.id} liked={p.liked} count={p.likeCount} likersHref={`/p/${p.id}/likes`} />
         <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
         {p.answered && <AnsweredMark />}
       </div>

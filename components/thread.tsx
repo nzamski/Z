@@ -44,7 +44,15 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
             canReply={!!ctx.viewerId && ctx.postLive}
             isOwner={ctx.viewerId === n.author!.id}
             isAdmin={ctx.isAdmin}
-            like={<LikeButton id={n.id} kind="comment" liked={n.liked} count={n.likeCount} />}
+            like={
+              <LikeButton
+                id={n.id}
+                kind="comment"
+                liked={n.liked}
+                count={n.likeCount}
+                likersHref={`/c/${n.id}/likes`}
+              />
+            }
           />
         </>
       )}

@@ -46,7 +46,12 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           body
         )}
         <div className="mt-3 flex gap-8 text-sm text-muted">
-          <LikeButton id={post.id} liked={post.liked} count={post.likeCount} />
+          <LikeButton
+            id={post.id}
+            liked={post.liked}
+            count={post.likeCount}
+            likersHref={`/p/${post.id}/likes`}
+          />
           <CommentStat href="#reply" count={post.commentCount} />
         </div>
         {admin && viewerId !== post.authorId && (

@@ -172,6 +172,10 @@ export const commentLikes = pgTable(
     uniqueIndex("comment_likes_active_uq")
       .on(t.userId, t.commentId)
       .where(sql`${t.deletedAt} is null`),
+    // "Liked by" lists (likers in lib/services.ts).
+    index("comment_likes_comment_idx")
+      .on(t.commentId)
+      .where(sql`${t.deletedAt} is null`),
     index("comment_likes_rate_idx").on(t.userId, t.createdAt),
     index("comment_likes_updated_at_idx").on(t.updatedAt),
   ],

@@ -839,6 +839,51 @@ export async function followList(
 export const FOLLOW_PAGE = 50;
 
 /**
+ * Who liked a post or a comment, newest like first, with whether the viewer follows each of them.
+ * One page (FOLLOW_PAGE); `before` is the last row's like id. Deleted posts/comments: not_found.
+ */
+export async function likers(
+  kind: "post" | "comment",
+  targetId: string,
+  viewerId: string,
+  before?: string,
+) {
+  const [target] =
+    kind === "post"
+      ? await db.select({ d: posts.deletedAt }).from(posts).where(eq(posts.id, targetId))
+      : await db.select({ d: comments.deletedAt }).from(comments).where(eq(comments.id, targetId));
+  if (!target || target.d) throw new ServiceError("not_found");
+  const [l, on] =
+    kind === "post"
+      ? [likes, eq(likes.postId, targetId)]
+      : [commentLikes, eq(commentLikes.commentId, targetId)];
+  const rows = await db
+    .select({
+      ...userCard,
+      likeId: l.id,
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+    })
+    .from(l)
+    .innerJoin(users, eq(users.id, l.userId))
+    .where(
+      and(
+        on,
+        active(l),
+        active(users),
+        hasHandle,
+        before ? sql`${l.id} < ${before}::uuid` : undefined,
+      ),
+    )
+    .orderBy(desc(l.id)) // UUIDv7: newest like first
+    .limit(FOLLOW_PAGE + 1);
+  return {
+    items: rows.slice(0, FOLLOW_PAGE),
+    next: rows.length > FOLLOW_PAGE ? rows[FOLLOW_PAGE - 1].likeId : null,
+  };
+}
+
+/**
  * Provision on first login (no handle yet: the user picks one in the mandatory welcome) and keep
  * the display name in sync with Keycloak on every login. Identity is keycloak_sub.
  */

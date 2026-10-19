@@ -86,3 +86,29 @@ describe("comment likes", () => {
     expect(await code(s.unlikeComment(b.id, c.id))).toBe("suspended");
   });
 });
+
+describe("likers", () => {
+  test("lists who liked a post or a comment, newest first, live likes only", async () => {
+    const [a, b, c, d] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "פוסט");
+    await s.likePost(b.id, p.id);
+    await s.likePost(c.id, p.id);
+    await s.likePost(d.id, p.id);
+    await s.unlikePost(d.id, p.id); // unliked: not listed
+    await s.follow(a.id, b.id);
+    const page = await s.likers("post", p.id, a.id);
+    expect(page.items.map((u) => [u.id, u.viewerFollows])).toEqual([
+      [c.id, false],
+      [b.id, true],
+    ]);
+    expect(page.next).toBeNull();
+
+    const cm = await s.createComment(b.id, p.id, "תגובה");
+    await s.likeComment(a.id, cm.id);
+    expect((await s.likers("comment", cm.id, b.id)).items.map((u) => u.id)).toEqual([a.id]);
+
+    await s.deletePost(a.id, p.id);
+    expect(await code(s.likers("post", p.id, a.id))).toBe("not_found");
+    expect(await code(s.likers("comment", crypto.randomUUID(), a.id))).toBe("not_found");
+  });
+});
