@@ -64,7 +64,8 @@ env:
   AUTH_PROVIDER: keycloak
   OIDC_ISSUER: https://<keycloak-host>/realms/<realm>
   OIDC_CLIENT_ID: z
-  SESSION_MAX_AGE_HOURS: "12"
+  # Z can't see a user disabled in Keycloak until their session ends; keep it short.
+  SESSION_MAX_AGE_HOURS: "4"
   # "Message privately" deep link into the chat; {handle} is replaced. Remove to hide the button.
   CHAT_DEEPLINK_TEMPLATE: "chat://user/{handle}"
   # For You candidate window in days (default 30).

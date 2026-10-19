@@ -4,7 +4,9 @@ import { EncryptJWT, jwtDecrypt, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "z_session";
-const MAX_AGE_S = Number(process.env.SESSION_MAX_AGE_HOURS ?? 12) * 3600;
+// Short on purpose: Z can't see a user disabled in Keycloak until their session ends, and while
+// Keycloak's SSO session lasts, the next login is just a redirect (docs/security-notes.md).
+const MAX_AGE_S = Number(process.env.SESSION_MAX_AGE_HOURS ?? 4) * 3600;
 
 function key() {
   const secret = process.env.SESSION_SECRET;

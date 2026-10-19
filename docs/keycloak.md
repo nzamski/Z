@@ -40,7 +40,10 @@ If not, map the handle from another claim (one line in `finishLogin`).
 ## Sessions and logout
 
 - After login Z keeps its own encrypted cookie session (`z_session`, HttpOnly, Secure,
-  SameSite=Lax, `SESSION_MAX_AGE_HOURS`, default 12). It does not refresh Keycloak tokens.
+  SameSite=Lax, `SESSION_MAX_AGE_HOURS`, default 4). It does not refresh Keycloak tokens.
+  When it expires, the next page load goes through Keycloak again: silent while the Keycloak
+  SSO session lasts, a login form after that. A user disabled in Keycloak keeps using Z until
+  then; to cut someone off sooner, suspend them in Z (docs/moderation.md).
 - `POST /auth/logout` clears the cookie and redirects to Keycloak's end-session endpoint with
   the ID token hint, ending the SSO session too. (There is no logout button in the UI by
   request; the route exists.)
