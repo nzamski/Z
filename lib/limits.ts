@@ -4,8 +4,9 @@ export const COMMENT_MAX = 10_000;
 // Posts can be edited this long after they're published; comments can't be edited at all.
 export const EDIT_WINDOW_MINUTES = 60;
 export const BIO_MAX = 70;
-// Handles: 4-15 chars, starting with a letter; then lowercase latin letters, digits and _.
-export const HANDLE_RE = /^[a-z][a-z0-9_]{3,14}$/;
+// Handles: 3-15 chars, starting with a letter; then lowercase latin letters, digits and _.
+// (Minimum 3 since 2026-10-20 at the user's request; it was 4.)
+export const HANDLE_RE = /^[a-z][a-z0-9_]{2,14}$/;
 export const HANDLE_MAX = 15;
 export const REASON_MAX = 300; // moderation reasons
 

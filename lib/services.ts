@@ -1,6 +1,18 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
 import { randomBytes } from "node:crypto";
-import { and, count, desc, eq, gt, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -11,9 +23,11 @@ import {
   follows,
   likes,
   moderationActions,
+  notifications,
   posts,
   users,
   type ModerationAction,
+  type NotificationType,
 } from "@/db/schema";
 import {
   applyAuthorPenalty,
@@ -32,6 +46,7 @@ import {
   RATE,
   REASON_MAX,
 } from "@/lib/limits";
+import { extractMentions } from "@/lib/markdown";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
@@ -67,15 +82,17 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// Bumps a counter on an active post; throws `gone` if the post is deleted, rolling back the transaction.
+// Bumps a counter on an active post; throws `gone` if the post is deleted, rolling back the
+// transaction. Returns the post's author.
 async function bumpPost(tx: Tx, postId: string, col: "likeCount" | "commentCount", by: 1 | -1) {
   const c = posts[col];
   const rows = await tx
     .update(posts)
     .set({ [col]: sql`${c} + ${by}`, updatedAt: now })
     .where(and(eq(posts.id, postId), active(posts)))
-    .returning({ id: posts.id });
+    .returning({ authorId: posts.authorId });
   if (!rows.length) throw new ServiceError("gone");
+  return rows[0].authorId;
 }
 
 async function ownActive<T extends typeof posts | typeof comments>(
@@ -121,16 +138,99 @@ async function assertCanWrite(actorId: string, kind?: WriteKind) {
   if (kind && u && u.recent >= RATE[kind].max) throw new ServiceError("rate_limited");
 }
 
+// ---- notification writes (docs/notifications.md) ----
+// Written in the same transaction as the action; undoing the action soft-deletes them.
+
+type Notice = {
+  recipientId: string;
+  actorId: string;
+  type: NotificationType;
+  postId?: string;
+  commentId?: string;
+  moderationActionId?: string;
+};
+
+async function notify(tx: Tx, n: Notice) {
+  if (n.recipientId === n.actorId) return; // never about your own actions
+  await tx.insert(notifications).values(n);
+}
+
+async function unnotify(
+  tx: Tx,
+  n: {
+    actorId: string;
+    types: NotificationType[];
+    postId?: string;
+    commentId?: string;
+    recipientId?: string;
+  },
+) {
+  await tx
+    .update(notifications)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(notifications.actorId, n.actorId),
+        inArray(notifications.type, n.types),
+        n.postId ? eq(notifications.postId, n.postId) : undefined,
+        n.commentId ? eq(notifications.commentId, n.commentId) : undefined,
+        n.recipientId ? eq(notifications.recipientId, n.recipientId) : undefined,
+        active(notifications),
+      ),
+    );
+}
+
+/**
+ * Notifies the users @mentioned in `body` (at most MENTIONS_MAX), except the actor, `skip` (already
+ * notified by this action), and anyone already notified of a mention in this post/comment (an edit
+ * only notifies newly added mentions).
+ */
+async function notifyMentions(
+  tx: Tx,
+  actorId: string,
+  body: string,
+  target: { postId: string; commentId?: string },
+  skip: string[] = [],
+) {
+  const handles = extractMentions(body);
+  if (!handles.length) return;
+  const type = target.commentId ? "mention_comment" : "mention_post";
+  const found = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.handle, handles), active(users), ne(users.id, actorId)));
+  for (const u of found) {
+    if (skip.includes(u.id)) continue;
+    const [already] = await tx
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientId, u.id),
+          eq(notifications.type, type),
+          target.commentId
+            ? eq(notifications.commentId, target.commentId)
+            : and(eq(notifications.postId, target.postId), isNull(notifications.commentId)),
+          active(notifications),
+        ),
+      );
+    if (!already) await notify(tx, { recipientId: u.id, actorId, type, ...target });
+  }
+}
+
 // ---- posts ----
 
 export async function createPost(actorId: string, body: string) {
   const text = parse(PostBody, body);
   await assertCanWrite(actorId, "posts");
-  const [row] = await db
-    .insert(posts)
-    .values({ authorId: actorId, body: text, ...computePreview(text) })
-    .returning();
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(posts)
+      .values({ authorId: actorId, body: text, ...computePreview(text) })
+      .returning();
+    await notifyMentions(tx, actorId, text, { postId: row.id });
+    return row;
+  });
 }
 
 /** Only the author, and only within EDIT_WINDOW_MINUTES of publishing (the database's clock). */
@@ -138,18 +238,21 @@ export async function editPost(actorId: string, postId: string, body: string) {
   const text = parse(PostBody, body);
   await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
-  const [row] = await db
-    .update(posts)
-    .set({ body: text, ...computePreview(text), editedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(posts.id, postId),
-        sql`${posts.createdAt} > now() - make_interval(mins => ${EDIT_WINDOW_MINUTES})`,
-      ),
-    )
-    .returning();
-  if (!row) throw new ServiceError("edit_window");
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(posts)
+      .set({ body: text, ...computePreview(text), editedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(posts.id, postId),
+          sql`${posts.createdAt} > now() - make_interval(mins => ${EDIT_WINDOW_MINUTES})`,
+        ),
+      )
+      .returning();
+    if (!row) throw new ServiceError("edit_window");
+    await notifyMentions(tx, actorId, text, { postId });
+    return row;
+  });
 }
 
 /** Whether the post's edit window is still open (for showing the edit button). */
@@ -173,19 +276,30 @@ export async function createComment(
   const text = parse(CommentBody, body);
   await assertCanWrite(actorId, "comments");
   return db.transaction(async (tx) => {
+    let parentAuthorId: string | undefined;
     if (parentCommentId) {
       const [parent] = await tx
-        .select({ postId: comments.postId, deletedAt: comments.deletedAt })
+        .select({
+          postId: comments.postId,
+          authorId: comments.authorId,
+          deletedAt: comments.deletedAt,
+        })
         .from(comments)
         .where(eq(comments.id, parentCommentId));
       if (!parent || parent.postId !== postId) throw new ServiceError("not_found");
       if (parent.deletedAt) throw new ServiceError("gone");
+      parentAuthorId = parent.authorId;
     }
-    await bumpPost(tx, postId, "commentCount", 1);
+    const postAuthorId = await bumpPost(tx, postId, "commentCount", 1);
     const [row] = await tx
       .insert(comments)
       .values({ postId, authorId: actorId, parentCommentId, body: text })
       .returning();
+    // A reply notifies the comment's author; a top-level comment, the post's author.
+    const recipientId = parentAuthorId ?? postAuthorId;
+    const type = parentAuthorId ? "reply" : "comment";
+    await notify(tx, { recipientId, actorId, type, postId, commentId: row.id });
+    await notifyMentions(tx, actorId, text, { postId, commentId: row.id }, [recipientId]);
     return row;
   });
 }
@@ -218,8 +332,10 @@ export async function likePost(actorId: string, postId: string) {
       .values({ userId: actorId, postId })
       .onConflictDoNothing({ target: [likes.userId, likes.postId], where: active(likes) })
       .returning({ id: likes.id });
-    if (inserted.length) await bumpPost(tx, postId, "likeCount", 1);
-    else {
+    if (inserted.length) {
+      const recipientId = await bumpPost(tx, postId, "likeCount", 1);
+      await notify(tx, { recipientId, actorId, type: "like_post", postId });
+    } else {
       const [p] = await tx.select({ d: posts.deletedAt }).from(posts).where(eq(posts.id, postId));
       if (!p || p.d) throw new ServiceError("gone");
     }
@@ -239,6 +355,7 @@ export async function unlikePost(actorId: string, postId: string) {
         .update(posts)
         .set({ likeCount: sql`${posts.likeCount} - 1`, updatedAt: now })
         .where(eq(posts.id, postId));
+      await unnotify(tx, { actorId, types: ["like_post"], postId });
     }
   });
 }
@@ -250,6 +367,7 @@ export async function unlikePost(actorId: string, postId: string) {
 async function commentContext(tx: Tx, commentId: string) {
   const [c] = await tx
     .select({
+      postId: comments.postId,
       authorId: comments.authorId,
       postAuthorId: posts.authorId,
       deletedAt: comments.deletedAt,
@@ -287,6 +405,13 @@ export async function likeComment(actorId: string, commentId: string) {
         updatedAt: now,
       })
       .where(eq(comments.id, commentId));
+    await notify(tx, {
+      recipientId: c.authorId,
+      actorId,
+      type: c.byPostAuthor(actorId) ? "author_liked" : "like_comment",
+      postId: c.postId,
+      commentId,
+    });
   });
 }
 
@@ -314,6 +439,7 @@ export async function unlikeComment(actorId: string, commentId: string) {
         updatedAt: now,
       })
       .where(eq(comments.id, commentId));
+    await unnotify(tx, { actorId, types: ["author_liked", "like_comment"], commentId });
   });
 }
 
@@ -327,23 +453,31 @@ export async function follow(actorId: string, followeeId: string) {
     .from(users)
     .where(and(eq(users.id, followeeId), active(users)));
   if (!target) throw new ServiceError("not_found");
-  await db
-    .insert(follows)
-    .values({ followerId: actorId, followeeId })
-    .onConflictDoNothing({
-      target: [follows.followerId, follows.followeeId],
-      where: active(follows),
-    });
+  await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(follows)
+      .values({ followerId: actorId, followeeId })
+      .onConflictDoNothing({
+        target: [follows.followerId, follows.followeeId],
+        where: active(follows),
+      })
+      .returning({ id: follows.id });
+    if (inserted.length) await notify(tx, { recipientId: followeeId, actorId, type: "follow" });
+  });
 }
 
 export async function unfollow(actorId: string, followeeId: string) {
   await assertCanWrite(actorId);
-  await db
-    .update(follows)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(
-      and(eq(follows.followerId, actorId), eq(follows.followeeId, followeeId), active(follows)),
-    );
+  await db.transaction(async (tx) => {
+    const removed = await tx
+      .update(follows)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(eq(follows.followerId, actorId), eq(follows.followeeId, followeeId), active(follows)),
+      )
+      .returning({ id: follows.id });
+    if (removed.length) await unnotify(tx, { actorId, types: ["follow"], recipientId: followeeId });
+  });
 }
 
 // ---- reads ----
@@ -973,7 +1107,7 @@ type LogEntry = {
 async function moderate(
   actorId: string,
   reason: string,
-  fn: (tx: Tx, log: (e: LogEntry) => Promise<void>) => Promise<void>,
+  fn: (tx: Tx, log: (e: LogEntry) => Promise<string>) => Promise<void>,
 ) {
   const why = parse(Reason, reason);
   await db.transaction(async (tx) => {
@@ -984,7 +1118,11 @@ async function moderate(
       .where(and(eq(admins.userId, actorId), active(admins), active(users)));
     if (!admin) throw new ServiceError("forbidden");
     await fn(tx, async (e) => {
-      await tx.insert(moderationActions).values({ ...e, actorId, reason: why });
+      const [row] = await tx
+        .insert(moderationActions)
+        .values({ ...e, actorId, reason: why })
+        .returning({ id: moderationActions.id });
+      return row.id;
     });
   });
 }
@@ -1004,9 +1142,16 @@ export async function removePost(actorId: string, postId: string, reason: string
       .update(posts)
       .set({ deletedAt: now, removedAt: now, updatedAt: now })
       .where(and(eq(posts.id, postId), active(posts)))
-      .returning({ id: posts.id });
+      .returning({ authorId: posts.authorId });
     if (!rows.length) throw await missing(tx, posts, postId);
-    await log({ action: "remove_post", postId });
+    const moderationActionId = await log({ action: "remove_post", postId });
+    await notify(tx, {
+      recipientId: rows[0].authorId,
+      actorId,
+      type: "removed_post",
+      postId,
+      moderationActionId,
+    });
   });
 }
 
@@ -1017,9 +1162,16 @@ export async function restorePost(actorId: string, postId: string, reason: strin
       .update(posts)
       .set({ deletedAt: null, removedAt: null, updatedAt: now })
       .where(and(eq(posts.id, postId), isNotNull(posts.removedAt)))
-      .returning({ id: posts.id });
+      .returning({ authorId: posts.authorId });
     if (!rows.length) throw await missing(tx, posts, postId);
-    await log({ action: "restore_post", postId });
+    const moderationActionId = await log({ action: "restore_post", postId });
+    await notify(tx, {
+      recipientId: rows[0].authorId,
+      actorId,
+      type: "restored_post",
+      postId,
+      moderationActionId,
+    });
   });
 }
 
@@ -1030,13 +1182,21 @@ export async function removeComment(actorId: string, commentId: string, reason: 
       .update(comments)
       .set({ deletedAt: now, removedAt: now, updatedAt: now })
       .where(and(eq(comments.id, commentId), active(comments)))
-      .returning({ postId: comments.postId });
+      .returning({ postId: comments.postId, authorId: comments.authorId });
     if (!row) throw await missing(tx, comments, commentId);
     await tx
       .update(posts)
       .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
-    await log({ action: "remove_comment", commentId });
+    const moderationActionId = await log({ action: "remove_comment", commentId });
+    await notify(tx, {
+      recipientId: row.authorId,
+      actorId,
+      type: "removed_comment",
+      postId: row.postId,
+      commentId,
+      moderationActionId,
+    });
   });
 }
 
@@ -1046,13 +1206,21 @@ export async function restoreComment(actorId: string, commentId: string, reason:
       .update(comments)
       .set({ deletedAt: null, removedAt: null, updatedAt: now })
       .where(and(eq(comments.id, commentId), isNotNull(comments.removedAt)))
-      .returning({ postId: comments.postId });
+      .returning({ postId: comments.postId, authorId: comments.authorId });
     if (!row) throw await missing(tx, comments, commentId);
     await tx
       .update(posts)
       .set({ commentCount: sql`${posts.commentCount} + 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
-    await log({ action: "restore_comment", commentId });
+    const moderationActionId = await log({ action: "restore_comment", commentId });
+    await notify(tx, {
+      recipientId: row.authorId,
+      actorId,
+      type: "restored_comment",
+      postId: row.postId,
+      commentId,
+      moderationActionId,
+    });
   });
 }
 
@@ -1066,7 +1234,7 @@ async function targetUser(tx: Tx, actorId: string, userId: string) {
   return u;
 }
 
-/** Read-only: no posting, commenting, liking, following or profile edits. Not for admins. */
+/** Locks the user out of Z (requireLogin sends them to /suspended). Not for admins. */
 export async function suspendUser(actorId: string, userId: string, reason: string) {
   await moderate(actorId, reason, async (tx, log) => {
     const u = await targetUser(tx, actorId, userId);
@@ -1203,4 +1371,97 @@ export async function moderationLog(limit = LOG_PAGE) {
     .leftJoin(target, eq(target.id, moderationActions.userId))
     .orderBy(desc(moderationActions.createdAt), desc(moderationActions.id))
     .limit(limit);
+}
+
+// ---- notifications: reads (docs/notifications.md) ----
+
+// Shown only while their post/comment is live: deleting a comment hides the notifications about
+// it, restoring brings them back. Moderation notices always show: they are about the removal.
+const shownNotification = sql`(n.type like 'removed\_%' or n.type like 'restored\_%' or (
+  (n.post_id is null or exists (select 1 from posts p where p.id = n.post_id and p.deleted_at is null))
+  and (n.comment_id is null
+    or exists (select 1 from comments c where c.id = n.comment_id and c.deleted_at is null))))`;
+
+/** Unread count for the bell, capped at UNREAD_CAP (the badge shows "99+"), so the poll stays
+ * cheap however much someone has left unread. */
+export async function unreadNotifications(userId: string) {
+  const [r] = await db.execute<{ n: number }>(sql`
+    select count(*)::int as n from (select 1 from notifications n
+      where n.recipient_id = ${userId} and n.read_at is null and n.deleted_at is null
+        and ${shownNotification}
+      limit ${UNREAD_CAP}) x`);
+  return r.n;
+}
+export const UNREAD_CAP = 100;
+
+export const NOTIFICATIONS_PAGE = 100;
+
+export type NotificationRow = {
+  id: string;
+  type: NotificationType;
+  createdAt: Date;
+  unread: boolean;
+  postId: string | null;
+  commentId: string | null;
+  actor: { handle: string; displayName: string } | null;
+  postPreview: string | null;
+  commentBody: string | null;
+  reason: string | null; // moderation notices
+};
+
+/** Newest first; `before` is the last row's id. Marks nothing read (markNotificationsRead). */
+export async function notificationsPage(userId: string, before?: string) {
+  const rows = await db.execute<{
+    id: string;
+    type: NotificationType;
+    created_at: string;
+    read_at: string | null;
+    post_id: string | null;
+    comment_id: string | null;
+    actor_handle: string | null;
+    actor_name: string | null;
+    post_preview: string | null;
+    comment_body: string | null;
+    reason: string | null;
+  }>(sql`
+    select n.id, n.type, n.created_at, n.read_at, n.post_id, n.comment_id,
+      a.handle as actor_handle, a.display_name as actor_name,
+      p.preview as post_preview, c.body as comment_body, m.reason
+    from notifications n
+      left join users a on a.id = n.actor_id
+      left join posts p on p.id = n.post_id
+      left join comments c on c.id = n.comment_id
+      left join moderation_actions m on m.id = n.moderation_action_id
+    where n.recipient_id = ${userId} and n.deleted_at is null and ${shownNotification}
+      ${
+        before
+          ? sql`and (n.created_at, n.id) <
+              (select b.created_at, b.id from notifications b where b.id = ${before}::uuid)`
+          : sql``
+      }
+    order by n.created_at desc, n.id desc
+    limit ${NOTIFICATIONS_PAGE + 1}`);
+  const items: NotificationRow[] = rows.slice(0, NOTIFICATIONS_PAGE).map((r) => ({
+    id: r.id,
+    type: r.type,
+    createdAt: new Date(r.created_at),
+    unread: r.read_at === null,
+    postId: r.post_id,
+    commentId: r.comment_id,
+    actor: r.actor_handle ? { handle: r.actor_handle, displayName: r.actor_name! } : null,
+    postPreview: r.post_preview,
+    commentBody: r.comment_body,
+    reason: r.reason,
+  }));
+  return { items, next: rows.length > NOTIFICATIONS_PAGE ? items.at(-1)!.id : null };
+}
+
+/** Marks the user's notifications read, up to and including `upTo` (what they have seen). */
+export async function markNotificationsRead(userId: string, upTo: string) {
+  await assertCanWrite(userId);
+  await db.execute(sql`
+    update notifications set read_at = now(), updated_at = now()
+    where recipient_id = ${userId} and read_at is null and deleted_at is null
+      and (created_at, id) <= (select u.created_at, u.id from notifications u
+        where u.id = ${upTo}::uuid and u.recipient_id = ${userId})`);
 }

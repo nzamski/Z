@@ -267,3 +267,50 @@ export const moderationActions = pgTable(
     index("moderation_actions_updated_at_idx").on(t.updatedAt),
   ],
 );
+
+export const NOTIFICATION_TYPES = [
+  "comment", // on your post
+  "reply", // to your comment
+  "author_liked", // the post's author liked your comment
+  "like_post",
+  "like_comment",
+  "follow",
+  "mention_post",
+  "mention_comment",
+  "removed_post", // by a moderator (moderation_action_id has the reason)
+  "removed_comment",
+  "restored_post",
+  "restored_comment",
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+// Written with the action that causes it (lib/services.ts); undoing the action (unlike, unfollow)
+// soft-deletes it. Never purged, like everything else (sync).
+export const notifications = pgTable(
+  "notifications",
+  {
+    ...base,
+    recipientId: uuid("recipient_id")
+      .notNull()
+      .references(() => users.id),
+    actorId: uuid("actor_id").references(() => users.id),
+    type: text("type").$type<NotificationType>().notNull(),
+    postId: uuid("post_id").references(() => posts.id),
+    commentId: uuid("comment_id").references(() => comments.id),
+    moderationActionId: uuid("moderation_action_id").references(() => moderationActions.id),
+    readAt: ts("read_at"),
+  },
+  (t) => [
+    check(
+      "notifications_type_ck",
+      sql.raw(`type in (${NOTIFICATION_TYPES.map((a) => `'${a}'`).join(", ")})`),
+    ),
+    index("notifications_inbox_idx")
+      .on(t.recipientId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(sql`${t.deletedAt} is null`),
+    index("notifications_unread_idx")
+      .on(t.recipientId)
+      .where(sql`${t.readAt} is null and ${t.deletedAt} is null`),
+    index("notifications_updated_at_idx").on(t.updatedAt),
+  ],
+);
