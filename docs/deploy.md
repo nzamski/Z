@@ -100,7 +100,7 @@ browser tab opened on the old version may get one failed action and must reload.
 - Opening the Route redirects to Keycloak; logging in lands on the feed.
 - Post, like, comment, follow; search finds the post.
 - After the first login, make the first admin: `oc exec deploy/z -- node admin.mjs grant
-<handle> "<reason>"`; the shield icon appears in their header and `/admin` opens.
+<handle> "<reason>"`; "ניהול" appears in their account menu (the round initial in the header) and `/admin` opens.
 - Response headers include `content-security-policy` and `strict-transport-security`.
 
 ## Dry run (what was verified locally)

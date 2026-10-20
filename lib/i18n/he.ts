@@ -143,13 +143,13 @@ export const he = {
     reason: (r: string) => `סיבה: ${r}`,
     desktop: "התראות בדסקטופ",
     desktopHint: "כש־Z פתוח בלשונית (גם ברקע), התראות חדשות יקפצו גם בחלון של הדפדפן.",
-    desktopOn: "פעיל",
-    desktopOff: "כבוי",
-    desktopEnable: "הפעלה",
-    desktopDisable: "כיבוי",
     desktopDenied: "הדפדפן חוסם התראות מ־Z. אפשר לשנות בהגדרות האתר (סמל המנעול בשורת הכתובת).",
     desktopUnsupported: "הדפדפן הזה לא תומך בהתראות.",
     newCount: (n: number) => (n === 1 ? "התראה חדשה ב־Z" : `${n} התראות חדשות ב־Z`),
+  },
+  account: {
+    menu: "חשבון",
+    profile: "הפרופיל שלי",
   },
   theme: {
     label: "ערכת צבעים",

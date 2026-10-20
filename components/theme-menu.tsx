@@ -1,5 +1,6 @@
 "use client";
-// Header menu: light / dark / system theme (lib/theme.ts). Esc or a click outside closes it.
+// Light / dark / system theme (lib/theme.ts): the picker inside the account menu, and a standalone
+// header menu for screens without one (welcome, suspended).
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { he } from "@/lib/i18n/he";
 import { readTheme, setTheme, subscribeTheme, THEMES, type Theme } from "@/lib/theme";
@@ -35,10 +36,12 @@ const Icon = ({ theme }: { theme: Theme }) => (
   </svg>
 );
 
-export function ThemeMenu() {
+// localStorage exists only in the browser: the server (and hydration) render "system".
+const useTheme = () => useSyncExternalStore(subscribeTheme, readTheme, () => "system" as const);
+
+/** Header dropdown state: Esc or a click outside `root` closes it. */
+export function useMenu() {
   const [open, setOpen] = useState(false);
-  // localStorage exists only in the browser: the server (and hydration) render "system".
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "system" as const);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -55,6 +58,41 @@ export function ThemeMenu() {
       document.removeEventListener("keydown", close);
     };
   }, [open]);
+  return { open, setOpen, root };
+}
+
+export const menuClass =
+  "absolute end-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 shadow-lg dark:border-neutral-800";
+
+/** Three-way segmented control; lives inside a role="menu". */
+export function ThemePicker() {
+  const theme = useTheme();
+  return (
+    <div
+      role="group"
+      aria-label={he.theme.label}
+      className="flex gap-0.5 rounded-lg bg-neutral-500/10 p-0.5"
+    >
+      {THEMES.map((t) => (
+        <button
+          key={t}
+          role="menuitemradio"
+          aria-checked={t === theme}
+          aria-label={he.theme[t]}
+          title={he.theme[t]}
+          onClick={() => setTheme(t)}
+          className="grid flex-1 place-items-center rounded-md py-1.5 text-muted transition-colors hover:text-foreground aria-checked:bg-background aria-checked:text-foreground aria-checked:shadow-sm"
+        >
+          <Icon theme={t} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function ThemeMenu() {
+  const { open, setOpen, root } = useMenu();
+  const theme = useTheme();
   return (
     <div ref={root} className="relative">
       <button
@@ -68,26 +106,8 @@ export function ThemeMenu() {
         <Icon theme={theme} />
       </button>
       {open && (
-        <div
-          role="menu"
-          aria-label={he.theme.label}
-          className="absolute end-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 shadow-lg dark:border-neutral-800"
-        >
-          {THEMES.map((t) => (
-            <button
-              key={t}
-              role="menuitemradio"
-              aria-checked={t === theme}
-              onClick={() => {
-                setTheme(t);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-start text-sm transition-colors hover:bg-neutral-500/10 aria-checked:font-bold"
-            >
-              <Icon theme={t} />
-              {he.theme[t]}
-            </button>
-          ))}
+        <div role="menu" aria-label={he.theme.label} className={`${menuClass} w-40 px-2`}>
+          <ThemePicker />
         </div>
       )}
     </div>

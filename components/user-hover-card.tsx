@@ -69,11 +69,11 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
           className="absolute start-0 top-full z-30 mt-2 w-72 rounded-xl border border-neutral-200 bg-background p-4 text-start text-sm font-normal shadow-lg dark:border-neutral-800 dark:shadow-black/60"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <Link href={href} className="block truncate text-base font-bold hover:underline">
+            <div className="flex min-w-0 items-baseline gap-x-2">
+              <Link href={href} className="truncate text-base font-bold hover:underline">
                 {card.displayName}
               </Link>
-              <span className="text-muted" dir="ltr">
+              <span className="shrink-[3] truncate text-muted" dir="ltr">
                 @{card.handle}
               </span>
             </div>

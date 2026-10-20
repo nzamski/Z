@@ -33,34 +33,41 @@ export function DesktopToggle() {
   );
   if (!mounted) return null;
   const state = current();
-  const enable = async () => {
+  const toggle = async () => {
     const p =
-      Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      state === "on"
+        ? "off"
+        : Notification.permission === "granted"
+          ? "granted"
+          : await Notification.requestPermission();
     setDesktopEnabled(p === "granted");
     rerender((n) => n + 1);
   };
+  const hint =
+    state === "unsupported"
+      ? T.desktopUnsupported
+      : state === "denied"
+        ? T.desktopDenied
+        : T.desktopHint;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-200 px-4 py-3 text-start text-sm dark:border-neutral-800">
-      <span className="font-medium">{T.desktop}:</span>
-      {state === "unsupported" && <span className="text-muted">{T.desktopUnsupported}</span>}
-      {state === "denied" && <span className="text-muted">{T.desktopDenied}</span>}
-      {(state === "on" || state === "off") && (
-        <>
-          <span className="text-muted">{state === "on" ? T.desktopOn : T.desktopOff}</span>
-          <button
-            onClick={() => {
-              if (state === "on") {
-                setDesktopEnabled(false);
-                rerender((n) => n + 1);
-              } else enable();
-            }}
-            className="rounded-full border border-neutral-400 px-3 py-1 font-medium transition-colors hover:bg-neutral-500/10"
-          >
-            {state === "on" ? T.desktopDisable : T.desktopEnable}
-          </button>
-          <span className="w-full text-xs text-muted">{T.desktopHint}</span>
-        </>
-      )}
+    <div className="flex items-center justify-between gap-4 border-b border-neutral-200 px-4 py-3 text-start text-sm dark:border-neutral-800">
+      <div className="min-w-0">
+        <div id="desktop-label" className="font-medium">
+          {T.desktop}
+        </div>
+        <div className="text-xs text-muted">{hint}</div>
+      </div>
+      {/* The thumb starts at the inline start and slides to the end; RTL flips the direction. */}
+      <button
+        role="switch"
+        aria-checked={state === "on"}
+        aria-labelledby="desktop-label"
+        disabled={state === "unsupported" || state === "denied"}
+        onClick={toggle}
+        className="group relative h-6 w-11 shrink-0 rounded-full bg-neutral-300 transition-colors aria-checked:bg-sky-600 disabled:opacity-50 dark:bg-neutral-700"
+      >
+        <span className="absolute start-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform group-aria-checked:translate-x-5 rtl:group-aria-checked:-translate-x-5" />
+      </button>
     </div>
   );
 }
