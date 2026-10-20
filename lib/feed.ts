@@ -11,12 +11,13 @@ export const RANKING = {
   followBoost: 2.0,
   authorPenalty: 0.7, // nth post by one author within a page is scaled by 0.7^(n-1)
   restoreMaxAgeMinutes: 30, // sessionStorage scroll snapshot
-  newPostsPollSeconds: 60, // For You / Following check for posts newer than the snapshot
+  newPostsPollSeconds: 15, // For You / Following check for posts newer than the snapshot; the bell polls too
 } as const;
 
 export const FEED_VIEWS = ["forYou", "following", "latest", "top"] as const;
 export type FeedView = (typeof FEED_VIEWS)[number];
 export const VIEW_COOKIE = "z_view"; // last chosen tab; not in the URL
+export const PILL_SLOT = "new-posts-pill"; // home: the row above the composer that holds the pill
 export const parseView = (v: unknown): FeedView =>
   FEED_VIEWS.includes(v as FeedView) ? (v as FeedView) : "forYou";
 

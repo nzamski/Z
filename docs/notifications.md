@@ -31,7 +31,7 @@ Added 2026-10-19 at the user's request. Code: writes and reads in `lib/services.
 ## Seeing them
 
 - **Bell** in the header with the unread count (capped at 100, shown as "99+"). It asks
-  `/api/notifications` every 60 s and when the tab becomes visible.
+  `/api/notifications` every 15 s and when the tab becomes visible.
 - **`/notifications`**: newest first, 100 per page. Likes on the same post/comment and new
   followers collapse into one entry ("Dana and 3 others liked your post"). Opening the page marks
   everything up to the newest shown entry read; the entries stay highlighted for that visit.

@@ -64,7 +64,7 @@ aggregators. The constants are untested guesses, not derived from data. The need
 - After a Server Action calls `refresh()`, only the viewer's own posts published since the
   snapshot go on top; the visible list never re-sorts under the reader (following someone
   would otherwise reshuffle it).
-- For You and Following poll `/api/feed/new` every 60 s (and when the tab becomes visible) for
+- For You and Following poll `/api/feed/new` every 15 s (and when the tab becomes visible) for
   posts by others since the snapshot. The "show N new posts" pill puts those on top, followed by
   a fresh first page, and resets the snapshot. Clicking the Z logo on the home page reloads it.
 
