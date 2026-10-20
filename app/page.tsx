@@ -7,7 +7,7 @@ import { FeedList } from "@/components/feed-list";
 import { FeedTabs } from "@/components/feed-tabs";
 import { Loading } from "@/components/loading";
 import { requireViewer } from "@/lib/auth/viewer";
-import { parseView, VIEW_COOKIE } from "@/lib/feed";
+import { parseView, PILL_SLOT, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
 import { feedPage, ServiceError } from "@/lib/services";
@@ -27,6 +27,8 @@ async function Home({ searchParams }: PageProps<"/">) {
   return (
     <>
       <FeedTabs view={view} />
+      {/* The new-posts pill (components/feed-list.tsx) renders here, above the composer. */}
+      <div id={PILL_SLOT} className="contents" />
       <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
         <Composer
           action={createPostAction}

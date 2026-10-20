@@ -3,10 +3,19 @@
 // dedupes them by id. The "load more" link is a plain server-rendered page when JS is off.
 // List + scroll position are saved per view in sessionStorage and restored on return.
 // For You / Following poll for newer posts by others and offer a "show new posts" pill.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
 import { Spinner } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
-import { mergeById, RANKING, type FeedView } from "@/lib/feed";
+import { mergeById, PILL_SLOT, RANKING, type FeedView } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import type { FeedPage, PostSummary } from "@/lib/services";
 
@@ -49,6 +58,8 @@ function writeSnapshot(key: string, s: Snapshot) {
     sessionStorage.setItem(key, JSON.stringify(s));
   } catch {} // full or blocked storage: restoring is best-effort
 }
+
+const noop = () => () => {};
 
 export function FeedList(p: {
   view: FeedView;
@@ -197,16 +208,24 @@ export function FeedList(p: {
     } catch {}
   };
 
-  const pill = newCount > 0 && (
-    <div className="sticky top-[calc(var(--header-h)+var(--tabs-h)+0.75rem)] z-10 flex h-0 justify-center">
+  // Its own row, scrolled down it stays under the tabs. Home puts that row above the composer
+  // (PILL_SLOT); the composer stays outside this list, so switching tabs keeps a draft.
+  const slot = useSyncExternalStore(
+    noop,
+    () => document.getElementById(PILL_SLOT),
+    () => null,
+  );
+  const row = newCount > 0 && (
+    <div className="pointer-events-none sticky top-[calc(var(--header-h)+var(--tabs-h))] z-10 flex justify-center py-2">
       <button
         onClick={showNew}
-        className="h-9 rounded-full bg-link px-4 text-sm font-medium text-background shadow-md transition-opacity hover:opacity-90"
+        className="pointer-events-auto h-9 rounded-full bg-link px-4 text-sm font-medium text-background shadow-md transition-opacity hover:opacity-90"
       >
         {he.feed.showNew(newCount)}
       </button>
     </div>
   );
+  const pill = slot ? createPortal(row, slot) : row;
 
   useEffect(() => {
     const el = sentinel.current;
