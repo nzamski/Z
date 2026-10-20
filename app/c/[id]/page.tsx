@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { z } from "zod";
@@ -36,10 +35,7 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
 
   return (
     <section className="p-4 text-start">
-      <Link href={`/p/${post.id}`} className="text-sm text-link hover:underline">
-        → {he.comment.backToPost}
-      </Link>
-      <div className="mt-2">
+      <div>
         <Thread nodes={[{ ...self, children: [], childCount: 0 }]} ctx={ctx} />
         <div className="ms-4">
           <Thread nodes={replies.nodes} ctx={ctx} />
