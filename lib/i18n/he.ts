@@ -72,7 +72,7 @@ export const he = {
     bioPlaceholder: "כמה מילים עליך",
     handleOk: "שם המשתמש פנוי",
     handleTaken: "שם המשתמש הזה כבר תפוס",
-    handleRules: "4–15 תווים, מתחיל באות: אותיות באנגלית קטנות, ספרות וקו תחתון",
+    handleRules: "3–15 תווים, מתחיל באות: אותיות באנגלית קטנות, ספרות וקו תחתון",
     handleChecking: "בודק…",
     noFollowers: "עדיין אין עוקבים.",
     noFollowing: "עדיין לא עוקבים אחרי אף אחד.",

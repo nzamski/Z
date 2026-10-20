@@ -11,7 +11,8 @@ export const MENTIONS_MAX = 10; // notified per post or comment, so a list of ha
 const HANDLE = HANDLE_RE.source.slice(1, -1).replaceAll("a-z", "a-zA-Z");
 const MENTION = new RegExp(`(^|[^\\p{L}\\p{N}_@.])@(${HANDLE})(?![a-zA-Z0-9_])`, "gu");
 
-/** Whether a handle can be mentioned (older handles shorter than HANDLE_RE allows can't). */
+/** Whether a handle can be mentioned: it must satisfy HANDLE_RE (rows written before a rule change
+ * may not). */
 export const mentionable = (handle: string) => HANDLE_RE.test(handle);
 
 /** Splits plain text into text and mention parts (handles lowercased). */
