@@ -4,12 +4,15 @@ import postgres from "postgres";
 
 // PLAN.md M2: login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
 
+// Keycloak usernames and their seeded Z handles (noa's is 4+ characters, as handles must be).
+const HANDLE: Record<string, string> = { dana: "dana", yossi: "yossi", noa: "noa_s" };
+
 async function login(page: Page, user: string) {
   await page.goto("/"); // no session: the proxy sends us straight to Keycloak
   await page.locator("#username").fill(user);
   await page.locator("#password").fill(user);
   await page.locator("#kc-login").click();
-  await expect(page.getByRole("link", { name: `@${user}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: `@${HANDLE[user]}` })).toBeVisible();
 }
 
 test("full M2 flow through Keycloak", async ({ page }) => {
@@ -130,7 +133,7 @@ test("a session whose user vanished (dev reseed) re-logs in instead of failing w
   await login(page, "noa");
   execSync("npm run seed", { stdio: "ignore" }); // new user ids; noa's cookie now points nowhere
   await page.goto("/u/yossi"); // bounces through Keycloak (SSO still active) and back in
-  await expect(page.getByRole("link", { name: "@noa" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "@noa_s" })).toBeVisible();
   await page.goto("/u/yossi");
   const follow = page.getByRole("button", { name: "מעקב", exact: true });
   const unfollow = page.getByRole("button", { name: "הפסקת מעקב" });
@@ -280,7 +283,7 @@ test("search finds posts by Hebrew word forms; profiles link to the chat", async
     "href",
     "chat://user/yossi",
   );
-  await page.goto("/u/noa");
+  await page.goto("/u/noa_s");
   await expect(page.getByRole("link", { name: "הודעה פרטית" })).toHaveCount(0);
 });
 
@@ -344,8 +347,8 @@ test("first login: welcome, profile with a live handle check, follow suggestions
   await expect(dialog.getByText("שם המשתמש פנוי")).toBeVisible();
   await dialog.getByRole("button", { name: "שמירה" }).click();
   await expect(page).toHaveURL(new RegExp(`/u/${again}$`));
-  // Back to "noa" for the other tests (3 letters: allowed for existing handles, not as a choice).
-  await sql`update users set handle = 'noa' where keycloak_sub = ${NOA}`;
+  // Back to the seeded handle for the other tests.
+  await sql`update users set handle = 'noa_s' where keycloak_sub = ${NOA}`;
   await sql.end();
 
   // Done: the welcome doesn't come back.
