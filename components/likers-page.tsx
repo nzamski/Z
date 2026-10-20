@@ -25,14 +25,10 @@ export async function LikersPage(p: {
     if (e instanceof ServiceError) return notFound;
     throw e;
   }
-  const back = p.kind === "post" ? `/p/${id}` : `/c/${id}`;
   return (
     <>
       <div className="border-b border-neutral-200 px-4 py-3 text-start dark:border-neutral-800">
         <h1 className="text-lg font-bold">{he.likers.title}</h1>
-        <Link href={back} className="text-sm text-link hover:underline">
-          → {p.kind === "post" ? he.comment.backToPost : he.likers.backToComment}
-        </Link>
       </div>
       {page.items.length ? (
         <ul>

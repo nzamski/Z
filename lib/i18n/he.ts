@@ -54,7 +54,6 @@ export const he = {
     continueThread: "המשך השרשור",
     collapse: "הסתרת תשובות",
     expand: (n: number) => `הצגת ${n} תשובות`,
-    backToPost: "חזרה לפוסט",
   },
   profile: {
     follow: "מעקב",
@@ -160,7 +159,6 @@ export const he = {
   likers: {
     title: "אהבו את זה",
     none: "עדיין אין לייקים.",
-    backToComment: "חזרה לתגובה",
     show: (n: number) => `${n} לייקים: מי אהב`,
   },
   pages: {
