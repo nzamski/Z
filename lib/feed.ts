@@ -14,15 +14,16 @@ export const RANKING = {
   newPostsPollSeconds: 60, // For You / Following check for posts newer than the snapshot
 } as const;
 
-export const FEED_VIEWS = ["forYou", "following", "latest"] as const;
+export const FEED_VIEWS = ["forYou", "following", "latest", "top"] as const;
 export type FeedView = (typeof FEED_VIEWS)[number];
 export const VIEW_COOKIE = "z_view"; // last chosen tab; not in the URL
 export const parseView = (v: unknown): FeedView =>
   FEED_VIEWS.includes(v as FeedView) ? (v as FeedView) : "forYou";
 
 /**
- * Opaque page cursor. For You: snapshot time `a`, last score `s`, last id. Keyset views: last id
- * only (the query looks up its exact created_at, so no JS Date precision is lost).
+ * Opaque page cursor. For You: snapshot time `a`, last score `s`, last id. Top: last like count
+ * `s` and id. Other keyset views: last id only (the query looks up its exact created_at, so no
+ * JS Date precision is lost).
  */
 const Cursor = z.object({ a: z.iso.datetime().optional(), s: z.number().optional(), id: z.uuid() });
 export type Cursor = z.infer<typeof Cursor>;

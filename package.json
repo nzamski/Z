@@ -21,6 +21,7 @@
   "dependencies": {
     "drizzle-orm": "^0.45.4",
     "jose": "^6.2.12",
+    "markdown-it": "^15.0.3",
     "next": "16.4.2",
     "openid-client": "^6.8.8",
     "postgres": "^3.4.9",

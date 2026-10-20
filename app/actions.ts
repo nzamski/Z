@@ -7,6 +7,7 @@ import { z } from "zod";
 import { safeNext } from "@/lib/auth/provider";
 import { requireLogin, requireViewer } from "@/lib/auth/viewer";
 import { parseView, VIEW_COOKIE } from "@/lib/feed";
+import { mentionable } from "@/lib/mentions";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
 
@@ -63,16 +64,16 @@ export async function createCommentAction(_: ActionResult, f: FormData) {
   );
 }
 
-export async function editCommentAction(_: ActionResult, f: FormData) {
-  return run((uid) => s.editComment(uid, Id.parse(field(f, "id")), Text.parse(field(f, "body"))));
-}
-
 export async function deleteCommentAction(commentId: string) {
   return run((uid) => s.deleteComment(uid, Id.parse(commentId)));
 }
 
 export async function setLikeAction(postId: string, liked: boolean) {
   return run((uid) => (liked ? s.likePost : s.unlikePost)(uid, Id.parse(postId)));
+}
+
+export async function setCommentLikeAction(commentId: string, liked: boolean) {
+  return run((uid) => (liked ? s.likeComment : s.unlikeComment)(uid, Id.parse(commentId)));
 }
 
 export async function setFollowAction(userId: string, following: boolean) {
@@ -138,6 +139,28 @@ export async function finishOnboardingAction(next: string) {
   await s.finishOnboarding(viewer.id);
   refresh(); // the shared layout (header: @handle, search) must re-render for a finished user
   redirect(safeNext(next));
+}
+
+export type MentionSuggestion = { id: string; handle: string; displayName: string };
+
+/** People to suggest while typing an @mention (the composer's autocomplete). */
+export async function mentionSuggestionsAction(q: string): Promise<MentionSuggestion[]> {
+  const viewer = await requireViewer();
+  const query = String(q).slice(0, 15);
+  if (!query) return [];
+  const found = await s.searchUsers(viewer.id, query, 8);
+  return found
+    .filter((u) => mentionable(u.handle))
+    .slice(0, 5)
+    .map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
+}
+
+/** Mark notifications read up to what the page showed. No refresh(): the page keeps showing
+ * which ones were new on this visit. */
+export async function markNotificationsReadAction(upTo: string) {
+  const viewer = await requireViewer();
+  const id = Id.safeParse(upTo);
+  if (id.success) await s.markNotificationsRead(viewer.id, id.data);
 }
 
 /** Remember the chosen feed tab across sessions (a cookie, so the server renders the right one). */

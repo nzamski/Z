@@ -44,7 +44,7 @@ describe("profile", () => {
     expect(await s.handleStatus(b.id, a.handle)).toBe("taken");
     expect(await s.handleStatus(a.id, a.handle)).toBe("ok"); // your own
     await expect(s.updateProfile(b.id, profile(a.handle))).rejects.toThrow("taken");
-    for (const bad of ["abc", "1abc", "_abc", "has space", "שלום", "a".repeat(16), "dot.ted"]) {
+    for (const bad of ["ab", "1abc", "_abc", "has space", "שלום", "a".repeat(16), "dot.ted"]) {
       expect(await s.handleStatus(b.id, bad)).toBe("invalid");
       await expect(s.updateProfile(b.id, profile(bad))).rejects.toThrow("invalid");
     }

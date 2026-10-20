@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { z } from "zod";
@@ -29,17 +28,14 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
     );
 
   // The comment alone, then a page of its replies (each with its own subtree) underneath.
-  const [self] = (await getThread(post.id, comment.parentCommentId, 0, id)).nodes;
+  const [self] = (await getThread(post.id, comment.parentCommentId, 0, id, viewerId)).nodes;
   if (!self) return notFound;
-  const replies = await getThread(post.id, id, from);
+  const replies = await getThread(post.id, id, from, undefined, viewerId);
   const ctx = { postId: post.id, viewerId, postLive: true, isAdmin: await isAdmin(viewerId) };
 
   return (
     <section className="p-4 text-start">
-      <Link href={`/p/${post.id}`} className="text-sm text-link hover:underline">
-        → {he.comment.backToPost}
-      </Link>
-      <div className="mt-2">
+      <div>
         <Thread nodes={[{ ...self, children: [], childCount: 0 }]} ctx={ctx} />
         <div className="ms-4">
           <Thread nodes={replies.nodes} ctx={ctx} />

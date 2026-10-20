@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AccountMenu } from "@/components/account-menu";
 import { BackLink, LogoLink } from "@/components/home-link";
+import { NotificationBell } from "@/components/notification-bell";
+import { ThemeMenu } from "@/components/theme-menu";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
-import { getUser, isAdmin } from "@/lib/services";
+import { getUser, isAdmin, unreadNotifications } from "@/lib/services";
 
 async function AuthStatus() {
   const session = await getSession();
@@ -11,39 +14,13 @@ async function AuthStatus() {
   // No session: the proxy sends them to login. Setup unfinished: they're in the welcome, where
   // links to the rest of Z would only bounce back.
   // Suspended: locked out, links would only bounce back to /suspended.
-  if (!user?.handle || !user.onboardedAt || user.suspendedAt) return null;
+  // They still get the theme switch, which otherwise lives in the account menu.
+  if (!user?.handle || !user.onboardedAt || user.suspendedAt) return <ThemeMenu />;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
-  const admin = await isAdmin(user.id);
+  const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
+  // DOM order runs right to left (RTL): search nearest the logo, the account menu at the edge.
   return (
     <>
-      {admin && (
-        <Link
-          href="/admin"
-          aria-label={he.moderation.nav}
-          title={he.moderation.nav}
-          className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
-        >
-          {/* Shield: moderation */}
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden
-            className="size-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinejoin="round"
-          >
-            <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6L12 3Z" />
-          </svg>
-        </Link>
-      )}
-      <Link
-        href={`/u/${encodeURIComponent(user.handle)}`}
-        className="font-medium hover:underline"
-        dir="ltr"
-      >
-        @{user.handle}
-      </Link>
       <Link
         href="/search"
         aria-label={he.nav.search}
@@ -63,13 +40,15 @@ async function AuthStatus() {
           <path d="m20 20-3.5-3.5" />
         </svg>
       </Link>
+      <NotificationBell initial={unread} />
+      <AccountMenu handle={user.handle} displayName={user.displayName} admin={admin} />
     </>
   );
 }
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-10 grid h-(--header-h) grid-cols-3 items-center border-b border-neutral-200 bg-background/90 px-4 text-sm backdrop-blur dark:border-neutral-800">
+    <header className="sticky top-0 z-20 grid h-(--header-h) grid-cols-3 items-center border-b border-neutral-200 bg-background/90 px-4 text-sm backdrop-blur dark:border-neutral-800">
       {/* usePathname() is request data under cacheComponents, so it needs a boundary. */}
       <Suspense fallback={<span />}>
         <BackLink />

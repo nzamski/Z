@@ -27,12 +27,14 @@ export async function FollowListPage(p: {
   return (
     <>
       <div className="border-b border-neutral-200 px-4 pt-3 text-start dark:border-neutral-800">
-        <Link href={base} className="font-bold hover:underline">
-          {user.displayName}
-        </Link>
-        <p className="text-sm text-muted">
-          <span dir="ltr">@{user.handle}</span>
-        </p>
+        <div className="flex min-w-0 items-baseline gap-x-2">
+          <Link href={base} className="truncate font-bold hover:underline">
+            {user.displayName}
+          </Link>
+          <span className="shrink-[3] truncate text-sm text-muted" dir="ltr">
+            @{user.handle}
+          </span>
+        </div>
         <nav className="mt-2 flex text-sm font-medium">
           {tabs.map(([w, label]) => (
             <Link

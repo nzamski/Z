@@ -1,0 +1,2 @@
+-- The Top feed tab: most liked first (topPage in lib/services.ts).
+CREATE INDEX "posts_top_idx" ON "posts" USING btree ("like_count" DESC NULLS FIRST,"id" DESC NULLS FIRST) WHERE "posts"."deleted_at" is null;

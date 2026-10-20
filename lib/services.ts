@@ -1,18 +1,33 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
 import { randomBytes } from "node:crypto";
-import { and, count, desc, eq, gt, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
   admins,
+  commentLikes,
   comments,
   follows,
   likes,
   moderationActions,
+  notifications,
   posts,
   users,
   type ModerationAction,
+  type NotificationType,
 } from "@/db/schema";
 import {
   applyAuthorPenalty,
@@ -22,14 +37,30 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX, RATE, REASON_MAX } from "@/lib/limits";
+import {
+  BIO_MAX,
+  COMMENT_MAX,
+  EDIT_WINDOW_MINUTES,
+  HANDLE_RE,
+  POST_MAX,
+  RATE,
+  REASON_MAX,
+} from "@/lib/limits";
+import { extractMentions } from "@/lib/markdown";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
   constructor(
     public code:
-      "invalid" | "not_found" | "forbidden" | "gone" | "taken" | "suspended" | "rate_limited",
+      | "invalid"
+      | "not_found"
+      | "forbidden"
+      | "gone"
+      | "taken"
+      | "suspended"
+      | "rate_limited"
+      | "edit_window",
   ) {
     super(code);
   }
@@ -51,15 +82,17 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// Bumps a counter on an active post; throws `gone` if the post is deleted, rolling back the transaction.
+// Bumps a counter on an active post; throws `gone` if the post is deleted, rolling back the
+// transaction. Returns the post's author.
 async function bumpPost(tx: Tx, postId: string, col: "likeCount" | "commentCount", by: 1 | -1) {
   const c = posts[col];
   const rows = await tx
     .update(posts)
     .set({ [col]: sql`${c} + ${by}`, updatedAt: now })
     .where(and(eq(posts.id, postId), active(posts)))
-    .returning({ id: posts.id });
+    .returning({ authorId: posts.authorId });
   if (!rows.length) throw new ServiceError("gone");
+  return rows[0].authorId;
 }
 
 async function ownActive<T extends typeof posts | typeof comments>(
@@ -76,11 +109,12 @@ async function ownActive<T extends typeof posts | typeof comments>(
   if (row.authorId !== actorId) throw new ServiceError("forbidden");
 }
 
-type WriteKind = "posts" | "comments" | "likes" | "follows";
+type WriteKind = "posts" | "comments" | "likes" | "commentLikes" | "follows";
 const RATE_ROWS = {
   posts: [posts, posts.authorId],
   comments: [comments, comments.authorId],
   likes: [likes, likes.userId],
+  commentLikes: [commentLikes, commentLikes.userId],
   follows: [follows, follows.followerId],
 } as const;
 
@@ -104,29 +138,126 @@ async function assertCanWrite(actorId: string, kind?: WriteKind) {
   if (kind && u && u.recent >= RATE[kind].max) throw new ServiceError("rate_limited");
 }
 
+// ---- notification writes (docs/notifications.md) ----
+// Written in the same transaction as the action; undoing the action soft-deletes them.
+
+type Notice = {
+  recipientId: string;
+  actorId: string;
+  type: NotificationType;
+  postId?: string;
+  commentId?: string;
+  moderationActionId?: string;
+};
+
+async function notify(tx: Tx, n: Notice) {
+  if (n.recipientId === n.actorId) return; // never about your own actions
+  await tx.insert(notifications).values(n);
+}
+
+async function unnotify(
+  tx: Tx,
+  n: {
+    actorId: string;
+    types: NotificationType[];
+    postId?: string;
+    commentId?: string;
+    recipientId?: string;
+  },
+) {
+  await tx
+    .update(notifications)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(notifications.actorId, n.actorId),
+        inArray(notifications.type, n.types),
+        n.postId ? eq(notifications.postId, n.postId) : undefined,
+        n.commentId ? eq(notifications.commentId, n.commentId) : undefined,
+        n.recipientId ? eq(notifications.recipientId, n.recipientId) : undefined,
+        active(notifications),
+      ),
+    );
+}
+
+/**
+ * Notifies the users @mentioned in `body` (at most MENTIONS_MAX), except the actor, `skip` (already
+ * notified by this action), and anyone already notified of a mention in this post/comment (an edit
+ * only notifies newly added mentions).
+ */
+async function notifyMentions(
+  tx: Tx,
+  actorId: string,
+  body: string,
+  target: { postId: string; commentId?: string },
+  skip: string[] = [],
+) {
+  const handles = extractMentions(body);
+  if (!handles.length) return;
+  const type = target.commentId ? "mention_comment" : "mention_post";
+  const found = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.handle, handles), active(users), ne(users.id, actorId)));
+  for (const u of found) {
+    if (skip.includes(u.id)) continue;
+    const [already] = await tx
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientId, u.id),
+          eq(notifications.type, type),
+          target.commentId
+            ? eq(notifications.commentId, target.commentId)
+            : and(eq(notifications.postId, target.postId), isNull(notifications.commentId)),
+          active(notifications),
+        ),
+      );
+    if (!already) await notify(tx, { recipientId: u.id, actorId, type, ...target });
+  }
+}
+
 // ---- posts ----
 
 export async function createPost(actorId: string, body: string) {
   const text = parse(PostBody, body);
   await assertCanWrite(actorId, "posts");
-  const [row] = await db
-    .insert(posts)
-    .values({ authorId: actorId, body: text, ...computePreview(text) })
-    .returning();
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(posts)
+      .values({ authorId: actorId, body: text, ...computePreview(text) })
+      .returning();
+    await notifyMentions(tx, actorId, text, { postId: row.id });
+    return row;
+  });
 }
 
+/** Only the author, and only within EDIT_WINDOW_MINUTES of publishing (the database's clock). */
 export async function editPost(actorId: string, postId: string, body: string) {
   const text = parse(PostBody, body);
   await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
-  const [row] = await db
-    .update(posts)
-    .set({ body: text, ...computePreview(text), editedAt: now, updatedAt: now })
-    .where(eq(posts.id, postId))
-    .returning();
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(posts)
+      .set({ body: text, ...computePreview(text), editedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(posts.id, postId),
+          sql`${posts.createdAt} > now() - make_interval(mins => ${EDIT_WINDOW_MINUTES})`,
+        ),
+      )
+      .returning();
+    if (!row) throw new ServiceError("edit_window");
+    await notifyMentions(tx, actorId, text, { postId });
+    return row;
+  });
 }
+
+/** Whether the post's edit window is still open (for showing the edit button). */
+export const canEditPost = (createdAt: Date, at = Date.now()) =>
+  at - createdAt.getTime() < EDIT_WINDOW_MINUTES * 60_000;
 
 export async function deletePost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
@@ -145,33 +276,32 @@ export async function createComment(
   const text = parse(CommentBody, body);
   await assertCanWrite(actorId, "comments");
   return db.transaction(async (tx) => {
+    let parentAuthorId: string | undefined;
     if (parentCommentId) {
       const [parent] = await tx
-        .select({ postId: comments.postId, deletedAt: comments.deletedAt })
+        .select({
+          postId: comments.postId,
+          authorId: comments.authorId,
+          deletedAt: comments.deletedAt,
+        })
         .from(comments)
         .where(eq(comments.id, parentCommentId));
       if (!parent || parent.postId !== postId) throw new ServiceError("not_found");
       if (parent.deletedAt) throw new ServiceError("gone");
+      parentAuthorId = parent.authorId;
     }
-    await bumpPost(tx, postId, "commentCount", 1);
+    const postAuthorId = await bumpPost(tx, postId, "commentCount", 1);
     const [row] = await tx
       .insert(comments)
       .values({ postId, authorId: actorId, parentCommentId, body: text })
       .returning();
+    // A reply notifies the comment's author; a top-level comment, the post's author.
+    const recipientId = parentAuthorId ?? postAuthorId;
+    const type = parentAuthorId ? "reply" : "comment";
+    await notify(tx, { recipientId, actorId, type, postId, commentId: row.id });
+    await notifyMentions(tx, actorId, text, { postId, commentId: row.id }, [recipientId]);
     return row;
   });
-}
-
-export async function editComment(actorId: string, commentId: string, body: string) {
-  const text = parse(CommentBody, body);
-  await assertCanWrite(actorId);
-  await ownActive(comments, commentId, actorId);
-  const [row] = await db
-    .update(comments)
-    .set({ body: text, editedAt: now, updatedAt: now })
-    .where(eq(comments.id, commentId))
-    .returning();
-  return row;
 }
 
 // Replies keep counting toward post.comment_count; only this comment is subtracted.
@@ -202,8 +332,10 @@ export async function likePost(actorId: string, postId: string) {
       .values({ userId: actorId, postId })
       .onConflictDoNothing({ target: [likes.userId, likes.postId], where: active(likes) })
       .returning({ id: likes.id });
-    if (inserted.length) await bumpPost(tx, postId, "likeCount", 1);
-    else {
+    if (inserted.length) {
+      const recipientId = await bumpPost(tx, postId, "likeCount", 1);
+      await notify(tx, { recipientId, actorId, type: "like_post", postId });
+    } else {
       const [p] = await tx.select({ d: posts.deletedAt }).from(posts).where(eq(posts.id, postId));
       if (!p || p.d) throw new ServiceError("gone");
     }
@@ -223,7 +355,91 @@ export async function unlikePost(actorId: string, postId: string) {
         .update(posts)
         .set({ likeCount: sql`${posts.likeCount} - 1`, updatedAt: now })
         .where(eq(posts.id, postId));
+      await unnotify(tx, { actorId, types: ["like_post"], postId });
     }
+  });
+}
+
+// ---- comment likes ----
+// The post author's like on someone else's comment also sets comments.author_liked_at: the
+// "liked by the author" mark, which puts the comment first in the thread.
+
+async function commentContext(tx: Tx, commentId: string) {
+  const [c] = await tx
+    .select({
+      postId: comments.postId,
+      authorId: comments.authorId,
+      postAuthorId: posts.authorId,
+      deletedAt: comments.deletedAt,
+      postDeletedAt: posts.deletedAt,
+    })
+    .from(comments)
+    .innerJoin(posts, eq(posts.id, comments.postId))
+    .where(eq(comments.id, commentId));
+  if (!c) throw new ServiceError("not_found");
+  return {
+    ...c,
+    byPostAuthor: (actorId: string) => actorId === c.postAuthorId && actorId !== c.authorId,
+  };
+}
+
+export async function likeComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId, "commentLikes");
+  await db.transaction(async (tx) => {
+    const c = await commentContext(tx, commentId);
+    if (c.deletedAt || c.postDeletedAt) throw new ServiceError("gone");
+    const inserted = await tx
+      .insert(commentLikes)
+      .values({ userId: actorId, commentId })
+      .onConflictDoNothing({
+        target: [commentLikes.userId, commentLikes.commentId],
+        where: active(commentLikes),
+      })
+      .returning({ id: commentLikes.id });
+    if (!inserted.length) return;
+    await tx
+      .update(comments)
+      .set({
+        likeCount: sql`${comments.likeCount} + 1`,
+        ...(c.byPostAuthor(actorId) ? { authorLikedAt: now } : {}),
+        updatedAt: now,
+      })
+      .where(eq(comments.id, commentId));
+    await notify(tx, {
+      recipientId: c.authorId,
+      actorId,
+      type: c.byPostAuthor(actorId) ? "author_liked" : "like_comment",
+      postId: c.postId,
+      commentId,
+    });
+  });
+}
+
+export async function unlikeComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId);
+  await db.transaction(async (tx) => {
+    const c = await commentContext(tx, commentId);
+    const removed = await tx
+      .update(commentLikes)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(commentLikes.userId, actorId),
+          eq(commentLikes.commentId, commentId),
+          active(commentLikes),
+        ),
+      )
+      .returning({ id: commentLikes.id });
+    if (!removed.length) return;
+    await tx
+      .update(comments)
+      .set({
+        likeCount: sql`${comments.likeCount} - 1`,
+        ...(c.byPostAuthor(actorId) ? { authorLikedAt: null } : {}),
+        updatedAt: now,
+      })
+      .where(eq(comments.id, commentId));
+    await unnotify(tx, { actorId, types: ["author_liked", "like_comment"], commentId });
   });
 }
 
@@ -237,23 +453,31 @@ export async function follow(actorId: string, followeeId: string) {
     .from(users)
     .where(and(eq(users.id, followeeId), active(users)));
   if (!target) throw new ServiceError("not_found");
-  await db
-    .insert(follows)
-    .values({ followerId: actorId, followeeId })
-    .onConflictDoNothing({
-      target: [follows.followerId, follows.followeeId],
-      where: active(follows),
-    });
+  await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(follows)
+      .values({ followerId: actorId, followeeId })
+      .onConflictDoNothing({
+        target: [follows.followerId, follows.followeeId],
+        where: active(follows),
+      })
+      .returning({ id: follows.id });
+    if (inserted.length) await notify(tx, { recipientId: followeeId, actorId, type: "follow" });
+  });
 }
 
 export async function unfollow(actorId: string, followeeId: string) {
   await assertCanWrite(actorId);
-  await db
-    .update(follows)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(
-      and(eq(follows.followerId, actorId), eq(follows.followeeId, followeeId), active(follows)),
-    );
+  await db.transaction(async (tx) => {
+    const removed = await tx
+      .update(follows)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(eq(follows.followerId, actorId), eq(follows.followeeId, followeeId), active(follows)),
+      )
+      .returning({ id: follows.id });
+    if (removed.length) await unnotify(tx, { actorId, types: ["follow"], recipientId: followeeId });
+  });
 }
 
 // ---- reads ----
@@ -274,6 +498,9 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  // The author liked a comment on it: the "answered" mark (comments_author_liked_idx).
+  answered: sql<boolean>`exists (select 1 from ${comments} ac where ac.post_id = ${posts.id}
+    and ac.author_liked_at is not null and ac.deleted_at is null)`,
   // Authors always have a handle: posting requires finishing the welcome.
   author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
 });
@@ -352,6 +579,30 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   return { items: applyAuthorPenalty(page), next, asOf };
 }
 
+// Top: the most liked posts of all time, keyset on (like_count DESC, id DESC) (posts_top_idx).
+// Counts move while someone pages, so a post can repeat or be skipped at a page boundary; the
+// client drops repeats (mergeById), and a skipped post is at most one page away from its spot.
+async function topPage(viewerId: string, cursor: Cursor | null, now: Date): Promise<FeedPage> {
+  const rows = await db
+    .select(postCols(viewerId))
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(
+      and(
+        active(posts),
+        cursor?.s !== undefined
+          ? sql`(${posts.likeCount}, ${posts.id}) < (${cursor.s}::int, ${cursor.id}::uuid)`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(posts.likeCount), desc(posts.id))
+    .limit(PAGE + 1);
+  const items = rows.slice(0, PAGE);
+  const last = items.at(-1);
+  const next = rows.length > PAGE && last ? encodeCursor({ s: last.likeCount, id: last.id }) : null;
+  return { items, next, asOf: now.toISOString() };
+}
+
 export async function feedPage(
   viewerId: string,
   opts: { view: FeedView; authorId?: string; query?: string; cursor?: string | null; now?: Date },
@@ -369,6 +620,7 @@ export async function feedPage(
   if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
   if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor, now);
   if (opts.view === "latest") return newestPage(viewerId, undefined, cursor, now);
+  if (opts.view === "top") return topPage(viewerId, cursor, now);
   return forYouPage(viewerId, cursor, now);
 }
 
@@ -441,6 +693,9 @@ export type ThreadNode = {
   removed: boolean; // deleted by a moderator
   body: string | null; // null when deleted
   author: { id: string; handle: string; displayName: string } | null;
+  likeCount: number;
+  liked: boolean; // by the viewer
+  authorLiked: boolean; // by the post's author: shown with a mark, sorted first among top-level
   createdAt: Date;
   editedAt: Date | null;
   /** Visible children in the DB (live, or deleted with replies), loaded or not. */
@@ -452,13 +707,19 @@ export type ThreadNode = {
  * Loads children of `parentId` (null = top-level) starting at `offset`, each with its subtree
  * down to THREAD_DEPTH levels, at most REPLIES_PAGE children per comment.
  * Deleted comments without replies are hidden; deleted ones with replies become placeholders.
+ * Top-level comments: the ones the post's author liked first, then most liked, then oldest.
+ * Replies stay oldest first (a conversation).
  */
 export async function getThread(
   postId: string,
   parentId: string | null,
   offset = 0,
   onlyId?: string,
+  viewerId: string | null = null,
 ) {
+  const byScore = !parentId && !onlyId;
+  const authorLiked = (a: string) =>
+    sql.raw(`(${a}.author_liked_at is not null and ${a}.deleted_at is null)`);
   const visible = sql`(x.deleted_at is null or exists (
     select 1 from comments y where y.post_id = x.post_id and y.parent_comment_id = x.id))`;
   const rows = await db.execute<{
@@ -467,6 +728,9 @@ export async function getThread(
     depth: number;
     deleted_at: string | null;
     removed_at: string | null;
+    like_count: number;
+    author_liked: boolean;
+    liked: boolean;
     body: string;
     author_id: string;
     handle: string;
@@ -482,7 +746,7 @@ export async function getThread(
           and ${parentId ? sql`x.parent_comment_id = ${parentId}` : sql`x.parent_comment_id is null`}
           and ${onlyId ? sql`x.id = ${onlyId}` : sql`true`}
           and ${visible}
-        order by x.created_at, x.id
+        order by ${byScore ? sql`${authorLiked("x")} desc, x.like_count desc,` : sql``} x.created_at, x.id
         limit ${parentId ? REPLIES_PAGE : ROOTS_PAGE} offset ${offset}) x
       union all
       select c.*, t.depth + 1 from t cross join lateral (
@@ -493,11 +757,15 @@ export async function getThread(
       where t.depth < ${THREAD_DEPTH}
     )
     select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.removed_at, t.body, t.author_id, t.created_at,
-      t.edited_at, u.handle, u.display_name,
+      t.edited_at, u.handle, u.display_name, t.like_count, ${authorLiked("t")} as author_liked,
+      exists (select 1 from comment_likes cl where cl.comment_id = t.id
+        and cl.user_id = ${viewerId} and cl.deleted_at is null) as liked,
       (select count(*)::int from comments x
         where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}) as child_count
     from t join users u on u.id = t.author_id
-    order by t.depth, t.created_at, t.id`);
+    order by t.depth,
+      ${byScore ? sql`case when t.depth = 1 then ${authorLiked("t")} end desc, case when t.depth = 1 then t.like_count end desc,` : sql``}
+      t.created_at, t.id`);
 
   const byId = new Map<string, ThreadNode>();
   const roots: ThreadNode[] = [];
@@ -511,6 +779,9 @@ export async function getThread(
       removed: r.removed_at !== null,
       body: deleted ? null : r.body,
       author: deleted ? null : { id: r.author_id, handle: r.handle, displayName: r.display_name },
+      likeCount: r.like_count,
+      liked: r.liked,
+      authorLiked: r.author_liked,
       createdAt: new Date(r.created_at),
       editedAt: r.edited_at ? new Date(r.edited_at) : null,
       childCount: r.child_count,
@@ -716,6 +987,51 @@ export async function followList(
 export const FOLLOW_PAGE = 50;
 
 /**
+ * Who liked a post or a comment, newest like first, with whether the viewer follows each of them.
+ * One page (FOLLOW_PAGE); `before` is the last row's like id. Deleted posts/comments: not_found.
+ */
+export async function likers(
+  kind: "post" | "comment",
+  targetId: string,
+  viewerId: string,
+  before?: string,
+) {
+  const [target] =
+    kind === "post"
+      ? await db.select({ d: posts.deletedAt }).from(posts).where(eq(posts.id, targetId))
+      : await db.select({ d: comments.deletedAt }).from(comments).where(eq(comments.id, targetId));
+  if (!target || target.d) throw new ServiceError("not_found");
+  const [l, on] =
+    kind === "post"
+      ? [likes, eq(likes.postId, targetId)]
+      : [commentLikes, eq(commentLikes.commentId, targetId)];
+  const rows = await db
+    .select({
+      ...userCard,
+      likeId: l.id,
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+    })
+    .from(l)
+    .innerJoin(users, eq(users.id, l.userId))
+    .where(
+      and(
+        on,
+        active(l),
+        active(users),
+        hasHandle,
+        before ? sql`${l.id} < ${before}::uuid` : undefined,
+      ),
+    )
+    .orderBy(desc(l.id)) // UUIDv7: newest like first
+    .limit(FOLLOW_PAGE + 1);
+  return {
+    items: rows.slice(0, FOLLOW_PAGE),
+    next: rows.length > FOLLOW_PAGE ? rows[FOLLOW_PAGE - 1].likeId : null,
+  };
+}
+
+/**
  * Provision on first login (no handle yet: the user picks one in the mandatory welcome) and keep
  * the display name in sync with Keycloak on every login. Identity is keycloak_sub.
  */
@@ -791,7 +1107,7 @@ type LogEntry = {
 async function moderate(
   actorId: string,
   reason: string,
-  fn: (tx: Tx, log: (e: LogEntry) => Promise<void>) => Promise<void>,
+  fn: (tx: Tx, log: (e: LogEntry) => Promise<string>) => Promise<void>,
 ) {
   const why = parse(Reason, reason);
   await db.transaction(async (tx) => {
@@ -802,7 +1118,11 @@ async function moderate(
       .where(and(eq(admins.userId, actorId), active(admins), active(users)));
     if (!admin) throw new ServiceError("forbidden");
     await fn(tx, async (e) => {
-      await tx.insert(moderationActions).values({ ...e, actorId, reason: why });
+      const [row] = await tx
+        .insert(moderationActions)
+        .values({ ...e, actorId, reason: why })
+        .returning({ id: moderationActions.id });
+      return row.id;
     });
   });
 }
@@ -822,9 +1142,16 @@ export async function removePost(actorId: string, postId: string, reason: string
       .update(posts)
       .set({ deletedAt: now, removedAt: now, updatedAt: now })
       .where(and(eq(posts.id, postId), active(posts)))
-      .returning({ id: posts.id });
+      .returning({ authorId: posts.authorId });
     if (!rows.length) throw await missing(tx, posts, postId);
-    await log({ action: "remove_post", postId });
+    const moderationActionId = await log({ action: "remove_post", postId });
+    await notify(tx, {
+      recipientId: rows[0].authorId,
+      actorId,
+      type: "removed_post",
+      postId,
+      moderationActionId,
+    });
   });
 }
 
@@ -835,9 +1162,16 @@ export async function restorePost(actorId: string, postId: string, reason: strin
       .update(posts)
       .set({ deletedAt: null, removedAt: null, updatedAt: now })
       .where(and(eq(posts.id, postId), isNotNull(posts.removedAt)))
-      .returning({ id: posts.id });
+      .returning({ authorId: posts.authorId });
     if (!rows.length) throw await missing(tx, posts, postId);
-    await log({ action: "restore_post", postId });
+    const moderationActionId = await log({ action: "restore_post", postId });
+    await notify(tx, {
+      recipientId: rows[0].authorId,
+      actorId,
+      type: "restored_post",
+      postId,
+      moderationActionId,
+    });
   });
 }
 
@@ -848,13 +1182,21 @@ export async function removeComment(actorId: string, commentId: string, reason: 
       .update(comments)
       .set({ deletedAt: now, removedAt: now, updatedAt: now })
       .where(and(eq(comments.id, commentId), active(comments)))
-      .returning({ postId: comments.postId });
+      .returning({ postId: comments.postId, authorId: comments.authorId });
     if (!row) throw await missing(tx, comments, commentId);
     await tx
       .update(posts)
       .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
-    await log({ action: "remove_comment", commentId });
+    const moderationActionId = await log({ action: "remove_comment", commentId });
+    await notify(tx, {
+      recipientId: row.authorId,
+      actorId,
+      type: "removed_comment",
+      postId: row.postId,
+      commentId,
+      moderationActionId,
+    });
   });
 }
 
@@ -864,13 +1206,21 @@ export async function restoreComment(actorId: string, commentId: string, reason:
       .update(comments)
       .set({ deletedAt: null, removedAt: null, updatedAt: now })
       .where(and(eq(comments.id, commentId), isNotNull(comments.removedAt)))
-      .returning({ postId: comments.postId });
+      .returning({ postId: comments.postId, authorId: comments.authorId });
     if (!row) throw await missing(tx, comments, commentId);
     await tx
       .update(posts)
       .set({ commentCount: sql`${posts.commentCount} + 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
-    await log({ action: "restore_comment", commentId });
+    const moderationActionId = await log({ action: "restore_comment", commentId });
+    await notify(tx, {
+      recipientId: row.authorId,
+      actorId,
+      type: "restored_comment",
+      postId: row.postId,
+      commentId,
+      moderationActionId,
+    });
   });
 }
 
@@ -884,7 +1234,7 @@ async function targetUser(tx: Tx, actorId: string, userId: string) {
   return u;
 }
 
-/** Read-only: no posting, commenting, liking, following or profile edits. Not for admins. */
+/** Locks the user out of Z (requireLogin sends them to /suspended). Not for admins. */
 export async function suspendUser(actorId: string, userId: string, reason: string) {
   await moderate(actorId, reason, async (tx, log) => {
     const u = await targetUser(tx, actorId, userId);
@@ -1021,4 +1371,97 @@ export async function moderationLog(limit = LOG_PAGE) {
     .leftJoin(target, eq(target.id, moderationActions.userId))
     .orderBy(desc(moderationActions.createdAt), desc(moderationActions.id))
     .limit(limit);
+}
+
+// ---- notifications: reads (docs/notifications.md) ----
+
+// Shown only while their post/comment is live: deleting a comment hides the notifications about
+// it, restoring brings them back. Moderation notices always show: they are about the removal.
+const shownNotification = sql`(n.type like 'removed\_%' or n.type like 'restored\_%' or (
+  (n.post_id is null or exists (select 1 from posts p where p.id = n.post_id and p.deleted_at is null))
+  and (n.comment_id is null
+    or exists (select 1 from comments c where c.id = n.comment_id and c.deleted_at is null))))`;
+
+/** Unread count for the bell, capped at UNREAD_CAP (the badge shows "99+"), so the poll stays
+ * cheap however much someone has left unread. */
+export async function unreadNotifications(userId: string) {
+  const [r] = await db.execute<{ n: number }>(sql`
+    select count(*)::int as n from (select 1 from notifications n
+      where n.recipient_id = ${userId} and n.read_at is null and n.deleted_at is null
+        and ${shownNotification}
+      limit ${UNREAD_CAP}) x`);
+  return r.n;
+}
+export const UNREAD_CAP = 100;
+
+export const NOTIFICATIONS_PAGE = 100;
+
+export type NotificationRow = {
+  id: string;
+  type: NotificationType;
+  createdAt: Date;
+  unread: boolean;
+  postId: string | null;
+  commentId: string | null;
+  actor: { handle: string; displayName: string } | null;
+  postPreview: string | null;
+  commentBody: string | null;
+  reason: string | null; // moderation notices
+};
+
+/** Newest first; `before` is the last row's id. Marks nothing read (markNotificationsRead). */
+export async function notificationsPage(userId: string, before?: string) {
+  const rows = await db.execute<{
+    id: string;
+    type: NotificationType;
+    created_at: string;
+    read_at: string | null;
+    post_id: string | null;
+    comment_id: string | null;
+    actor_handle: string | null;
+    actor_name: string | null;
+    post_preview: string | null;
+    comment_body: string | null;
+    reason: string | null;
+  }>(sql`
+    select n.id, n.type, n.created_at, n.read_at, n.post_id, n.comment_id,
+      a.handle as actor_handle, a.display_name as actor_name,
+      p.preview as post_preview, c.body as comment_body, m.reason
+    from notifications n
+      left join users a on a.id = n.actor_id
+      left join posts p on p.id = n.post_id
+      left join comments c on c.id = n.comment_id
+      left join moderation_actions m on m.id = n.moderation_action_id
+    where n.recipient_id = ${userId} and n.deleted_at is null and ${shownNotification}
+      ${
+        before
+          ? sql`and (n.created_at, n.id) <
+              (select b.created_at, b.id from notifications b where b.id = ${before}::uuid)`
+          : sql``
+      }
+    order by n.created_at desc, n.id desc
+    limit ${NOTIFICATIONS_PAGE + 1}`);
+  const items: NotificationRow[] = rows.slice(0, NOTIFICATIONS_PAGE).map((r) => ({
+    id: r.id,
+    type: r.type,
+    createdAt: new Date(r.created_at),
+    unread: r.read_at === null,
+    postId: r.post_id,
+    commentId: r.comment_id,
+    actor: r.actor_handle ? { handle: r.actor_handle, displayName: r.actor_name! } : null,
+    postPreview: r.post_preview,
+    commentBody: r.comment_body,
+    reason: r.reason,
+  }));
+  return { items, next: rows.length > NOTIFICATIONS_PAGE ? items.at(-1)!.id : null };
+}
+
+/** Marks the user's notifications read, up to and including `upTo` (what they have seen). */
+export async function markNotificationsRead(userId: string, upTo: string) {
+  await assertCanWrite(userId);
+  await db.execute(sql`
+    update notifications set read_at = now(), updated_at = now()
+    where recipient_id = ${userId} and read_at is null and deleted_at is null
+      and (created_at, id) <= (select u.created_at, u.id from notifications u
+        where u.id = ${upTo}::uuid and u.recipient_id = ${userId})`);
 }

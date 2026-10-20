@@ -12,26 +12,26 @@ integrity of posts and identities, the availability of the service, and the sess
 
 ## What is in place
 
-| Area           | What the code does                                                                                                                                             | Where                                    |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Authentication | OIDC authorization code + PKCE + state + nonce, confidential client; issuer must be https in production                                                        | `lib/auth/keycloak.ts`                   |
-| Dev login      | `/dev/login` user switcher returns 404 and `AUTH_PROVIDER=dev` throws when `NODE_ENV=production`                                                               | `lib/auth/provider.ts`, `app/dev/login`  |
-| Sessions       | Encrypted cookie (jose, `dir` + A256GCM, key = SHA-256 of `SESSION_SECRET`), HttpOnly, Secure, SameSite=Lax, 4 h default; only the user id and ID token inside | `lib/auth/session.ts`                    |
-| Access         | Every page, route handler and Server Action resolves the session to a live user (`requireViewer`); the proxy only does the cheap pre-check                     | `lib/auth/viewer.ts`, `proxy.ts`         |
-| Authorization  | Edit/delete only by the author, checked in the service layer; writes to deleted posts rejected                                                                 | `lib/services.ts`                        |
-| Moderation     | Admins (checked in the DB on every action, not from the cookie) remove/restore content, suspend users, clear bios, reset handles; reason required; audit log   | `docs/moderation.md`                     |
-| Rate limits    | Per user: posts, comments, likes, follows counted in Postgres (deleted rows included); search per server process                                               | `RATE` in `lib/limits.ts`                |
-| Headers        | CSP (self only, no framing, no objects; inline scripts allowed, see below), HSTS, nosniff, X-Frame-Options, Referrer-Policy, COOP/CORP, Permissions-Policy     | `proxy.ts`, `next.config.ts`             |
-| Input          | zod at every boundary; length caps (post 500, comment 5,000, bio 70)                                                                                           | `lib/services.ts`, `lib/limits.ts`       |
-| SQL injection  | Parameterized queries (drizzle / postgres-js) only; the search query builder passes only letters and digits into `to_tsquery`                                  | `lib/search.ts`                          |
-| XSS            | All user text is rendered as React text (plain text, no markdown, no `dangerouslySetInnerHTML` anywhere)                                                       | `components/post-card.tsx` (`PlainText`) |
-| CSRF           | SameSite=Lax session cookie; Next.js Server Actions check Origin against Host; logout is POST-only                                                             |                                          |
-| Open redirect  | `next` after login is accepted only as a same-origin path                                                                                                      | `safeNext` in `lib/auth/provider.ts`     |
-| Chat deep link | Template from config; `javascript:`/`data:`/`vbscript:` refused; handle URL-encoded                                                                            | `lib/chat.ts`                            |
-| Data           | Soft delete only; nothing is purged (tombstones for future sync)                                                                                               | PLAN.md §3                               |
-| Container      | No package managers or build tools in the image; non-root, arbitrary UID; read-only root FS supported; base pinned by digest                                   | `Dockerfile`                             |
-| Supply chain   | Lockfile committed, `npm ci --ignore-scripts`; `npm audit --omit=dev`: 0 known vulnerabilities (2026-10-19); SBOM via syft                                     | `scripts/build-images.sh`                |
-| Egress         | No calls to external hosts at runtime: only Postgres and Keycloak. No CDN, fonts are local, telemetry off                                                      |                                          |
+| Area           | What the code does                                                                                                                                                                | Where                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Authentication | OIDC authorization code + PKCE + state + nonce, confidential client; issuer must be https in production                                                                           | `lib/auth/keycloak.ts`                       |
+| Dev login      | `/dev/login` user switcher returns 404 and `AUTH_PROVIDER=dev` throws when `NODE_ENV=production`                                                                                  | `lib/auth/provider.ts`, `app/dev/login`      |
+| Sessions       | Encrypted cookie (jose, `dir` + A256GCM, key = SHA-256 of `SESSION_SECRET`), HttpOnly, Secure, SameSite=Lax, 4 h default; only the user id and ID token inside                    | `lib/auth/session.ts`                        |
+| Access         | Every page, route handler and Server Action resolves the session to a live user (`requireViewer`); the proxy only does the cheap pre-check                                        | `lib/auth/viewer.ts`, `proxy.ts`             |
+| Authorization  | Edit/delete only by the author, checked in the service layer; writes to deleted posts rejected                                                                                    | `lib/services.ts`                            |
+| Moderation     | Admins (checked in the DB on every action, not from the cookie) remove/restore content, suspend users, clear bios, reset handles; reason required; audit log                      | `docs/moderation.md`                         |
+| Rate limits    | Per user: posts, comments, likes, follows counted in Postgres (deleted rows included); search per server process                                                                  | `RATE` in `lib/limits.ts`                    |
+| Headers        | CSP (self only, no framing, no objects; inline scripts allowed, see below), HSTS, nosniff, X-Frame-Options, Referrer-Policy, COOP/CORP, Permissions-Policy                        | `proxy.ts`, `next.config.ts`                 |
+| Input          | zod at every boundary; length caps (post 20,000, comment 10,000, bio 70)                                                                                                          | `lib/services.ts`, `lib/limits.ts`           |
+| SQL injection  | Parameterized queries (drizzle / postgres-js) only; the search query builder passes only letters and digits into `to_tsquery`                                                     | `lib/search.ts`                              |
+| XSS            | Posts and comments: markdown-it with raw HTML off, images off, javascript:/data:/vbscript:/file: links refused; the only `dangerouslySetInnerHTML`. Everything else is React text | `lib/markdown.ts`, `components/markdown.tsx` |
+| CSRF           | SameSite=Lax session cookie; Next.js Server Actions check Origin against Host; logout is POST-only                                                                                |                                              |
+| Open redirect  | `next` after login is accepted only as a same-origin path                                                                                                                         | `safeNext` in `lib/auth/provider.ts`         |
+| Chat deep link | Template from config; `javascript:`/`data:`/`vbscript:` refused; handle URL-encoded                                                                                               | `lib/chat.ts`                                |
+| Data           | Soft delete only; nothing is purged (tombstones for future sync)                                                                                                                  | PLAN.md §3                                   |
+| Container      | No package managers or build tools in the image; non-root, arbitrary UID; read-only root FS supported; base pinned by digest                                                      | `Dockerfile`                                 |
+| Supply chain   | Lockfile committed, `npm ci --ignore-scripts`; `npm audit --omit=dev`: 0 known vulnerabilities (2026-10-19); SBOM via syft                                                        | `scripts/build-images.sh`                    |
+| Egress         | No calls to external hosts at runtime: only Postgres and Keycloak. No CDN, fonts are local, telemetry off                                                                         |                                              |
 
 ## What is NOT done (decide before rollout)
 
@@ -39,7 +39,8 @@ integrity of posts and identities, the availability of the service, and the sess
   per-request nonce, so `script-src` includes `'unsafe-inline'`. It still blocks scripts, frames
   and objects from other origins and keeps forms on Z and Keycloak. A strict nonce CSP would
   mean turning partial prerendering off (every page rendered per request). The main XSS defense
-  remains that user text is only ever rendered as React text.
+  is the markdown renderer's configuration (`lib/markdown.ts`, tested with hostile input in
+  `tests/markdown.test.ts`); the review should look at it closely.
 - **Rate limits are coarse**: fixed per-user windows (`RATE`), no per-IP limit, no global limit.
   The search limit is per server process (N replicas allow N times as much) and resets on
   restart. The router/ingress can add per-IP limits in front.
@@ -47,8 +48,11 @@ integrity of posts and identities, the availability of the service, and the sess
   Z until their session ends (4 h by default, `SESSION_MAX_AGE_HOURS`). To cut someone off at
   once, suspend them (`docs/moderation.md`): that locks them out of Z on their next request. Rotating
   `SESSION_SECRET` logs everyone out.
-- **Moderation is reactive**: no user reports, no notifications to affected users
-  (`docs/moderation.md`).
+- **Moderation is reactive**: no user reports (`docs/moderation.md`). Affected users are
+  notified of removals and restores, with the reason but not the admin's name.
+- **Notifications reveal activity to the recipient** (who liked, followed, mentioned): all of it is
+  already visible on the site. Desktop notifications show a snippet of the text on the user's
+  screen while Z is open; they are opt-in per browser.
 - **Account lifecycle**: users are created on first login and never deactivated from Keycloak
   data.
 - **Deleted content is still in the database** (soft delete, by design). Anyone with DB access

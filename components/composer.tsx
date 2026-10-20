@@ -1,7 +1,10 @@
 "use client";
-// Plain-text composer (markdown is off for now) with a character counter.
+// Markdown composer (posts, comments) with a live preview from the server's own renderer and a
+// character counter.
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ActionResult } from "@/app/actions";
+import { Markdown } from "@/components/markdown";
+import { useMentionSuggest } from "@/components/mention-suggest";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -25,10 +28,13 @@ export function Composer(p: Props) {
     const typed = textarea.current?.value;
     if (typed && typed !== p.initial) setBody(typed);
   }, [p.initial]);
+  const [tab, setTab] = useState<"write" | "preview">("write");
+  const mentions = useMentionSuggest(textarea, body, setBody);
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
       setBody(p.initial ?? "");
+      setTab("write");
       p.onDone?.();
     }
     return r;
@@ -48,15 +54,45 @@ export function Composer(p: Props) {
       {Object.entries(p.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <textarea
-        ref={textarea}
-        name="body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder={p.placeholder}
-        rows={p.rows ?? 4}
-        className="block w-full resize-none overflow-hidden rounded-md border border-neutral-300 bg-transparent p-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400"
-      />
+      {body && (
+        <div role="tablist" className="flex gap-4 text-sm">
+          {(["write", "preview"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className="text-muted transition-colors hover:text-foreground aria-selected:font-bold aria-selected:text-foreground"
+            >
+              {he.composer[t]}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === "preview" && (
+        <div className="min-h-16 rounded-md border border-dashed border-neutral-300 p-2 dark:border-neutral-700">
+          {body.trim() ? (
+            <Markdown text={body} />
+          ) : (
+            <p className="text-muted">{he.composer.previewEmpty}</p>
+          )}
+        </div>
+      )}
+      <div className="relative" hidden={tab === "preview"}>
+        <textarea
+          ref={textarea}
+          {...mentions.textareaProps}
+          title={he.composer.markdownHint}
+          name="body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={p.placeholder}
+          rows={p.rows ?? 4}
+          className="block w-full resize-none overflow-hidden rounded-md border border-neutral-300 bg-transparent p-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400"
+        />
+        {mentions.list}
+      </div>
       <div className="flex items-center gap-3 text-sm">
         <button
           disabled={pending || over || (!p.allowEmpty && !body.trim())}
