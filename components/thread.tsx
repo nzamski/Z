@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { restoreCommentAction } from "@/app/actions";
 import { CommentActions } from "@/components/comment-actions";
+import { ModerateButton } from "@/components/moderate-button";
 import { Byline, PlainText } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 
-type Ctx = { postId: string; viewerId: string | null; postLive: boolean };
+type Ctx = { postId: string; viewerId: string | null; postLive: boolean; isAdmin: boolean };
 
 function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
   const hidden = n.childCount - n.children.length;
@@ -14,7 +16,15 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
       id={`c-${n.id}`}
     >
       {n.deleted ? (
-        <p className="text-sm text-muted italic">{he.comment.deleted}</p>
+        <div className="flex gap-4 text-sm text-muted">
+          <p className="italic">{n.removed ? he.comment.removed : he.comment.deleted}</p>
+          {n.removed && ctx.isAdmin && (
+            <ModerateButton
+              label={he.moderation.restore}
+              action={restoreCommentAction.bind(null, n.id)}
+            />
+          )}
+        </div>
       ) : (
         <>
           <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
@@ -25,6 +35,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
             body={n.body!}
             canReply={!!ctx.viewerId && ctx.postLive}
             isOwner={ctx.viewerId === n.author!.id}
+            isAdmin={ctx.isAdmin}
           />
         </>
       )}

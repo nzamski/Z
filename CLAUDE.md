@@ -17,33 +17,36 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 
 ## Data conventions
 
-- Tables are plural (`users`, `posts`, `comments`, `likes`, `follows`): `user`/`like` are reserved words.
+- Tables are plural (`users`, `posts`, `comments`, `likes`, `follows`, `admins`, `moderation_actions`): `user`/`like` are reserved words.
 - A new table needs: the `base` columns from `db/schema.ts`, an `updated_at` index, and a `CREATE TRIGGER ... set_updated_at()` in its migration. `tests/trigger.test.ts` lists every table; add it there.
-- Writes go through `lib/services.ts` and throw `ServiceError` (`invalid` / `not_found` / `forbidden` / `gone`).
+- Writes go through `lib/services.ts` and throw `ServiceError` (`invalid` / `not_found` / `forbidden` / `gone` / `taken` / `suspended` / `rate_limited`). Every user write calls `assertCanWrite(actorId, kind?)` (suspension; with `kind`, also the per-user rate limit, `RATE` in `lib/limits.ts`).
 - Auth: `lib/auth/` (`AuthProvider`: Keycloak or dev switcher at `/dev/login`). Dev Keycloak users `dana`/`yossi`/`noa` (password = username) have fixed ids that the seed reuses as `keycloak_sub`; `newbie` has no seeded row, so logging in as it shows the first-login welcome. Claim mapping lives in `finishLogin` (`lib/auth/keycloak.ts`).
 - Server Actions (`app/actions.ts`) only check the session and input shape, call a service, then `refresh()`. Anything that reads cookies or the DB sits under `<Suspense>` after `await connection()`; route handlers that call out at request time also `await connection()` so `next build` never contacts the DB or Keycloak.
 - Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS. Edits to `app/globals.css` sometimes don't hot-reload either: check the served CSS, and restart `next dev` if the rule is missing.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
 - Deviations from PLAN.md at the user's request (2026-10-17): posts max 500 chars (`lib/limits.ts`); users have no `unit`/`role_title` (dropped in migration 0004); bio max 70; Keycloak provides only `sub` and the display name (not editable). The handle is chosen by the user in the mandatory first-login welcome (`/welcome`, `users.onboarded_at`); until then `requireViewer` sends them there (`requireLogin` is for the welcome's own page/actions).
 - Posts, comments and bios are plain text for now (markdown turned off at the user's request, 2026-10-17; PLAN.md still describes markdown). Render user text with `PlainText` (`components/post-card.tsx`), never as HTML.
-- Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. No `pg_trgm` until PLAN Q4 is answered.
+- Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. `pg_trgm` is available (PLAN Q4, 2026-10-19): substring/fuzzy people search and a typo-tolerant post fallback; Hebrew needs a UTF-8 aware `LC_CTYPE`.
+- Moderation (`docs/moderation.md`, added 2026-10-19): admins in `admins` (checked in the DB on every action, never from the cookie); moderation services require a reason and write `moderation_actions` in the same transaction. `removed_at` (posts, comments) marks a moderator removal next to `deleted_at`; `users.suspended_at` = locked out (`requireLogin` redirects to `/suspended`; `generateMetadata` uses `canSeeContent()`). First admin: `node admin.mjs grant <handle> "<reason>"` (`scripts/admin.mjs`, raw SQL: keep it in step with `grantAdmin`/`revokeAdmin`). The seed makes `dana` an admin.
+- Security headers: CSP in `proxy.ts` (no nonces: partial prerendering), the rest in `next.config.ts`. Sessions default to 4 h.
 - Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
-- Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container), `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
+- Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container; locally `MIGRATIONS_DIR=drizzle`), `scripts/admin.mjs`, `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
 - Feeds: ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands
 
-| Command                              | What                                                                                      |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `docker compose up -d db keycloak`   | Dev Postgres on :5433, Keycloak on :8180 (realm `z`)                                      |
-| (or) any local Postgres 16           | Set `DATABASE_URL`/`TEST_DATABASE_URL` in `.env`; needs role `z` owning DBs `z`, `z_test` |
-| `npm run dev`                        | Next dev server on :3000                                                                  |
-| `npm test`                           | Vitest against compose Postgres (`z_test` DB)                                             |
-| `npm run lint` / `npm run typecheck` | ESLint + Prettier check / `tsc`                                                           |
-| `npm run ci`                         | lint + typecheck + test                                                                   |
-| `npm run db:generate` / `db:migrate` | drizzle-kit                                                                               |
-| `npm run seed` / `seed:large`        | Reset dev DB with fictional data (60 / 10k posts)                                         |
-| `npm run build:images`               | Build the amd64 image + OCI archive in `dist/` (docs/deploy.md)                           |
+| Command                                                                                  | What                                                                                      |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `docker compose up -d db keycloak`                                                       | Dev Postgres on :5433, Keycloak on :8180 (realm `z`)                                      |
+| (or) any local Postgres 16                                                               | Set `DATABASE_URL`/`TEST_DATABASE_URL` in `.env`; needs role `z` owning DBs `z`, `z_test` |
+| `npm run dev`                                                                            | Next dev server on :3000                                                                  |
+| `npm test`                                                                               | Vitest against compose Postgres (`z_test` DB)                                             |
+| `npm run lint` / `npm run typecheck`                                                     | ESLint + Prettier check / `tsc`                                                           |
+| `npm run ci`                                                                             | lint + typecheck + test                                                                   |
+| `npm run db:generate` / `db:migrate`                                                     | drizzle-kit                                                                               |
+| `npm run seed` / `seed:large`                                                            | Reset dev DB with fictional data (60 / 10k posts)                                         |
+| `npm run build:images`                                                                   | Build the amd64 image + OCI archive in `dist/` (docs/deploy.md)                           |
+| `node --env-file=.env scripts/admin.mjs list` / `grant <handle> "<reason>"` / `revoke …` | Manage admins (docs/moderation.md)                                                        |
 
 ## Working agreements (PLAN.md §11)
 

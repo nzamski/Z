@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireViewer } from "@/lib/auth/viewer";
 import { parseView } from "@/lib/feed";
+import { allowSearch } from "@/lib/rate-limit";
 import { feedPage, ServiceError } from "@/lib/services";
 
 export async function GET(req: NextRequest) {
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
   const author = q.get("author");
   if (author && !z.uuid().safeParse(author).success) {
     return NextResponse.json({ error: "invalid" }, { status: 400 });
+  }
+  if (q.has("q") && !allowSearch(viewer.id)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
   try {
     const page = await feedPage(viewer.id, {

@@ -161,3 +161,45 @@ export async function getPostBodyAction(postId: string): Promise<string | null> 
   const post = await s.getPost(id.data, viewer.id);
   return post && !post.deletedAt ? post.body : null;
 }
+
+// ---- moderation: the services check that the actor is an admin (docs/moderation.md) ----
+
+const moderation = (fn: (uid: string, id: string, reason: string) => Promise<unknown>) => {
+  return (id: string, reason: string) => run((uid) => fn(uid, Id.parse(id), Text.parse(reason)));
+};
+
+export async function removePostAction(id: string, reason: string) {
+  return moderation(s.removePost)(id, reason);
+}
+export async function restorePostAction(id: string, reason: string) {
+  return moderation(s.restorePost)(id, reason);
+}
+export async function removeCommentAction(id: string, reason: string) {
+  return moderation(s.removeComment)(id, reason);
+}
+export async function restoreCommentAction(id: string, reason: string) {
+  return moderation(s.restoreComment)(id, reason);
+}
+export async function suspendUserAction(id: string, reason: string) {
+  return moderation(s.suspendUser)(id, reason);
+}
+export async function unsuspendUserAction(id: string, reason: string) {
+  return moderation(s.unsuspendUser)(id, reason);
+}
+export async function clearBioAction(id: string, reason: string) {
+  return moderation(s.clearBio)(id, reason);
+}
+export async function resetHandleAction(id: string, reason: string) {
+  const r = await moderation(s.resetHandle)(id, reason);
+  if (r.ok) redirect("/admin"); // the profile's URL (old handle) is gone
+  return r;
+}
+export async function revokeAdminAction(id: string, reason: string) {
+  return moderation(s.revokeAdmin)(id, reason);
+}
+
+export async function grantAdminAction(_: ActionResult, f: FormData) {
+  return run((uid) =>
+    s.grantAdmin(uid, Text.parse(field(f, "handle")), Text.parse(field(f, "reason"))),
+  );
+}

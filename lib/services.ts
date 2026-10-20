@@ -1,9 +1,19 @@
 // Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
+import { randomBytes } from "node:crypto";
 import { and, count, desc, eq, gt, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { comments, follows, likes, posts, users } from "@/db/schema";
+import {
+  admins,
+  comments,
+  follows,
+  likes,
+  moderationActions,
+  posts,
+  users,
+  type ModerationAction,
+} from "@/db/schema";
 import {
   applyAuthorPenalty,
   decodeCursor,
@@ -12,12 +22,15 @@ import {
   type Cursor,
   type FeedView,
 } from "@/lib/feed";
-import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX } from "@/lib/limits";
+import { BIO_MAX, COMMENT_MAX, HANDLE_RE, POST_MAX, RATE, REASON_MAX } from "@/lib/limits";
 import { computePreview } from "@/lib/preview";
-import { toTsQuery } from "@/lib/search";
+import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
-  constructor(public code: "invalid" | "not_found" | "forbidden" | "gone" | "taken") {
+  constructor(
+    public code:
+      "invalid" | "not_found" | "forbidden" | "gone" | "taken" | "suspended" | "rate_limited",
+  ) {
     super(code);
   }
 }
@@ -26,6 +39,7 @@ const PostBody = z.string().trim().min(1).max(POST_MAX);
 const CommentBody = z.string().trim().min(1).max(COMMENT_MAX);
 const Bio = z.string().trim().max(BIO_MAX);
 const Handle = z.string().trim().toLowerCase().regex(HANDLE_RE);
+const Reason = z.string().trim().min(1).max(REASON_MAX);
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
@@ -62,10 +76,39 @@ async function ownActive<T extends typeof posts | typeof comments>(
   if (row.authorId !== actorId) throw new ServiceError("forbidden");
 }
 
+type WriteKind = "posts" | "comments" | "likes" | "follows";
+const RATE_ROWS = {
+  posts: [posts, posts.authorId],
+  comments: [comments, comments.authorId],
+  likes: [likes, likes.userId],
+  follows: [follows, follows.followerId],
+} as const;
+
+/**
+ * Suspended users can't write anything at all, not even delete or undo (they can't read either:
+ * requireLogin sends them to /suspended). `kind`: also enforce that rate limit (RATE): the user's
+ * rows of that kind in the trailing window, soft-deleted ones included, so deleting doesn't buy more.
+ */
+async function assertCanWrite(actorId: string, kind?: WriteKind) {
+  let recent = sql<number>`0`;
+  if (kind) {
+    const [table, by] = RATE_ROWS[kind];
+    recent = sql<number>`(select count(*)::int from ${table} where ${by} = ${actorId}
+      and ${table.createdAt} > now() - make_interval(mins => ${RATE[kind].minutes}))`;
+  }
+  const [u] = await db
+    .select({ suspendedAt: users.suspendedAt, recent })
+    .from(users)
+    .where(eq(users.id, actorId));
+  if (u?.suspendedAt) throw new ServiceError("suspended");
+  if (kind && u && u.recent >= RATE[kind].max) throw new ServiceError("rate_limited");
+}
+
 // ---- posts ----
 
 export async function createPost(actorId: string, body: string) {
   const text = parse(PostBody, body);
+  await assertCanWrite(actorId, "posts");
   const [row] = await db
     .insert(posts)
     .values({ authorId: actorId, body: text, ...computePreview(text) })
@@ -75,6 +118,7 @@ export async function createPost(actorId: string, body: string) {
 
 export async function editPost(actorId: string, postId: string, body: string) {
   const text = parse(PostBody, body);
+  await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
   const [row] = await db
     .update(posts)
@@ -85,6 +129,7 @@ export async function editPost(actorId: string, postId: string, body: string) {
 }
 
 export async function deletePost(actorId: string, postId: string) {
+  await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
   await db.update(posts).set({ deletedAt: now, updatedAt: now }).where(eq(posts.id, postId));
 }
@@ -98,6 +143,7 @@ export async function createComment(
   parentCommentId?: string,
 ) {
   const text = parse(CommentBody, body);
+  await assertCanWrite(actorId, "comments");
   return db.transaction(async (tx) => {
     if (parentCommentId) {
       const [parent] = await tx
@@ -118,6 +164,7 @@ export async function createComment(
 
 export async function editComment(actorId: string, commentId: string, body: string) {
   const text = parse(CommentBody, body);
+  await assertCanWrite(actorId);
   await ownActive(comments, commentId, actorId);
   const [row] = await db
     .update(comments)
@@ -129,6 +176,7 @@ export async function editComment(actorId: string, commentId: string, body: stri
 
 // Replies keep counting toward post.comment_count; only this comment is subtracted.
 export async function deleteComment(actorId: string, commentId: string) {
+  await assertCanWrite(actorId);
   await ownActive(comments, commentId, actorId);
   await db.transaction(async (tx) => {
     const [row] = await tx
@@ -147,6 +195,7 @@ export async function deleteComment(actorId: string, commentId: string) {
 // ---- likes ----
 
 export async function likePost(actorId: string, postId: string) {
+  await assertCanWrite(actorId, "likes");
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(likes)
@@ -162,6 +211,7 @@ export async function likePost(actorId: string, postId: string) {
 }
 
 export async function unlikePost(actorId: string, postId: string) {
+  await assertCanWrite(actorId);
   await db.transaction(async (tx) => {
     const removed = await tx
       .update(likes)
@@ -181,6 +231,7 @@ export async function unlikePost(actorId: string, postId: string) {
 
 export async function follow(actorId: string, followeeId: string) {
   if (actorId === followeeId) throw new ServiceError("invalid");
+  await assertCanWrite(actorId, "follows");
   const [target] = await db
     .select({ id: users.id })
     .from(users)
@@ -196,6 +247,7 @@ export async function follow(actorId: string, followeeId: string) {
 }
 
 export async function unfollow(actorId: string, followeeId: string) {
+  await assertCanWrite(actorId);
   await db
     .update(follows)
     .set({ deletedAt: now, updatedAt: now })
@@ -344,7 +396,12 @@ export async function newPosts(viewerId: string, view: FeedView, since: Date) {
 /** The full post, including deleted ones (the page shows a "deleted" notice). */
 export async function getPost(id: string, viewerId: string | null) {
   const [row] = await db
-    .select({ ...postCols(viewerId), body: posts.body, deletedAt: posts.deletedAt })
+    .select({
+      ...postCols(viewerId),
+      body: posts.body,
+      deletedAt: posts.deletedAt,
+      removedAt: posts.removedAt,
+    })
     .from(posts)
     .innerJoin(users, eq(users.id, posts.authorId))
     .where(eq(posts.id, id));
@@ -381,6 +438,7 @@ export type ThreadNode = {
   parentId: string | null;
   depth: number;
   deleted: boolean;
+  removed: boolean; // deleted by a moderator
   body: string | null; // null when deleted
   author: { id: string; handle: string; displayName: string } | null;
   createdAt: Date;
@@ -408,6 +466,7 @@ export async function getThread(
     parent_comment_id: string | null;
     depth: number;
     deleted_at: string | null;
+    removed_at: string | null;
     body: string;
     author_id: string;
     handle: string;
@@ -433,7 +492,7 @@ export async function getThread(
         limit ${REPLIES_PAGE}) c
       where t.depth < ${THREAD_DEPTH}
     )
-    select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.body, t.author_id, t.created_at,
+    select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.removed_at, t.body, t.author_id, t.created_at,
       t.edited_at, u.handle, u.display_name,
       (select count(*)::int from comments x
         where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}) as child_count
@@ -449,6 +508,7 @@ export async function getThread(
       parentId: r.parent_comment_id,
       depth: r.depth,
       deleted,
+      removed: r.removed_at !== null,
       body: deleted ? null : r.body,
       author: deleted ? null : { id: r.author_id, handle: r.handle, displayName: r.display_name },
       createdAt: new Date(r.created_at),
@@ -469,35 +529,72 @@ export async function getThread(
 // ---- users ----
 
 /**
- * People search: handle prefix (a leading @ is ignored) or display-name substring.
- * Exact handle first, then the most followed. ponytail: ILIKE scans users; fine for thousands
- * of users, add a trigram index (pg_trgm, PLAN Q4) if it ever isn't.
+ * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
+ * (pg_trgm) for typos. Exact handle first, then handle prefix, then closest, then most followed.
  */
 export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const q = query.trim().replace(/^@/, "").slice(0, 50);
   if (!q) return [];
   const like = q.replace(/[\\%_]/g, (c) => `\\${c}`); // user input is literal text
-  return db
-    .select({
-      ...userCard,
-      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
-        and v.followee_id = ${users.id} and v.deleted_at is null)`,
-    })
-    .from(users)
-    .where(
-      and(
-        active(users),
-        hasHandle,
-        sql`(${users.handle} ilike ${like + "%"} or ${users.displayName} ilike ${"%" + like + "%"})`,
-      ),
-    )
-    .orderBy(
-      desc(sql`${users.handle} = lower(${q})`),
-      desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
-        and f.deleted_at is null)`),
-      users.handle,
-    )
-    .limit(limit);
+  const fuzzy = fuzzyText(q);
+  const closeness = fuzzy
+    ? sql`greatest(word_similarity(${fuzzy}, ${users.handle}), word_similarity(${fuzzy}, ${users.displayName}))`
+    : sql`0::float8`; // a bare 0 in ORDER BY would mean "column 0"
+  return withTrigramThreshold(FUZZY.people, (tx) =>
+    tx
+      .select({
+        ...userCard,
+        viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+          and v.followee_id = ${users.id} and v.deleted_at is null)`,
+      })
+      .from(users)
+      .where(
+        and(
+          active(users),
+          hasHandle,
+          sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
+            ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`,
+        ),
+      )
+      .orderBy(
+        desc(sql`${users.handle} = lower(${q})`),
+        desc(sql`${users.handle} ilike ${like + "%"}`),
+        desc(closeness),
+        desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+          and f.deleted_at is null)`),
+        users.handle,
+      )
+      .limit(limit),
+  );
+}
+
+/**
+ * Typo-tolerant post search (pg_trgm), for when full-text search finds nothing: one page of the
+ * closest live posts, best match first. Not paged (no stable cursor for a similarity order).
+ */
+export async function similarPosts(viewerId: string, query: string) {
+  const fuzzy = fuzzyText(query);
+  if (!fuzzy) return [];
+  return withTrigramThreshold(FUZZY.posts, (tx) =>
+    tx
+      .select(postCols(viewerId))
+      .from(posts)
+      .innerJoin(users, eq(users.id, posts.authorId))
+      .where(and(active(posts), sql`${fuzzy} <% ${posts.body}`))
+      .orderBy(desc(sql`word_similarity(${fuzzy}, ${posts.body})`), desc(posts.createdAt))
+      .limit(PAGE),
+  );
+}
+
+// `a <% b` (word_similarity above the threshold) is what the trigram GIN indexes can answer; the
+// threshold is a setting, so set it for this transaction only.
+function withTrigramThreshold<T>(threshold: number, fn: (tx: Tx) => Promise<T>) {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select set_config('pg_trgm.word_similarity_threshold', ${String(threshold)}, true)`,
+    );
+    return fn(tx);
+  });
 }
 
 /** Whether a handle can be taken by this user ("ok" includes the user's current handle). */
@@ -518,6 +615,7 @@ export async function updateProfile(actorId: string, input: { handle: string; bi
     handle: parse(Handle, input.handle),
     bio: parse(Bio, input.bio),
   };
+  await assertCanWrite(actorId);
   if ((await handleStatus(actorId, data.handle)) === "taken") throw new ServiceError("taken");
   try {
     const [row] = await db
@@ -537,6 +635,7 @@ export async function updateProfile(actorId: string, input: { handle: string; bi
 
 /** Done with the first-login welcome. Needs a handle (the one thing setup must produce). */
 export async function finishOnboarding(actorId: string) {
+  await assertCanWrite(actorId);
   const [u] = await db.select({ handle: users.handle }).from(users).where(eq(users.id, actorId));
   if (!u?.handle) throw new ServiceError("invalid");
   await db
@@ -666,5 +765,260 @@ export async function listUsers(limit = 50) {
     .from(users)
     .where(active(users))
     .orderBy(users.createdAt)
+    .limit(limit);
+}
+
+// ---- moderation (docs/moderation.md) ----
+// The actor must be an active admin. Each action changes its target and writes its audit row in
+// one transaction; a no-op (already removed, already suspended) writes nothing.
+
+export async function isAdmin(userId: string) {
+  const [r] = await db
+    .select({ id: admins.id })
+    .from(admins)
+    .where(and(eq(admins.userId, userId), active(admins)));
+  return !!r;
+}
+
+type LogEntry = {
+  action: ModerationAction;
+  postId?: string;
+  commentId?: string;
+  userId?: string;
+  detail?: string;
+};
+
+async function moderate(
+  actorId: string,
+  reason: string,
+  fn: (tx: Tx, log: (e: LogEntry) => Promise<void>) => Promise<void>,
+) {
+  const why = parse(Reason, reason);
+  await db.transaction(async (tx) => {
+    const [admin] = await tx
+      .select({ id: admins.id })
+      .from(admins)
+      .innerJoin(users, eq(users.id, admins.userId))
+      .where(and(eq(admins.userId, actorId), active(admins), active(users)));
+    if (!admin) throw new ServiceError("forbidden");
+    await fn(tx, async (e) => {
+      await tx.insert(moderationActions).values({ ...e, actorId, reason: why });
+    });
+  });
+}
+
+// Why an update matched nothing: no such row, or it is already in the other state.
+async function missing(tx: Tx, table: typeof posts | typeof comments | typeof users, id: string) {
+  const [row] = await tx
+    .select({ id: table.id })
+    .from(table as typeof posts)
+    .where(eq(table.id, id));
+  return new ServiceError(row ? "gone" : "not_found");
+}
+
+export async function removePost(actorId: string, postId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const rows = await tx
+      .update(posts)
+      .set({ deletedAt: now, removedAt: now, updatedAt: now })
+      .where(and(eq(posts.id, postId), active(posts)))
+      .returning({ id: posts.id });
+    if (!rows.length) throw await missing(tx, posts, postId);
+    await log({ action: "remove_post", postId });
+  });
+}
+
+/** Undo a moderator removal (an author's own delete stays deleted). */
+export async function restorePost(actorId: string, postId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const rows = await tx
+      .update(posts)
+      .set({ deletedAt: null, removedAt: null, updatedAt: now })
+      .where(and(eq(posts.id, postId), isNotNull(posts.removedAt)))
+      .returning({ id: posts.id });
+    if (!rows.length) throw await missing(tx, posts, postId);
+    await log({ action: "restore_post", postId });
+  });
+}
+
+// Counters as in deleteComment: only this comment leaves post.comment_count; restoring adds it back.
+export async function removeComment(actorId: string, commentId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const [row] = await tx
+      .update(comments)
+      .set({ deletedAt: now, removedAt: now, updatedAt: now })
+      .where(and(eq(comments.id, commentId), active(comments)))
+      .returning({ postId: comments.postId });
+    if (!row) throw await missing(tx, comments, commentId);
+    await tx
+      .update(posts)
+      .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
+      .where(eq(posts.id, row.postId));
+    await log({ action: "remove_comment", commentId });
+  });
+}
+
+export async function restoreComment(actorId: string, commentId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const [row] = await tx
+      .update(comments)
+      .set({ deletedAt: null, removedAt: null, updatedAt: now })
+      .where(and(eq(comments.id, commentId), isNotNull(comments.removedAt)))
+      .returning({ postId: comments.postId });
+    if (!row) throw await missing(tx, comments, commentId);
+    await tx
+      .update(posts)
+      .set({ commentCount: sql`${posts.commentCount} + 1`, updatedAt: now })
+      .where(eq(posts.id, row.postId));
+    await log({ action: "restore_comment", commentId });
+  });
+}
+
+async function targetUser(tx: Tx, actorId: string, userId: string) {
+  if (userId === actorId) throw new ServiceError("invalid"); // never yourself
+  const [u] = await tx
+    .select()
+    .from(users)
+    .where(and(eq(users.id, userId), active(users)));
+  if (!u) throw new ServiceError("not_found");
+  return u;
+}
+
+/** Read-only: no posting, commenting, liking, following or profile edits. Not for admins. */
+export async function suspendUser(actorId: string, userId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const u = await targetUser(tx, actorId, userId);
+    if (u.suspendedAt) return;
+    const [admin] = await tx
+      .select({ id: admins.id })
+      .from(admins)
+      .where(and(eq(admins.userId, userId), active(admins)));
+    if (admin) throw new ServiceError("forbidden"); // revoke admin first
+    await tx.update(users).set({ suspendedAt: now, updatedAt: now }).where(eq(users.id, userId));
+    await log({ action: "suspend_user", userId });
+  });
+}
+
+export async function unsuspendUser(actorId: string, userId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const u = await targetUser(tx, actorId, userId);
+    if (!u.suspendedAt) return;
+    await tx.update(users).set({ suspendedAt: null, updatedAt: now }).where(eq(users.id, userId));
+    await log({ action: "unsuspend_user", userId });
+  });
+}
+
+export async function clearBio(actorId: string, userId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const u = await targetUser(tx, actorId, userId);
+    if (!u.bio) return;
+    await tx.update(users).set({ bio: "", updatedAt: now }).where(eq(users.id, userId));
+    await log({ action: "clear_bio", userId, detail: u.bio });
+  });
+}
+
+/**
+ * Replaces the handle with a neutral placeholder and sends the user back through the welcome to
+ * pick a new one. (Not null: their posts and comments keep linking to a profile meanwhile.)
+ */
+export async function resetHandle(actorId: string, userId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const u = await targetUser(tx, actorId, userId);
+    if (!u.handle) return;
+    const placeholder = `u_${randomBytes(5).toString("hex")}`; // matches HANDLE_RE
+    await tx
+      .update(users)
+      .set({ handle: placeholder, onboardedAt: null, updatedAt: now })
+      .where(eq(users.id, userId));
+    await log({ action: "reset_handle", userId, detail: u.handle });
+  });
+}
+
+export async function grantAdmin(actorId: string, handle: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const [u] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.handle, handle.trim().replace(/^@/, "").toLowerCase()), active(users)));
+    if (!u) throw new ServiceError("not_found");
+    if (u.id !== actorId) await targetUser(tx, actorId, u.id); // same checks as other targets
+    const inserted = await tx
+      .insert(admins)
+      .values({ userId: u.id, grantedBy: actorId })
+      .onConflictDoNothing({ target: admins.userId, where: active(admins) })
+      .returning({ id: admins.id });
+    if (inserted.length) await log({ action: "grant_admin", userId: u.id });
+  });
+}
+
+/** Admins can revoke each other but not themselves, so there is always at least one. */
+export async function revokeAdmin(actorId: string, userId: string, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    if (userId === actorId) throw new ServiceError("invalid");
+    const rows = await tx
+      .update(admins)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(admins.userId, userId), active(admins)))
+      .returning({ id: admins.id });
+    if (rows.length) await log({ action: "revoke_admin", userId });
+  });
+}
+
+export async function listAdmins() {
+  return db
+    .select({
+      id: users.id,
+      handle: sql<string>`${users.handle}`,
+      displayName: users.displayName,
+      since: admins.createdAt,
+    })
+    .from(admins)
+    .innerJoin(users, eq(users.id, admins.userId))
+    .where(and(active(admins), active(users)))
+    .orderBy(admins.createdAt);
+}
+
+export async function suspendedUsers() {
+  return db
+    .select({
+      id: users.id,
+      handle: sql<string>`${users.handle}`,
+      displayName: users.displayName,
+      since: users.suspendedAt,
+    })
+    .from(users)
+    .where(and(isNotNull(users.suspendedAt), active(users)))
+    .orderBy(desc(users.suspendedAt));
+}
+
+export const LOG_PAGE = 100;
+
+/** The newest audit entries, with enough of each target to show and link it. */
+export async function moderationLog(limit = LOG_PAGE) {
+  const actor = alias(users, "actor");
+  const target = alias(users, "target");
+  return db
+    .select({
+      id: moderationActions.id,
+      at: moderationActions.createdAt,
+      action: moderationActions.action,
+      reason: moderationActions.reason,
+      detail: moderationActions.detail,
+      actor: { handle: actor.handle, displayName: actor.displayName },
+      post: { id: posts.id, preview: posts.preview, removedAt: posts.removedAt },
+      comment: {
+        id: comments.id,
+        postId: comments.postId,
+        body: comments.body,
+        removedAt: comments.removedAt,
+      },
+      user: { id: target.id, handle: target.handle, displayName: target.displayName },
+    })
+    .from(moderationActions)
+    .leftJoin(actor, eq(actor.id, moderationActions.actorId))
+    .leftJoin(posts, eq(posts.id, moderationActions.postId))
+    .leftJoin(comments, eq(comments.id, moderationActions.commentId))
+    .leftJoin(target, eq(target.id, moderationActions.userId))
+    .orderBy(desc(moderationActions.createdAt), desc(moderationActions.id))
     .limit(limit);
 }

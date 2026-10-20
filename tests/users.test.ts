@@ -96,7 +96,7 @@ describe("follow lists and suggestions", () => {
 });
 
 describe("people search", () => {
-  test("handle prefix (with or without @), name substring, exact handle first, literal input", async () => {
+  test("handle or name substring (with or without @), exact handle first, literal input", async () => {
     const t = tag()
       .replace(/[^a-z]/g, "q")
       .slice(0, 6);
@@ -107,10 +107,23 @@ describe("people search", () => {
     await upsertUserFromClaims({ sub: randomUUID(), displayName: `${t}ית בלי כינוי` }); // not listed
     const ids = async (q: string) => (await s.searchUsers(viewer.id, q, 10)).map((u) => u.id);
 
-    expect(await ids(`p${t}`)).toEqual([exact.id, longer.id]); // exact handle first
-    expect(await ids(`@P${t}`)).toEqual([exact.id, longer.id]); // @ and case ignored
-    expect(await ids(`${t}ית`)).toEqual([byName.id]); // inside the display name
-    expect(await ids(`%${t}`)).toEqual([]); // % is a character, not a wildcard
+    // exact handle, then handle prefix, then the close (fuzzy) `n...` handle
+    expect(await ids(`p${t}`)).toEqual([exact.id, longer.id, byName.id]);
+    expect(await ids(`@P${t}`)).toEqual([exact.id, longer.id, byName.id]); // @ and case ignored
+    expect((await ids(`${t}ית`))[0]).toBe(byName.id); // inside the display name: closest first
+    expect((await ids(t)).sort()).toEqual([exact.id, longer.id, byName.id].sort()); // inside handles and names
+    expect(await ids("______")).toEqual([]); // _ is a character, not a wildcard
     expect(await ids("   ")).toEqual([]);
+  });
+
+  test("fuzzy (pg_trgm): finds a name or handle despite a typo", async () => {
+    const t = tag()
+      .replace(/[^a-z]/g, "q")
+      .slice(0, 6);
+    const viewer = await makeUser();
+    const u = await makeUser(`שרון ${t}berg`, `s${t}`);
+    const ids = async (q: string) => (await s.searchUsers(viewer.id, q, 10)).map((x) => x.id);
+    expect(await ids(`${t}brg`)).toEqual([u.id]); // typo in the name
+    expect(await ids(`s${t.slice(0, 5)}x`)).toEqual([u.id]); // typo in the handle
   });
 });
