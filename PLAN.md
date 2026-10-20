@@ -247,6 +247,8 @@ Topics/tags and interest-based personalization, typed pages (ideas backlog, RFC 
 **Deferred (revisit before broad rollout)**: moderation. Phase 1 has no way for anyone other than the author to remove a post. Before the pilot expands beyond a small trusted group, decide on at least a documented takedown path (e.g. a CLI that soft-deletes through the service layer) and an audit log of deletions.
 _Done 2026-10-19 at the user's request_: admins (granted by CLI, then on `/admin`) remove/restore posts and comments, suspend users, clear bios and reset handles, all with a reason in an audit log (`docs/moderation.md`).
 
+**Changed 2026-10-19 at the user's request (Q&A without a new post type)**: markdown is back for posts and comments, posts up to 20,000 characters, comments 10,000. Comments can be liked; the post author's like marks a comment ("liked by the author") and puts it first, so a question post with its best answer works like a Q&A thread. A Top feed tab (all-time most liked) keeps useful posts findable.
+
 **Open (for Noam)**:
 
 1. Does your libchart support a pre-install/pre-upgrade hook Job (for migrations), or should the plan use the init-container fallback?

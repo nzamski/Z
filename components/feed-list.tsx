@@ -65,7 +65,7 @@ export function FeedList(p: {
     [p.view, p.author, p.q],
   );
   const key = `z-feed:${new URLSearchParams(query)}`;
-  const announce = !p.author && !p.q && p.view !== "latest";
+  const announce = !p.author && !p.q && p.view !== "latest" && p.view !== "top";
   const [items, setItems] = useState(p.first);
   const [next, setNext] = useState(p.next);
   const [asOf, setAsOf] = useState(p.asOf);

@@ -1,11 +1,23 @@
 "use client";
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import { setFollowAction, setLikeAction, type ActionResult } from "@/app/actions";
+import {
+  setCommentLikeAction,
+  setFollowAction,
+  setLikeAction,
+  type ActionResult,
+} from "@/app/actions";
 import { he } from "@/lib/i18n/he";
 
 // Local state, not useOptimistic: feed pages fetched on the client have no server prop that
 // refresh() would update, so an optimistic value would snap back. Fresh server props still win.
-export function LikeButton(p: { postId: string; liked: boolean; count: number }) {
+export function LikeButton(p: {
+  id: string;
+  kind?: "post" | "comment";
+  liked: boolean;
+  count: number;
+  likersHref?: string; // the count links to who liked it
+}) {
   const [state, setState] = useState({ liked: p.liked, count: p.count });
   const [prop, setProp] = useState(state);
   if (prop.liked !== p.liked || prop.count !== p.count) {
@@ -18,36 +30,48 @@ export function LikeButton(p: { postId: string; liked: boolean; count: number })
       const before = state;
       const liked = !state.liked;
       setState({ liked, count: state.count + (liked ? 1 : -1) });
-      const r = await setLikeAction(p.postId, liked);
+      const r = await (p.kind === "comment" ? setCommentLikeAction : setLikeAction)(p.id, liked);
       if (r.error) setState(before);
     });
+  const count = state.count > 0 ? state.count : ""; // like X: no number at zero
   return (
-    <button
-      onClick={toggle}
-      aria-pressed={state.liked}
-      aria-busy={pending}
-      aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
-      className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
-        state.liked ? "text-like" : "hover:text-like"
-      }`}
-    >
-      <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-rose-500/10 group-focus-visible:bg-rose-500/10">
-        <svg
-          key={String(state.liked)} // remount so the pop replays on each like
-          viewBox="0 0 24 24"
-          aria-hidden
-          className={`size-[18px] ${state.liked ? "animate-like-pop" : ""}`}
-          fill={state.liked ? "currentColor" : "none"}
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinejoin="round"
+    <span className={`flex items-center tabular-nums ${state.liked ? "text-like" : ""}`}>
+      <button
+        onClick={toggle}
+        aria-pressed={state.liked}
+        aria-busy={pending}
+        aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
+        className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
+          state.liked ? "text-like" : "hover:text-like"
+        }`}
+      >
+        <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-rose-500/10 group-focus-visible:bg-rose-500/10">
+          <svg
+            key={String(state.liked)} // remount so the pop replays on each like
+            viewBox="0 0 24 24"
+            aria-hidden
+            className={`size-[18px] ${state.liked ? "animate-like-pop" : ""}`}
+            fill={state.liked ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinejoin="round"
+          >
+            <path d="M12 20.5s-7.5-4.6-9.4-9.3C1.3 7.9 3.4 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.4 0 5.5 3.4 4.2 6.7-1.9 4.7-9.4 9.3-9.4 9.3Z" />
+          </svg>
+        </span>
+      </button>
+      {count && p.likersHref ? (
+        <Link
+          href={p.likersHref}
+          aria-label={he.likers.show(state.count)}
+          className="min-w-[1ch] text-sm hover:underline"
         >
-          <path d="M12 20.5s-7.5-4.6-9.4-9.3C1.3 7.9 3.4 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.4 0 5.5 3.4 4.2 6.7-1.9 4.7-9.4 9.3-9.4 9.3Z" />
-        </svg>
-      </span>
-      {/* Like X: no number at zero. */}
-      <span className="min-w-[1ch] text-sm">{state.count > 0 ? state.count : ""}</span>
-    </button>
+          {count}
+        </Link>
+      ) : (
+        <span className="min-w-[1ch] text-sm">{count}</span>
+      )}
+    </span>
   );
 }
 

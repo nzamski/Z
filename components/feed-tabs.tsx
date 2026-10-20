@@ -9,6 +9,7 @@ const TABS: [FeedView, string][] = [
   ["forYou", he.nav.forYou],
   ["following", he.nav.following],
   ["latest", he.nav.latest],
+  ["top", he.nav.top],
 ];
 
 export function FeedTabs({ view }: { view: FeedView }) {

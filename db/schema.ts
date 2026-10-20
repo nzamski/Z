@@ -94,6 +94,9 @@ export const posts = pgTable(
     index("posts_author_idx")
       .on(t.authorId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.deletedAt} is null`),
+    index("posts_top_idx")
+      .on(t.likeCount.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(sql`${t.deletedAt} is null`),
     index("posts_updated_at_idx").on(t.updatedAt),
     // Rate limits count recent rows per author, deleted ones included (RATE, lib/limits.ts).
     index("posts_rate_idx").on(t.authorId, t.createdAt),
@@ -115,8 +118,16 @@ export const comments = pgTable(
     editedAt: ts("edited_at"),
     // Removed by a moderator (deleted_at is set too); null for the author's own delete.
     removedAt: ts("removed_at"),
+    likeCount: integer("like_count").notNull().default(0),
+    // When the post's author liked this comment (their "this answered it" mark); null otherwise.
+    // Kept in step by likeComment/unlikeComment, like like_count.
+    authorLikedAt: ts("author_liked_at"),
   },
   (t) => [
+    // Posts with an author-liked comment (the "answered" mark on cards).
+    index("comments_author_liked_idx")
+      .on(t.postId)
+      .where(sql`${t.authorLikedAt} is not null and ${t.deletedAt} is null`),
     index("comments_thread_idx").on(t.postId, t.parentCommentId, t.createdAt),
     index("comments_updated_at_idx").on(t.updatedAt),
     index("comments_rate_idx").on(t.authorId, t.createdAt),
@@ -143,6 +154,30 @@ export const likes = pgTable(
       .where(sql`${t.deletedAt} is null`),
     index("likes_updated_at_idx").on(t.updatedAt),
     index("likes_rate_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+export const commentLikes = pgTable(
+  "comment_likes",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => comments.id),
+  },
+  (t) => [
+    uniqueIndex("comment_likes_active_uq")
+      .on(t.userId, t.commentId)
+      .where(sql`${t.deletedAt} is null`),
+    // "Liked by" lists (likers in lib/services.ts).
+    index("comment_likes_comment_idx")
+      .on(t.commentId)
+      .where(sql`${t.deletedAt} is null`),
+    index("comment_likes_rate_idx").on(t.userId, t.createdAt),
+    index("comment_likes_updated_at_idx").on(t.updatedAt),
   ],
 );
 

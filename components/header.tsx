@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackLink, LogoLink } from "@/components/home-link";
+import { ThemeMenu } from "@/components/theme-menu";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
 import { getUser, isAdmin } from "@/lib/services";
@@ -69,7 +70,7 @@ async function AuthStatus() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-10 grid h-(--header-h) grid-cols-3 items-center border-b border-neutral-200 bg-background/90 px-4 text-sm backdrop-blur dark:border-neutral-800">
+    <header className="sticky top-0 z-20 grid h-(--header-h) grid-cols-3 items-center border-b border-neutral-200 bg-background/90 px-4 text-sm backdrop-blur dark:border-neutral-800">
       {/* usePathname() is request data under cacheComponents, so it needs a boundary. */}
       <Suspense fallback={<span />}>
         <BackLink />
@@ -83,6 +84,7 @@ export function Header() {
         <Suspense>
           <AuthStatus />
         </Suspense>
+        <ThemeMenu />
       </div>
     </header>
   );

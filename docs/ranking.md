@@ -10,7 +10,12 @@ Spec: PLAN.md §6.
 | For You                 | `cursor_score DESC, id DESC` | `(feed_as_of, score, id)` | 30 days |
 | Following               | `created_at DESC, id DESC`   | `id` (row's `created_at`) | none    |
 | Latest                  | `created_at DESC, id DESC`   | `id`                      | none    |
+| Top                     | `like_count DESC, id DESC`   | `(like_count, id)`        | none    |
 | Profile (`/u/[handle]`) | `created_at DESC, id DESC`   | `id`                      | none    |
+
+Top (`topPage`, index `posts_top_idx`) is the all-time most liked: the place where useful posts
+stay findable. Like counts move while someone pages, so a post can repeat at a page boundary
+(the client drops repeats) or be skipped (it is at most a page away). It has no new-posts pill.
 
 The chosen tab is a cookie (`z_view`, one year), not part of the URL. Pages are 20 posts. The cursor is opaque base64url JSON; a garbled one is a 400 from
 `/api/feed` and a fresh first page on the server-rendered pages.
