@@ -1,10 +1,34 @@
 "use client";
-// Markdown composer (posts, comments) with a live preview from the server's own renderer and a
-// character counter.
-import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
+// Composer (posts, comments): a WYSIWYG editor that reads and writes markdown
+// (lib/editor-markdown.ts), so what you see is what gets posted. Formatting comes from the toolbar,
+// the usual shortcuts (Ctrl/⌘+B, I, E) or typing markdown (**bold**, "- " for a list, ``` for code).
+import "prosemirror-view/style/prosemirror.css";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  baseKeymap,
+  chainCommands,
+  exitCode,
+  lift,
+  setBlockType,
+  toggleMark,
+  wrapIn,
+} from "prosemirror-commands";
+import { history, redo, undo } from "prosemirror-history";
+import {
+  InputRule,
+  inputRules,
+  textblockTypeInputRule,
+  undoInputRule,
+  wrappingInputRule,
+} from "prosemirror-inputrules";
+import { keymap } from "prosemirror-keymap";
+import { Fragment, Slice, type MarkType, type NodeType } from "prosemirror-model";
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
+import { EditorState, type Command } from "prosemirror-state";
+import { EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
-import { Markdown } from "@/components/markdown";
 import { useMentionSuggest } from "@/components/mention-suggest";
+import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -17,80 +41,281 @@ type Props = {
   rows?: number;
   onCancel?: () => void;
   onDone?: () => void;
-  allowEmpty?: boolean; // e.g. clearing a bio
+  allowEmpty?: boolean;
 };
 
+const { nodes: N, marks: M } = schema;
+
+const markActive = (s: EditorState, type: MarkType) => {
+  const { from, to, empty, $from } = s.selection;
+  return empty
+    ? !!type.isInSet(s.storedMarks ?? $from.marks())
+    : s.doc.rangeHasMark(from, to, type);
+};
+const inNode = (s: EditorState, type: NodeType) => {
+  const { $from } = s.selection;
+  for (let d = $from.depth; d > 0; d--) if ($from.node(d).type === type) return true;
+  return false;
+};
+const toggleList =
+  (type: NodeType): Command =>
+  (s, d) =>
+    inNode(s, type) ? liftListItem(N.list_item)(s, d) : wrapInList(type)(s, d);
+const toggleCodeBlock: Command = (s, d) =>
+  setBlockType(s.selection.$from.parent.type === N.code_block ? N.paragraph : N.code_block)(s, d);
+const hardBreak: Command = (s, d) => {
+  d?.(s.tr.replaceSelectionWith(N.hard_break.create()).scrollIntoView());
+  return true;
+};
+/** Drops the link under the caret (the whole link) or in the selection. */
+const removeLink: Command = (s, d) => {
+  let { from, to } = s.selection;
+  if (s.selection.empty) {
+    const { $from } = s.selection;
+    const link = M.link.isInSet($from.marks());
+    if (!link) return false;
+    const start = $from.start();
+    from = to = $from.pos;
+    $from.parent.forEach((child, offset) => {
+      if (!link.isInSet(child.marks)) return;
+      const a = start + offset;
+      const b = a + child.nodeSize;
+      // Children are visited in order; a run of linked children touching the caret is the link.
+      if (b >= from && a <= to) [from, to] = [Math.min(from, a), Math.max(to, b)];
+    });
+  }
+  d?.(s.tr.removeMark(from, to, M.link));
+  return true;
+};
+
+// **bold**, _italic_ / *italic*, `code`, ~~strike~~ typed out become formatting.
+const markRule = (re: RegExp, type: MarkType) =>
+  new InputRule(re, (s, [, lead, text], start, end) =>
+    s.tr
+      .replaceWith(start + lead.length, end, schema.text(text, [type.create()]))
+      .removeStoredMark(type),
+  );
+const rules = inputRules({
+  rules: [
+    markRule(/(^|[^*])\*\*([^*\s](?:[^*]*[^*\s])?)\*\*$/, M.strong),
+    markRule(/(^|[^*])\*([^*\s](?:[^*]*[^*\s])?)\*$/, M.em),
+    markRule(/(^|[^\p{L}\p{N}_])_([^_\s](?:[^_]*[^_\s])?)_$/u, M.em),
+    markRule(/(^|[^`])`([^`]+)`$/, M.code),
+    markRule(/(^|[^~])~~([^~]+)~~$/, M.strike),
+    wrappingInputRule(/^\s*([-+*])\s$/, N.bullet_list),
+    wrappingInputRule(
+      /^(\d+)\.\s$/,
+      N.ordered_list,
+      (m) => ({ order: +m[1] }),
+      (m, node) => node.childCount + node.attrs.order == +m[1],
+    ),
+    wrappingInputRule(/^\s*>\s$/, N.blockquote),
+    textblockTypeInputRule(/^```$/, N.code_block),
+  ],
+});
+
+const keys = keymap({
+  "Mod-z": undo,
+  "Shift-Mod-z": redo,
+  "Mod-y": redo,
+  "Mod-b": toggleMark(M.strong),
+  "Mod-i": toggleMark(M.em),
+  "Mod-e": toggleMark(M.code),
+  Enter: splitListItem(N.list_item),
+  "Shift-Enter": chainCommands(exitCode, hardBreak),
+  Tab: sinkListItem(N.list_item),
+  "Shift-Tab": liftListItem(N.list_item),
+  Backspace: undoInputRule,
+});
+
+const createState = (text: string) =>
+  EditorState.create({
+    doc: parser.parse(text),
+    plugins: [history(), rules, keys, keymap(baseKeymap)],
+  });
+
+// Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.
+const clipboardTextParser = (text: string, $at: { parent: { type: NodeType } }) =>
+  !text
+    ? Slice.empty
+    : $at.parent.type.spec.code
+      ? new Slice(Fragment.from(schema.text(text)), 0, 0)
+      : Slice.maxOpen(parser.parse(text).content);
+
+const isEmpty = (s: EditorState | null) =>
+  !s ||
+  (s.doc.childCount === 1 &&
+    s.doc.firstChild!.type === N.paragraph &&
+    !s.doc.firstChild!.content.size);
+
 export function Composer(p: Props) {
-  const [body, setBody] = useState(p.initial ?? "");
-  const textarea = useRef<HTMLTextAreaElement>(null);
-  // Keep anything typed before hydration (slow loads), which React state would otherwise miss.
+  const host = useRef<HTMLDivElement>(null);
+  const view = useRef<EditorView | null>(null);
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [link, setLink] = useState<string | null>(null); // the link field, when open
+  const mentions = useMentionSuggest(view);
+  const latest = useRef(mentions);
   useEffect(() => {
-    const typed = textarea.current?.value;
-    if (typed && typed !== p.initial) setBody(typed);
-  }, [p.initial]);
-  const [tab, setTab] = useState<"write" | "preview">("write");
-  const mentions = useMentionSuggest(textarea, body, setBody);
+    latest.current = mentions;
+  });
+
+  const rows = p.rows ?? 4;
+  useEffect(() => {
+    const v: EditorView = new EditorView(host.current!, {
+      state: createState(p.initial ?? ""),
+      attributes: {
+        role: "textbox",
+        "aria-multiline": "true",
+        "aria-label": p.placeholder,
+        class: "md px-3 pt-2 pb-1 outline-none",
+        style: `min-height: ${rows * 1.7}em`,
+      },
+      dispatchTransaction(tr) {
+        const s = v.state.apply(tr);
+        v.updateState(s);
+        setEditor(s);
+        latest.current.track(s);
+      },
+      handleKeyDown: (_, e) => latest.current.onKeyDown(e),
+      handleDOMEvents: {
+        blur: () => {
+          setTimeout(() => latest.current.close(), 150); // let a click on a suggestion land
+          return false;
+        },
+      },
+      clipboardTextParser,
+    });
+    view.current = v;
+    setEditor(v.state);
+    return () => {
+      v.destroy();
+      view.current = null;
+    };
+  }, [p.initial, p.placeholder, rows]);
+
+  // The mention list's ARIA lives on the editable element, which ProseMirror owns.
+  useEffect(() => {
+    const dom = view.current?.dom;
+    if (!dom) return;
+    for (const [k, v] of Object.entries(mentions.aria))
+      if (v) dom.setAttribute(k, v);
+      else dom.removeAttribute(k);
+  });
+
+  const body = useMemo(
+    () => (editor ? toMarkdown(editor.doc) : (p.initial ?? "")),
+    [editor, p.initial],
+  );
+
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
-      setBody(p.initial ?? "");
-      setTab("write");
+      const v = view.current;
+      if (v) {
+        v.updateState(createState(p.initial ?? ""));
+        setEditor(v.state);
+      }
+      setLink(null);
       p.onDone?.();
     }
     return r;
   }, {});
   const over = body.length > p.max;
 
-  // Grow with the text instead of a manual resize handle (rows is the minimum height).
-  useLayoutEffect(() => {
-    const el = textarea.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
-  }, [body]);
+  const run = (cmd: Command) => {
+    const v = view.current;
+    if (!v) return;
+    cmd(v.state, v.dispatch, v);
+    v.focus();
+  };
+  const addLink = () => {
+    const url = link?.trim();
+    setLink(null);
+    if (!url) return view.current?.focus();
+    const href = /^(https?:\/\/|mailto:)/i.test(url) ? url : `https://${url}`;
+    run((s, d) => {
+      const mark = M.link.create({ href });
+      d?.(
+        s.selection.empty
+          ? s.tr.replaceSelectionWith(schema.text(url, [mark]), false)
+          : s.tr.addMark(s.selection.from, s.selection.to, mark),
+      );
+      return true;
+    });
+  };
+
+  const T = he.composer;
+  const tools = editor ? toolsFor(editor, link !== null) : [];
 
   return (
     <form action={formAction} className="space-y-2">
       {Object.entries(p.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      {body && (
-        <div role="tablist" className="flex gap-4 text-sm">
-          {(["write", "preview"] as const).map((t) => (
+      <input type="hidden" name="body" value={body} />
+      <div className="relative rounded-xl border border-neutral-300 transition-colors focus-within:border-neutral-500 dark:border-neutral-700 dark:focus-within:border-neutral-400">
+        {isEmpty(editor) && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute start-3 top-2 leading-[1.7] text-muted"
+          >
+            {p.placeholder}
+          </span>
+        )}
+        {/* ProseMirror owns this element's children. */}
+        <div ref={host} />
+        {link !== null && (
+          <div className="flex items-center gap-2 px-3 pb-1 text-sm">
+            <input
+              autoFocus
+              type="text"
+              inputMode="url"
+              dir="ltr"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault(); // not the form
+                  addLink();
+                } else if (e.key === "Escape") {
+                  setLink(null);
+                  view.current?.focus();
+                }
+              }}
+              placeholder={T.linkPlaceholder}
+              aria-label={T.linkPlaceholder}
+              className="min-w-0 flex-1 rounded-md bg-neutral-500/10 px-2 py-1 outline-none"
+            />
             <button
-              key={t}
               type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className="text-muted transition-colors hover:text-foreground aria-selected:font-bold aria-selected:text-foreground"
+              onClick={addLink}
+              className="font-medium text-link hover:underline"
             >
-              {he.composer[t]}
+              {T.linkAdd}
+            </button>
+          </div>
+        )}
+        <div
+          role="toolbar"
+          aria-label={T.toolbar}
+          className="flex flex-wrap items-center gap-0.5 px-1.5 pb-1.5"
+        >
+          {tools.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              title={t.label}
+              aria-label={t.label}
+              aria-pressed={t.active}
+              onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
+              // No command: the link button, which opens (or closes) the link field.
+              onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
+              className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
+            >
+              {t.icon}
             </button>
           ))}
         </div>
-      )}
-      {tab === "preview" && (
-        <div className="min-h-16 rounded-md border border-dashed border-neutral-300 p-2 dark:border-neutral-700">
-          {body.trim() ? (
-            <Markdown text={body} />
-          ) : (
-            <p className="text-muted">{he.composer.previewEmpty}</p>
-          )}
-        </div>
-      )}
-      <div className="relative" hidden={tab === "preview"}>
-        <textarea
-          ref={textarea}
-          {...mentions.textareaProps}
-          title={he.composer.markdownHint}
-          name="body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={p.placeholder}
-          rows={p.rows ?? 4}
-          className="block w-full resize-none overflow-hidden rounded-md border border-neutral-300 bg-transparent p-2 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:focus:border-neutral-400"
-        />
         {mentions.list}
       </div>
       <div className="flex items-center gap-3 text-sm">
@@ -106,11 +331,11 @@ export function Composer(p: Props) {
             onClick={p.onCancel}
             className="text-muted hover:text-foreground hover:underline"
           >
-            {he.composer.cancel}
+            {T.cancel}
           </button>
         )}
         <LengthRing length={body.length} max={p.max} />
-        {over && <span className="text-danger">{he.composer.tooLong}</span>}
+        {over && <span className="text-danger">{T.tooLong}</span>}
         {state.error && (
           <span role="alert" className="text-danger">
             {state.error}
@@ -120,6 +345,105 @@ export function Composer(p: Props) {
     </form>
   );
 }
+
+const wrapBlockquote = wrapIn(N.blockquote);
+
+/** The toolbar for the current state: each button's command and whether it's on. */
+function toolsFor(s: EditorState, linkFieldOpen: boolean) {
+  const T = he.composer;
+  const onLink = markActive(s, M.link);
+  const inQuote = inNode(s, N.blockquote);
+  return [
+    { label: T.bold, icon: ICONS.bold, active: markActive(s, M.strong), cmd: toggleMark(M.strong) },
+    { label: T.italic, icon: ICONS.italic, active: markActive(s, M.em), cmd: toggleMark(M.em) },
+    { label: T.code, icon: ICONS.code, active: markActive(s, M.code), cmd: toggleMark(M.code) },
+    {
+      label: onLink ? T.unlink : T.link,
+      icon: ICONS.link,
+      active: onLink || linkFieldOpen,
+      cmd: onLink ? removeLink : null,
+    },
+    {
+      label: T.bulletList,
+      icon: ICONS.bulletList,
+      active: inNode(s, N.bullet_list),
+      cmd: toggleList(N.bullet_list),
+    },
+    {
+      label: T.orderedList,
+      icon: ICONS.orderedList,
+      active: inNode(s, N.ordered_list),
+      cmd: toggleList(N.ordered_list),
+    },
+    { label: T.quote, icon: ICONS.quote, active: inQuote, cmd: inQuote ? lift : wrapBlockquote },
+    {
+      label: T.codeBlock,
+      icon: ICONS.codeBlock,
+      active: s.selection.$from.parent.type === N.code_block,
+      cmd: toggleCodeBlock,
+    },
+  ];
+}
+
+const Svg = ({ children, flip }: { children: React.ReactNode; flip?: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className={`size-[18px] ${flip ? "rtl:-scale-x-100" : ""}`}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {children}
+  </svg>
+);
+
+const ICONS = {
+  bold: (
+    <Svg>
+      <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" strokeWidth={2.5} />
+    </Svg>
+  ),
+  italic: (
+    <Svg>
+      <path d="M19 4h-9M14 20H5M15 4 9 20" />
+    </Svg>
+  ),
+  code: (
+    <Svg>
+      <path d="m16 18 6-6-6-6M8 6l-6 6 6 6" />
+    </Svg>
+  ),
+  link: (
+    <Svg>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </Svg>
+  ),
+  // Lists and quotes mirror in RTL: bullets, numbers and the quote bar sit at the start.
+  bulletList: (
+    <Svg flip>
+      <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" strokeWidth={2.5} />
+    </Svg>
+  ),
+  orderedList: (
+    <Svg flip>
+      <path d="M10 6h11M10 12h11M10 18h11M4 4h1v5M4 9h2M6 20H4c0-1.2 2-2 2-3.2a1.2 1.2 0 0 0-2-.8" />
+    </Svg>
+  ),
+  quote: (
+    <Svg flip>
+      <path d="M4 5v14M9 7h11M9 12h11M9 17h7" />
+    </Svg>
+  ),
+  codeBlock: (
+    <Svg>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="m10 10-2 2 2 2M14 10l2 2-2 2" />
+    </Svg>
+  ),
+};
 
 /** X-style counter: a ring that fills as you type; the numbers appear only near the limit. */
 export function LengthRing(p: { length: number; max: number; alwaysCount?: boolean }) {

@@ -2,27 +2,28 @@
 // @mention autocomplete for the composer (docs/notifications.md): typing "@" and a few letters
 // suggests people; ↑/↓ choose, Enter or Tab inserts "@handle ", Esc closes.
 import { useEffect, useId, useState, type RefObject } from "react";
+import type { EditorState } from "prosemirror-state";
+import type { EditorView } from "prosemirror-view";
 import { mentionSuggestionsAction, type MentionSuggestion } from "@/app/actions";
 
 // The partial mention right before the caret (same rule as lib/mentions.ts, without a minimum).
 const PARTIAL = /(^|[^\p{L}\p{N}_@.])@([a-zA-Z][a-zA-Z0-9_]{0,14})$/u;
 
-export function useMentionSuggest(
-  textarea: RefObject<HTMLTextAreaElement | null>,
-  body: string,
-  setBody: (v: string) => void,
-) {
+export function useMentionSuggest(view: RefObject<EditorView | null>) {
   const listId = useId();
-  const [query, setQuery] = useState<{ q: string; start: number } | null>(null);
+  // from/to: the "@partial" in the document, replaced on pick.
+  const [query, setQuery] = useState<{ q: string; from: number; to: number } | null>(null);
   const [items, setItems] = useState<MentionSuggestion[]>([]);
   const [active, setActive] = useState(0);
 
-  // What is being typed at the caret (on every edit and caret move).
-  const track = () => {
-    const el = textarea.current;
-    if (!el || el.selectionStart !== el.selectionEnd) return setQuery(null);
-    const m = el.value.slice(0, el.selectionStart).match(PARTIAL);
-    setQuery(m ? { q: m[2], start: el.selectionStart - m[2].length - 1 } : null);
+  // What is being typed at the caret (after every edit and caret move). Code doesn't mention.
+  const track = (state: EditorState) => {
+    const { empty, $from } = state.selection;
+    const code = $from.parent.type.spec.code || state.schema.marks.code.isInSet($from.marks());
+    if (!empty || code) return setQuery(null);
+    const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
+    const m = before.match(PARTIAL);
+    setQuery(m ? { q: m[2], from: $from.pos - m[2].length - 1, to: $from.pos } : null);
   };
 
   useEffect(() => {
@@ -43,47 +44,31 @@ export function useMentionSuggest(
   const open = !!query?.q && items.length > 0;
 
   const pick = (u: MentionSuggestion) => {
-    const el = textarea.current;
-    if (!el || !query) return;
-    const end = el.selectionStart;
-    const insert = `@${u.handle} `;
-    setBody(body.slice(0, query.start) + insert + body.slice(end));
+    const v = view.current;
+    if (!v || !query) return;
+    v.dispatch(v.state.tr.insertText(`@${u.handle} `, query.from, query.to));
     setQuery(null);
     setItems([]);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(query.start + insert.length, query.start + insert.length);
-    });
+    v.focus();
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!open) return;
+  /** For the editor's handleKeyDown: true when the key was ours. */
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (!open) return false;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
       const d = e.key === "ArrowDown" ? 1 : -1;
       setActive((a) => (a + d + items.length) % items.length);
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      pick(items[active]);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setQuery(null);
-    }
+    } else if (e.key === "Enter" || e.key === "Tab") pick(items[active]);
+    else if (e.key === "Escape") setQuery(null);
+    else return false;
+    return true;
   };
 
-  const textareaProps = {
-    onKeyDown,
-    onKeyUp: (e: React.KeyboardEvent) => {
-      if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) track();
-    },
-    onClick: track,
-    onInput: track,
-    onBlur: () => setTimeout(() => setQuery(null), 150), // let a click on a suggestion land
-    role: "combobox",
-    "aria-autocomplete": "list" as const,
-    "aria-expanded": open,
+  // Set on the editable element (a textbox that owns the list).
+  const aria = {
+    "aria-autocomplete": "list",
     "aria-controls": listId,
-    "aria-activedescendant": open ? `${listId}-${active}` : undefined,
+    "aria-activedescendant": open ? `${listId}-${active}` : "",
   };
 
   const list = open ? (
@@ -99,7 +84,7 @@ export function useMentionSuggest(
           role="option"
           aria-selected={i === active}
           onMouseDown={(e) => {
-            e.preventDefault(); // keep focus in the textarea
+            e.preventDefault(); // keep focus in the editor
             pick(u);
           }}
           onMouseEnter={() => setActive(i)}
@@ -114,5 +99,5 @@ export function useMentionSuggest(
     </ul>
   ) : null;
 
-  return { textareaProps, list };
+  return { track, onKeyDown, close: () => setQuery(null), aria, list };
 }

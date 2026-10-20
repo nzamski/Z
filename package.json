@@ -25,6 +25,15 @@
     "next": "16.4.2",
     "openid-client": "^6.8.8",
     "postgres": "^3.4.9",
+    "prosemirror-commands": "^1.7.2",
+    "prosemirror-history": "^1.5.1",
+    "prosemirror-inputrules": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-markdown": "^1.13.8",
+    "prosemirror-model": "^1.25.12",
+    "prosemirror-schema-list": "^1.5.1",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.42.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
@@ -46,5 +55,10 @@
   },
   "engines": {
     "node": ">=20.9.0"
+  },
+  "overrides": {
+    "prosemirror-markdown": {
+      "markdown-it": "$markdown-it"
+    }
   }
 }

@@ -17,7 +17,7 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await login(page, "dana");
 
   // Post.
-  await page.getByPlaceholder("מה חדש?").fill(`פוסט בדיקה ${stamp}`);
+  await page.getByRole("textbox", { name: "מה חדש?" }).fill(`פוסט בדיקה ${stamp}`);
   await page.getByRole("button", { name: "פרסום" }).click();
   const card = page.locator("li", { hasText: `פוסט בדיקה ${stamp}` });
   await expect(card).toBeVisible();
@@ -27,18 +27,18 @@ test("full M2 flow through Keycloak", async ({ page }) => {
   await expect(page).toHaveURL(/\/p\//);
   const article = page.locator("article");
   await article.getByRole("button", { name: "עריכה" }).click();
-  await article.locator("textarea").fill(`פוסט ערוך ${stamp}`);
+  await article.getByRole("textbox").fill(`פוסט ערוך ${stamp}`);
   await article.getByRole("button", { name: "שמירה" }).click();
   await expect(article).toContainText(`פוסט ערוך ${stamp}`);
   await expect(article).toContainText("נערך");
 
   // Comment, then reply to it.
-  await page.getByPlaceholder("כתבו תגובה…").fill("תגובת אב");
+  await page.getByRole("textbox", { name: "כתבו תגובה…" }).fill("תגובת אב");
   await page.getByRole("button", { name: "שליחה" }).click();
   const parent = page.locator("li[id^=c-]", { hasText: "תגובת אב" });
   await expect(parent).toBeVisible();
   await parent.getByRole("button", { name: "תשובה" }).first().click();
-  await parent.getByPlaceholder("כתבו תשובה…").fill("תשובת בן");
+  await parent.getByRole("textbox", { name: "כתבו תשובה…" }).fill("תשובת בן");
   await parent.getByRole("button", { name: "שליחה" }).click();
   await expect(parent.locator("li[id^=c-]", { hasText: "תשובת בן" })).toBeVisible();
   await expect(article.getByRole("link", { name: "2 תגובות" })).toBeVisible();
@@ -220,7 +220,7 @@ test("new posts by others show a pill that refreshes the feed", async ({ browser
   await login(reader, "dana");
   await login(writer, "yossi");
   const stamp = `חדש ${Date.now()}`;
-  await writer.getByPlaceholder("מה חדש?").fill(stamp);
+  await writer.getByRole("textbox", { name: "מה חדש?" }).fill(stamp);
   await writer.getByRole("button", { name: "פרסום" }).click();
   await expect(writer.locator("li", { hasText: stamp })).toBeVisible();
 
