@@ -24,7 +24,9 @@ Added 2026-10-19 at the user's request. Code: writes and reads in `lib/services.
   (unlike, unfollow) soft-deletes it; deleting a post or comment hides its notifications, and
   restoring it brings them back. Moderation notices always show.
 - Mentions: at most 10 people per post or comment; an edit (within the post's hour) notifies only
-  people who weren't mentioned before. Not inside code or links, not in e-mail addresses.
+  people who weren't mentioned before. A mention is exactly a valid handle (`HANDLE_RE`: 4-15
+  characters, any case); older shorter handles (like the seeded `noa`) can't be mentioned, and
+  autocomplete doesn't offer them. Not inside code or links, not in e-mail addresses.
   `@handle` renders as a link to the profile.
 
 ## Seeing them

@@ -94,6 +94,11 @@ describe("mentions in markdown", () => {
     expect(renderMarkdown("שלום @Dana_1!")).toContain('<a href="/u/dana_1" class="mention"');
     expect(renderMarkdown("`@dana_1`")).not.toContain("mention");
     expect(renderMarkdown("dana@example.com")).not.toContain('class="mention"');
+    // Exactly the handle rule (HANDLE_RE): 4-15 characters, starting with a letter.
+    expect(extractMentions("@abc @abcd @abcdefghijklmno @abcdefghijklmnop @1abc")).toEqual([
+      "abcd",
+      "abcdefghijklmno",
+    ]);
     expect(renderMarkdown("[@dana_1](https://x.example)")).not.toContain('class="mention"');
     expect(extractMentions("@aaaa @bbbb @aaaa `@dddd`\n\n```\n@cccc\n```")).toEqual([
       "aaaa",

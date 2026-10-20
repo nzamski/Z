@@ -7,6 +7,7 @@ import { z } from "zod";
 import { safeNext } from "@/lib/auth/provider";
 import { requireLogin, requireViewer } from "@/lib/auth/viewer";
 import { parseView, VIEW_COOKIE } from "@/lib/feed";
+import { mentionable } from "@/lib/mentions";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
 
@@ -147,8 +148,11 @@ export async function mentionSuggestionsAction(q: string): Promise<MentionSugges
   const viewer = await requireViewer();
   const query = String(q).slice(0, 15);
   if (!query) return [];
-  const found = await s.searchUsers(viewer.id, query, 5);
-  return found.map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
+  const found = await s.searchUsers(viewer.id, query, 8);
+  return found
+    .filter((u) => mentionable(u.handle))
+    .slice(0, 5)
+    .map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
 }
 
 /** Mark notifications read up to what the page showed. No refresh(): the page keeps showing
