@@ -274,6 +274,9 @@ export const he = {
     similar: (q: string) => `אין התאמות מדויקות ל"${q}". פוסטים דומים:`,
     people: "אנשים",
     posts: "פוסטים",
+    recent: "חיפושים אחרונים",
+    clearRecent: "ניקוי הכל",
+    forget: (q: string) => `הסרת "${q}" מהחיפושים האחרונים`,
   },
   feed: {
     loading: "טוען…",

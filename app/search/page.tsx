@@ -35,6 +35,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
         <input
           name="q"
           type="search"
+          key={q} // a new search from the sidebar shows its words here too
           defaultValue={q}
           autoFocus={!q}
           placeholder={he.search.placeholder}
