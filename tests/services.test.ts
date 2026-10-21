@@ -194,3 +194,18 @@ describe("who to follow", () => {
     expect(ids.indexOf(liked.id)).toBeLessThan(ids.indexOf(quiet.id));
   });
 });
+
+describe("postSummaries (a feed shown again re-checks its cards)", () => {
+  test("current counts and the viewer's like; deleted posts are left out", async () => {
+    const author = await makeUser();
+    const viewer = await makeUser();
+    const kept = await s.createPost(author.id, "נשאר");
+    const gone = await s.createPost(author.id, "נמחק");
+    await s.likePost(viewer.id, kept.id);
+    await s.createComment(viewer.id, kept.id, "תגובה");
+    await s.deletePost(author.id, gone.id);
+    const got = await s.postSummaries(viewer.id, [kept.id, gone.id]);
+    expect(got.map((x) => x.id)).toEqual([kept.id]);
+    expect(got[0]).toMatchObject({ likeCount: 1, commentCount: 1, liked: true });
+  });
+});
