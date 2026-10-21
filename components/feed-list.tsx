@@ -14,7 +14,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@/components/loading";
-import { PostCard } from "@/components/post-card";
+import { PostCard, type Viewer } from "@/components/post-card";
 import { mergeById, PILL_SLOT, RANKING, type FeedView } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import type { FeedPage, PostSummary } from "@/lib/services";
@@ -66,7 +66,7 @@ export function FeedList(p: {
   author?: string; // profile: that user's posts
   q?: string; // search results
   emptyText?: string;
-  viewerId: string;
+  viewer: Viewer;
   first: PostSummary[];
   next: string | null;
   asOf: string;
@@ -98,7 +98,7 @@ export function FeedList(p: {
     setItems((prev) => {
       const have = new Set(prev.map((x) => x.id));
       const mine = p.first.filter(
-        (x) => x.authorId === p.viewerId && x.createdAt > new Date(asOf) && !have.has(x.id),
+        (x) => x.authorId === p.viewer.id && x.createdAt > new Date(asOf) && !have.has(x.id),
       );
       return [...mine, ...prev];
     });
@@ -250,7 +250,7 @@ export function FeedList(p: {
       {pill}
       <ul ref={list}>
         {items.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} viewer={p.viewer} />
         ))}
       </ul>
       <div ref={sentinel} className="p-4 text-center text-sm text-muted">

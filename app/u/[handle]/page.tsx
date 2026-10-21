@@ -13,7 +13,7 @@ import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
 import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
-import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -25,7 +25,8 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const handle = decodeURIComponent((await params).handle);
   const user = await getUserByHandle(handle);
   if (!user) return <p className="p-8 text-center text-muted">{he.profile.notFound}</p>;
-  const viewerId = (await requireViewer()).id;
+  const viewer = viewerCard(await requireViewer());
+  const viewerId = viewer.id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };
   const [info, page, admin] = await Promise.all([
@@ -149,7 +150,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
         key={user.id}
         view="latest"
         author={user.id}
-        viewerId={viewerId}
+        viewer={viewer}
         first={page.items}
         next={page.next}
         asOf={page.asOf}

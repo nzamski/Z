@@ -15,6 +15,7 @@ export function CommentButton(p: {
   count: number;
   author: { displayName: string; handle: string };
   preview: string;
+  viewer?: { displayName: string; handle: string };
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(0); // remount the editor on each open: it takes the caret
@@ -107,6 +108,7 @@ export function CommentButton(p: {
               hidden={{ postId: p.postId }}
               draft={`comment:${p.postId}`}
               autoFocus
+              author={p.viewer}
               max={COMMENT_MAX}
               rows={3}
               placeholder={he.comment.placeholder}

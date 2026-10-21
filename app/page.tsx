@@ -6,7 +6,7 @@ import { Composer } from "@/components/composer";
 import { FeedList } from "@/components/feed-list";
 import { FeedTabs } from "@/components/feed-tabs";
 import { Loading } from "@/components/loading";
-import { requireViewer } from "@/lib/auth/viewer";
+import { requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { parseView, PILL_SLOT, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
@@ -16,7 +16,8 @@ import type { Metadata } from "next";
 async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const view = parseView((await cookies()).get(VIEW_COOKIE)?.value);
-  const viewerId = (await requireViewer()).id;
+  const viewer = viewerCard(await requireViewer());
+  const viewerId = viewer.id;
   // `cursor` is the no-JS "load more" link; a garbled one just starts over.
   const q = await searchParams;
   const cursor = typeof q.cursor === "string" ? q.cursor : null;
@@ -33,6 +34,7 @@ async function Home({ searchParams }: PageProps<"/">) {
         <Composer
           action={createPostAction}
           draft="post"
+          author={viewer}
           max={POST_MAX}
           placeholder={he.composer.placeholder}
           submitLabel={he.composer.publish}
@@ -41,7 +43,7 @@ async function Home({ searchParams }: PageProps<"/">) {
       <FeedList
         key={view}
         view={view}
-        viewerId={viewerId}
+        viewer={viewer}
         first={page.items}
         next={page.next}
         asOf={page.asOf}

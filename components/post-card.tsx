@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
+import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
 import { CommentButton } from "@/components/comment-dialog";
 import { PostPreview } from "@/components/post-preview";
@@ -100,19 +101,37 @@ export function AuthorHeart() {
   );
 }
 
-export function PostCard({ post: p }: { post: PostSummary }) {
+/** `viewer`: who's reading, for the avatar in the comment popup. */
+export function PostCard({ post: p, viewer }: { post: PostSummary; viewer?: Viewer }) {
   return (
     <ClickableCard
       href={`/p/${p.id}`}
-      className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
+      className="flex gap-3 border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
-      <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
-      <div className="mt-2 flex gap-8 text-sm text-muted">
-        <LikeButton id={p.id} liked={p.liked} count={p.likeCount} likersHref={`/p/${p.id}/likes`} />
-        <CommentButton postId={p.id} count={p.commentCount} author={p.author} preview={p.preview} />
-        {p.answered && <AnsweredMark />}
+      <Avatar name={p.author.displayName} handle={p.author.handle} />
+      <div className="min-w-0 flex-1">
+        <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
+        <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
+        <div className="mt-2 flex gap-8 text-sm text-muted">
+          <LikeButton
+            id={p.id}
+            liked={p.liked}
+            count={p.likeCount}
+            likersHref={`/p/${p.id}/likes`}
+          />
+          <CommentButton
+            postId={p.id}
+            count={p.commentCount}
+            author={p.author}
+            preview={p.preview}
+            viewer={viewer}
+          />
+          {p.answered && <AnsweredMark />}
+        </div>
       </div>
     </ClickableCard>
   );
 }
+
+/** The signed-in user, as far as avatars and names need. */
+export type Viewer = { id: string; displayName: string; handle: string };

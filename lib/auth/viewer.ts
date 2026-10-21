@@ -39,3 +39,10 @@ export async function canSeeContent() {
   const user = session && (await getUser(session.uid));
   return !!user && !user.suspendedAt;
 }
+
+/** What avatars and the composer need about the viewer: safe to hand to client components. */
+export const viewerCard = (v: { id: string; displayName: string; handle: string }) => ({
+  id: v.id,
+  displayName: v.displayName,
+  handle: v.handle,
+});

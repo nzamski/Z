@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { z } from "zod";
 import { Loading } from "@/components/loading";
 import { Thread } from "@/components/thread";
-import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { getComment, getPost, getThread, getUser, isAdmin, REPLIES_PAGE } from "@/lib/services";
 import type { Metadata } from "next";
@@ -18,7 +18,8 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
   if (!z.uuid().safeParse(id).success) return notFound;
   const comment = await getComment(id);
   if (!comment) return notFound;
-  const viewerId = (await requireViewer()).id;
+  const viewer = viewerCard(await requireViewer());
+  const viewerId = viewer.id;
   const post = await getPost(comment.postId, viewerId);
   if (!post || post.deletedAt)
     return (
@@ -31,7 +32,13 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
   const [self] = (await getThread(post.id, comment.parentCommentId, 0, id, viewerId)).nodes;
   if (!self) return notFound;
   const replies = await getThread(post.id, id, from, undefined, viewerId);
-  const ctx = { postId: post.id, viewerId, postLive: true, isAdmin: await isAdmin(viewerId) };
+  const ctx = {
+    postId: post.id,
+    viewerId,
+    viewer,
+    postLive: true,
+    isAdmin: await isAdmin(viewerId),
+  };
 
   return (
     <section className="p-4 text-start">
