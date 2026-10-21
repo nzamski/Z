@@ -124,7 +124,7 @@ export const he = {
   moderation: {
     title: "ניהול",
     nav: "ניהול",
-    remove: "הסרה (מנהל)",
+    remove: "הסרה",
     restore: "שחזור",
     suspend: "השעיה",
     unsuspend: "ביטול השעיה",
