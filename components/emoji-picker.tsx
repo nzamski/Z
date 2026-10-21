@@ -1,78 +1,31 @@
 "use client";
-// The composer's emoji button: every single-character emoji, built in the browser from Unicode
-// properties (air-gapped: no emoji library, CDN or data file; a page can't open the OS picker).
-// Not included: multi-part emoji (flags, skin tones, families), which need a data file. Recently
-// used ones (per browser) come first. Opens upward, so a popup around the composer doesn't clip
-// it; picking inserts at the caret and keeps the editor's focus.
+// The composer's emoji button: frimousse (unstyled, styled here like Z's menus) with categories
+// and search. Its emoji data is served by Z (scripts/copy-emojibase.mjs → /emojibase), never a
+// CDN (air-gapped). English names: emojibase has no Hebrew. Fixed to the screen, below the button
+// when there's room and above when not, so neither the page edge nor a popup around the composer
+// cuts it off. Picking inserts at the caret and keeps the editor's focus.
+import { EmojiPicker as Picker } from "frimousse";
 import { useState } from "react";
 import { menuBox, useMenu } from "@/components/theme-menu";
 import { he } from "@/lib/i18n/he";
 
-// Where emoji live: misc technical, misc symbols and dingbats, arrows and stars, the emoji planes.
-const RANGES = [
-  [0x2300, 0x23ff],
-  [0x2600, 0x27bf],
-  [0x2b00, 0x2bff],
-  [0x1f000, 0x1faff],
-];
-let all: string[] | null = null;
-/** Every single-code-point emoji, in code point order (which keeps related ones together). */
-function allEmoji() {
-  if (all) return all;
-  all = [];
-  for (const [from, to] of RANGES)
-    for (let cp = from; cp <= to; cp++) {
-      const c = String.fromCodePoint(cp);
-      if (/\p{Emoji_Presentation}/u.test(c)) all.push(c);
-      // Text-style by default (❤, ☕…): the variation selector asks for the emoji look.
-      else if (cp < 0x1f000 && /\p{Extended_Pictographic}/u.test(c)) all.push(c + "️");
-    }
-  return all;
-}
-
-const RECENT = "z-emoji-recent";
-const readRecent = (): string[] => {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT) ?? "[]");
-  } catch {
-    return [];
-  }
-};
+const W = 304; // px: 8 emoji columns and padding
+const H = 336; // px: the picker's height (h-80) and a little room
 
 export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
   const { open, setOpen, root } = useMenu();
-  const [recent, setRecent] = useState<string[]>([]);
-  const pick = (e: string) => {
-    const next = [e, ...recent.filter((r) => r !== e)].slice(0, 16);
-    setRecent(next);
-    try {
-      localStorage.setItem(RECENT, JSON.stringify(next));
-    } catch {}
-    onPick(e);
-    setOpen(false);
-  };
-  const grid = (list: string[]) => (
-    <div className="grid grid-cols-8 gap-0.5">
-      {list.map((e) => (
-        <button
-          key={e}
-          type="button"
-          onMouseDown={(ev) => ev.preventDefault()}
-          onClick={() => pick(e)}
-          className="grid size-8 place-items-center rounded-md text-xl hover:bg-neutral-500/15"
-        >
-          {e}
-        </button>
-      ))}
-    </div>
-  );
+  const [at, setAt] = useState({ top: 0, left: 0 });
   return (
     <div ref={root} className="relative">
       <button
         type="button"
         onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
-        onClick={() => {
-          if (!open) setRecent(readRecent());
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setAt({
+            top: innerHeight - r.bottom >= H ? r.bottom + 4 : Math.max(8, r.top - H),
+            left: Math.max(8, Math.min(r.right - W, innerWidth - W - 8)),
+          });
           setOpen((o) => !o);
         }}
         aria-haspopup="dialog"
@@ -99,16 +52,61 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         <div
           role="dialog"
           aria-label={he.composer.emoji}
-          className={`absolute end-0 bottom-full mb-1 max-h-72 w-max overflow-y-auto p-1.5 ${menuBox}`}
+          style={{ top: at.top, left: at.left, width: W }}
+          className={`fixed ${menuBox}`}
         >
-          {recent.length > 0 && (
-            <>
-              <p className="px-1 pb-1 text-xs text-muted">{he.composer.emojiRecent}</p>
-              {grid(recent)}
-              <hr className="my-1.5 border-neutral-200 dark:border-neutral-800" />
-            </>
-          )}
-          {grid(allEmoji())}
+          <Picker.Root
+            emojibaseUrl="/emojibase"
+            columns={8}
+            onEmojiSelect={({ emoji }) => {
+              onPick(emoji);
+              setOpen(false);
+            }}
+            className="isolate flex h-80 flex-col"
+            dir="ltr"
+          >
+            <Picker.Search
+              autoFocus
+              placeholder={he.composer.emojiSearch}
+              className="z-10 mx-2 mt-2 mb-1 appearance-none rounded-lg bg-neutral-500/10 px-2.5 py-1.5 text-sm outline-none placeholder:text-muted"
+            />
+            <Picker.Viewport className="relative flex-1 outline-none">
+              <Picker.Loading className="absolute inset-0 flex items-center justify-center text-sm text-muted">
+                …
+              </Picker.Loading>
+              <Picker.Empty className="absolute inset-0 flex items-center justify-center text-sm text-muted">
+                {he.composer.emojiNone}
+              </Picker.Empty>
+              <Picker.List
+                className="pb-1.5 select-none"
+                components={{
+                  CategoryHeader: ({ category, ...props }) => (
+                    <div
+                      className="bg-background px-3 pt-3 pb-1.5 text-xs font-medium text-muted"
+                      {...props}
+                    >
+                      {category.label}
+                    </div>
+                  ),
+                  Row: ({ children, ...props }) => (
+                    <div className="scroll-my-1.5 px-1.5" {...props}>
+                      {children}
+                    </div>
+                  ),
+                  Emoji: ({ emoji, ...props }) => (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      className="flex size-8 items-center justify-center rounded-md text-xl data-[active]:bg-neutral-500/15"
+                      {...props}
+                    >
+                      {emoji.emoji}
+                    </button>
+                  ),
+                }}
+              />
+            </Picker.Viewport>
+          </Picker.Root>
         </div>
       )}
     </div>

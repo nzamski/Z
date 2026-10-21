@@ -57,8 +57,9 @@ export async function SideBar() {
                   className="min-w-0 flex-1 hover:underline"
                 >
                   <span className="block truncate font-bold">{u.displayName}</span>
-                  <span className="block truncate text-sm text-muted" dir="ltr">
-                    @{u.handle}
+                  {/* bdi: "@user7" reads whole, the line stays RTL (under the name, at the right). */}
+                  <span className="block truncate text-sm text-muted">
+                    <bdi>@{u.handle}</bdi>
                   </span>
                 </Link>
                 <FollowButton userId={u.id} following={false} />

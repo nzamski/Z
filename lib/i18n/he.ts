@@ -67,7 +67,8 @@ export const he = {
     quote: "ציטוט",
     codeBlock: "בלוק קוד",
     emoji: "אימוג׳י",
-    emojiRecent: "בשימוש לאחרונה",
+    emojiSearch: "חיפוש (באנגלית)",
+    emojiNone: "לא נמצא אימוג׳י.",
     direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
   },
   comment: {
