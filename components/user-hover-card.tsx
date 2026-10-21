@@ -102,8 +102,12 @@ export function UserHoverCard({
             <span className="shrink-[3] truncate text-muted" dir="ltr">
               @{card.handle}
             </span>
-            <ProfessionBadge profession={card.profession} />
           </div>
+          {card.profession && (
+            <div className="mt-1.5">
+              <ProfessionBadge profession={card.profession} />
+            </div>
+          )}
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-muted">
             <Link href={`${href}/following`} className="hover:underline">
