@@ -121,6 +121,7 @@ export type UserCard = {
   handle: string;
   displayName: string;
   bio: string;
+  profession: string | null;
   followers: number;
   following: number;
   viewerFollows: boolean;
@@ -138,6 +139,7 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     handle: u.handle,
     displayName: u.displayName,
     bio: u.bio,
+    profession: u.profession,
     followers: info.followers,
     following: info.following,
     viewerFollows: info.viewerFollows,
@@ -156,6 +158,8 @@ export async function updateProfileAction(_: ProfileResult, f: FormData): Promis
         await s.updateProfile(uid, {
           handle: Text.parse(field(f, "handle") ?? ""),
           bio: Text.parse(field(f, "bio") ?? ""),
+          // The profile form always sends it; "" is none.
+          profession: f.has("profession") ? String(f.get("profession")) || null : undefined,
         })
       ).handle ?? undefined;
   }, "setup");

@@ -1,13 +1,14 @@
 "use client";
-// Display name (read-only, from Keycloak), handle and bio, used by the first-login welcome and by "edit profile".
+// Display name (read-only, from Keycloak), handle, bio and profession badge, used by the first-login welcome and by "edit profile".
 // The handle is checked live (format here, availability on the server) as you type.
 import { useActionState, useEffect, useRef, useState } from "react";
 import { checkHandleAction, updateProfileAction, type ProfileResult } from "@/app/actions";
 import { LengthRing } from "@/components/composer";
 import { he } from "@/lib/i18n/he";
 import { BIO_MAX, HANDLE_MAX, HANDLE_RE } from "@/lib/limits";
+import { PROFESSION_COLOR, PROFESSION_LABEL, PROFESSIONS } from "@/lib/professions";
 
-type Profile = { handle: string; bio: string };
+type Profile = { handle: string; bio: string; profession?: string | null };
 type Status = "ok" | "taken" | "invalid" | "checking" | "same" | "empty";
 
 const field =
@@ -18,10 +19,11 @@ export function ProfileForm(p: {
   initial: Profile;
   submitLabel: string;
   onSaved: (handle: string) => void;
-  onCancel?: () => void;
+  saveAtEnd?: boolean; // the button at the far (left) end: the edit-profile popup
 }) {
   const [handle, setHandle] = useState(p.initial.handle);
   const [bio, setBio] = useState(p.initial.bio);
+  const [profession, setProfession] = useState(p.initial.profession ?? "");
   // Keep anything typed before hydration (slow loads), which React state would otherwise miss.
   const handleRef = useRef<HTMLInputElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
@@ -127,22 +129,40 @@ export function ProfileForm(p: {
           <LengthRing length={bio.length} max={BIO_MAX} alwaysCount />
         </span>
       </label>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="space-y-1.5">
+        <span id="profession-label" className="block text-sm font-medium">
+          {he.profile.profession}
+        </span>
+        <input type="hidden" name="profession" value={profession} />
+        {/* Chips, one at a time; the chosen one in its badge color. Again to unpick. */}
+        <div role="radiogroup" aria-labelledby="profession-label" className="flex flex-wrap gap-2">
+          {PROFESSIONS.map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={profession === v}
+              onClick={() => setProfession((cur) => (cur === v ? "" : v))}
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                profession === v
+                  ? `border-transparent font-medium ${PROFESSION_COLOR[v]}`
+                  : "border-neutral-300 hover:bg-neutral-500/10 dark:border-neutral-700"
+              }`}
+            >
+              {PROFESSION_LABEL[v]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div
+        className={`flex items-center gap-3 text-sm ${p.saveAtEnd ? "flex-row-reverse justify-start" : ""}`}
+      >
         <button
           disabled={blocked}
           className="rounded-full bg-foreground px-5 py-2 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
         >
           {p.submitLabel}
         </button>
-        {p.onCancel && (
-          <button
-            type="button"
-            onClick={p.onCancel}
-            className="text-muted hover:text-foreground hover:underline"
-          >
-            {he.composer.cancel}
-          </button>
-        )}
         {state.error && (
           <span role="alert" className="text-danger">
             {state.error}

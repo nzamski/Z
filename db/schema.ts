@@ -38,6 +38,8 @@ export const users = pgTable(
     displayName: text("display_name").notNull(),
     bio: text("bio").notNull().default(""),
     avatarSeed: text("avatar_seed").notNull().default(""),
+    // A profession badge the user picked (lib/professions.ts), or null.
+    profession: text("profession"),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can
     // only reach /welcome.
     onboardedAt: ts("onboarded_at"),
@@ -45,6 +47,10 @@ export const users = pgTable(
     suspendedAt: ts("suspended_at"),
   },
   (t) => [
+    check(
+      "users_profession_ck",
+      sql`${t.profession} in ('developer', 'devops', 'data_engineer', 'data_scientist', 'qa', 'data_analyst')`,
+    ),
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
     uniqueIndex("users_handle_active_uq")
       .on(t.handle)

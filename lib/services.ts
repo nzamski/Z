@@ -56,6 +56,7 @@ import {
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
+import { isProfession } from "@/lib/professions";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
@@ -1041,10 +1042,17 @@ export async function handleStatus(actorId: string, handle: string) {
 
 /** Handle (unique among active users) and bio, from the welcome screen or the profile.
  * The display name is not editable: it always comes from Keycloak. */
-export async function updateProfile(actorId: string, input: { handle: string; bio: string }) {
+/** `profession`: a badge from PROFESSIONS, or null for none; left alone when undefined. */
+export async function updateProfile(
+  actorId: string,
+  input: { handle: string; bio: string; profession?: string | null },
+) {
+  if (input.profession != null && !isProfession(input.profession))
+    throw new ServiceError("invalid");
   const data = {
     handle: parse(Handle, input.handle),
     bio: parse(Bio, input.bio),
+    ...(input.profession !== undefined && { profession: input.profession }),
   };
   await assertCanWrite(actorId);
   if ((await handleStatus(actorId, data.handle)) === "taken") throw new ServiceError("taken");
