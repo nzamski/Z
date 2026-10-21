@@ -9,6 +9,7 @@ export const RANKING = {
   ageOffsetHours: 2,
   gravity: 1.5,
   followBoost: 2.0,
+  topicBoost: 1.5, // posts under a topic you follow (docs/topics.md)
   authorPenalty: 0.7, // nth post by one author within a page is scaled by 0.7^(n-1)
   restoreMaxAgeMinutes: 30, // sessionStorage scroll snapshot
   newPostsPollSeconds: 15, // For You / Following check for posts newer than the snapshot; the bell polls too

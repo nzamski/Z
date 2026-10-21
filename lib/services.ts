@@ -25,6 +25,8 @@ import {
   moderationActions,
   notifications,
   posts,
+  postTags,
+  topicFollows,
   users,
   type ModerationAction,
   type NotificationType,
@@ -46,7 +48,8 @@ import {
   RATE,
   REASON_MAX,
 } from "@/lib/limits";
-import { extractMentions } from "@/lib/markdown";
+import { extractMentions, extractTags } from "@/lib/markdown";
+import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
@@ -180,6 +183,29 @@ async function unnotify(
     );
 }
 
+/** File a post under the #tags in its body (lib/tags.ts): new ones are added, ones that left the
+ * body on an edit are soft-deleted (tombstones, like everything else). */
+async function setPostTags(tx: Tx, postId: string, body: string) {
+  const want = new Set(extractTags(body));
+  const have = await tx
+    .select({ id: postTags.id, tag: postTags.tag })
+    .from(postTags)
+    .where(and(eq(postTags.postId, postId), active(postTags)));
+  const gone = have.filter((r) => !want.has(r.tag)).map((r) => r.id);
+  if (gone.length)
+    await tx
+      .update(postTags)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(inArray(postTags.id, gone));
+  const known = new Set(have.map((r) => r.tag));
+  const added = [...want].filter((t) => !known.has(t));
+  if (added.length)
+    await tx
+      .insert(postTags)
+      .values(added.map((tag) => ({ postId, tag })))
+      .onConflictDoNothing();
+}
+
 /**
  * Notifies the users @mentioned in `body` (at most MENTIONS_MAX), except the actor, `skip` (already
  * notified by this action), and anyone already notified of a mention in this post/comment (an edit
@@ -229,6 +255,7 @@ export async function createPost(actorId: string, body: string) {
       .values({ authorId: actorId, body: text, ...computePreview(text) })
       .returning();
     await notifyMentions(tx, actorId, text, { postId: row.id });
+    await setPostTags(tx, row.id, text);
     return row;
   });
 }
@@ -251,6 +278,7 @@ export async function editPost(actorId: string, postId: string, body: string) {
       .returning();
     if (!row) throw new ServiceError("edit_window");
     await notifyMentions(tx, actorId, text, { postId });
+    await setPostTags(tx, postId, text);
     return row;
   });
 }
@@ -513,6 +541,16 @@ const PAGE = RANKING.pageSize;
 // Ops can widen/narrow the For You window without a rebuild (PLAN.md §9).
 const WINDOW_DAYS = Number(process.env.FEED_WINDOW_DAYS) || RANKING.windowDays;
 
+// The post is filed under a topic the viewer follows (the For You topic boost).
+const followsTopic = (viewerId: string) =>
+  sql`exists (select 1 from ${postTags} pt join ${topicFollows} tf on tf.tag = pt.tag
+    where pt.post_id = ${posts.id} and pt.deleted_at is null
+      and tf.user_id = ${viewerId} and tf.deleted_at is null)`;
+
+const taggedWith = (tag: string) =>
+  sql`exists (select 1 from ${postTags} pt where pt.post_id = ${posts.id}
+    and pt.tag = ${tag} and pt.deleted_at is null)`;
+
 const followsAuthor = (viewerId: string) =>
   sql`exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
     and f.followee_id = ${posts.authorId} and f.deleted_at is null)`;
@@ -554,7 +592,8 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   const ageHours = sql`(extract(epoch from (${asOf}::timestamptz - ${posts.createdAt})) / 3600)::float8`;
   const score = sql<number>`((1 + ${posts.likeCount} + ${R.commentWeight}::float8 * ${posts.commentCount})
     / power(${ageHours} + ${R.ageOffsetHours}::float8, ${R.gravity}::float8)
-    * (case when ${followsAuthor(viewerId)} then ${R.followBoost}::float8 else 1 end))::float8`;
+    * (case when ${followsAuthor(viewerId)} then ${R.followBoost}::float8
+            when ${followsTopic(viewerId)} then ${R.topicBoost}::float8 else 1 end))::float8`;
   const rows = await db
     .select({ ...postCols(viewerId), score })
     .from(posts)
@@ -582,7 +621,12 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
 // Top: the most liked posts of all time, keyset on (like_count DESC, id DESC) (posts_top_idx).
 // Counts move while someone pages, so a post can repeat or be skipped at a page boundary; the
 // client drops repeats (mergeById), and a skipped post is at most one page away from its spot.
-async function topPage(viewerId: string, cursor: Cursor | null, now: Date): Promise<FeedPage> {
+async function topPage(
+  viewerId: string,
+  cursor: Cursor | null,
+  now: Date,
+  filter?: SQL,
+): Promise<FeedPage> {
   const rows = await db
     .select(postCols(viewerId))
     .from(posts)
@@ -590,6 +634,7 @@ async function topPage(viewerId: string, cursor: Cursor | null, now: Date): Prom
     .where(
       and(
         active(posts),
+        filter,
         cursor?.s !== undefined
           ? sql`(${posts.likeCount}, ${posts.id}) < (${cursor.s}::int, ${cursor.id}::uuid)`
           : undefined,
@@ -605,7 +650,14 @@ async function topPage(viewerId: string, cursor: Cursor | null, now: Date): Prom
 
 export async function feedPage(
   viewerId: string,
-  opts: { view: FeedView; authorId?: string; query?: string; cursor?: string | null; now?: Date },
+  opts: {
+    view: FeedView;
+    authorId?: string;
+    query?: string;
+    tag?: string;
+    cursor?: string | null;
+    now?: Date;
+  },
 ): Promise<FeedPage> {
   const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
   if (opts.cursor && !cursor) throw new ServiceError("invalid");
@@ -618,6 +670,14 @@ export async function feedPage(
     return newestPage(viewerId, match, cursor, now);
   }
   if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
+  // A topic page: newest first, or most liked (its sort).
+  if (opts.tag !== undefined) {
+    const tag = normalizeTag(opts.tag);
+    if (!isTag(tag)) throw new ServiceError("invalid");
+    return opts.view === "top"
+      ? topPage(viewerId, cursor, now, taggedWith(tag))
+      : newestPage(viewerId, taggedWith(tag), cursor, now);
+  }
   // Following: people you follow, and you (your new post shows at once, as on X).
   if (opts.view === "following") {
     const filter = sql`(${followsAuthor(viewerId)} or ${posts.authorId} = ${viewerId})`;
@@ -1468,4 +1528,93 @@ export async function markNotificationsRead(userId: string, upTo: string) {
     where recipient_id = ${userId} and read_at is null and deleted_at is null
       and (created_at, id) <= (select u.created_at, u.id from notifications u
         where u.id = ${upTo}::uuid and u.recipient_id = ${userId})`);
+}
+
+// ---- topics (docs/topics.md) ----
+
+const Tag = (t: string) => {
+  const tag = normalizeTag(String(t));
+  if (!isTag(tag)) throw new ServiceError("invalid");
+  return tag;
+};
+
+// Live posts under a topic (deleted or removed posts don't count).
+const liveTagged = and(
+  active(postTags),
+  sql`exists (select 1 from ${posts} p where p.id = ${postTags.postId} and p.deleted_at is null)`,
+);
+
+/** A topic page's header: how many posts, and whether the viewer follows it. */
+export async function topicInfo(viewerId: string, tagInput: string) {
+  const tag = Tag(tagInput);
+  const [{ posts: count }] = await db
+    .select({ posts: sql<number>`count(*)::int` })
+    .from(postTags)
+    .where(and(eq(postTags.tag, tag), liveTagged));
+  const [follow] = await db
+    .select({ id: topicFollows.id })
+    .from(topicFollows)
+    .where(and(eq(topicFollows.userId, viewerId), eq(topicFollows.tag, tag), active(topicFollows)));
+  return { tag, posts: count, following: !!follow };
+}
+
+export async function followTopic(actorId: string, tagInput: string) {
+  const tag = Tag(tagInput);
+  await assertCanWrite(actorId);
+  await db
+    .insert(topicFollows)
+    .values({ userId: actorId, tag })
+    .onConflictDoNothing({
+      target: [topicFollows.userId, topicFollows.tag],
+      where: active(topicFollows),
+    });
+}
+
+export async function unfollowTopic(actorId: string, tagInput: string) {
+  const tag = Tag(tagInput);
+  await assertCanWrite(actorId);
+  await db
+    .update(topicFollows)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(and(eq(topicFollows.userId, actorId), eq(topicFollows.tag, tag), active(topicFollows)));
+}
+
+/** The topics a user follows, alphabetical, with their live post counts. */
+export async function followedTopics(viewerId: string) {
+  return db
+    .select({
+      tag: topicFollows.tag,
+      posts: sql<number>`(select count(*)::int from ${postTags} pt join ${posts} p on p.id = pt.post_id
+        where pt.tag = ${topicFollows.tag} and pt.deleted_at is null and p.deleted_at is null)`,
+    })
+    .from(topicFollows)
+    .where(and(eq(topicFollows.userId, viewerId), active(topicFollows)))
+    .orderBy(topicFollows.tag);
+}
+
+/** The most used topics in the last `days` (the sidebar), by live posts. */
+export async function popularTopics(days = 7, limit = 8) {
+  return db
+    .select({ tag: postTags.tag, posts: sql<number>`count(*)::int` })
+    .from(postTags)
+    .where(
+      and(liveTagged, sql`${postTags.createdAt} > now() - make_interval(days => ${days}::int)`),
+    )
+    .groupBy(postTags.tag)
+    .orderBy(desc(sql`count(*)`), postTags.tag)
+    .limit(limit);
+}
+
+/** Topics starting with `prefix`, most used first (the composer's # autocomplete). */
+export async function topicSuggestions(prefix: string, limit = 5) {
+  const p = normalizeTag(prefix);
+  if (!p) return [];
+  const like = p.replace(/[\\%_]/g, (c) => `\\${c}`) + "%";
+  return db
+    .select({ tag: postTags.tag, posts: sql<number>`count(*)::int` })
+    .from(postTags)
+    .where(and(liveTagged, sql`${postTags.tag} like ${like}`))
+    .groupBy(postTags.tag)
+    .orderBy(desc(sql`count(*)`), postTags.tag)
+    .limit(limit);
 }
