@@ -6,6 +6,7 @@ import { CommentButton } from "@/components/comment-dialog";
 import { PostMenu } from "@/components/post-menu";
 import { Poll } from "@/components/poll";
 import { PostPreview } from "@/components/post-preview";
+import { ProfessionBadge } from "@/components/profession-badge";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -25,7 +26,7 @@ const Dot = () => (
 );
 
 export function Byline(p: {
-  author: { displayName: string; handle: string };
+  author: { displayName: string; handle: string; profession?: string | null };
   createdAt: Date;
   editedAt: Date | null;
 }) {
@@ -42,6 +43,11 @@ export function Byline(p: {
           <span dir="ltr">@{p.author.handle}</span>
         </span>
       </UserHoverCard>
+      {p.author.profession && (
+        <span className="self-center">
+          <ProfessionBadge profession={p.author.profession} />
+        </span>
+      )}
       <Dot />
       {/* Also rendered on the client (feed pages), so a minute boundary may differ. */}
       <span suppressHydrationWarning>{ago(p.createdAt)}</span>

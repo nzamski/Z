@@ -614,7 +614,11 @@ const postCols = (viewerId: string | null) => ({
       and pm.user_id = ${viewerId} and pm.deleted_at is null)
   ) end`,
   // Authors always have a handle: posting requires finishing the welcome.
-  author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
+  author: {
+    displayName: users.displayName,
+    handle: sql<string>`${users.handle}`,
+    profession: users.profession, // the badge in the byline
+  },
 });
 
 export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number];
@@ -853,7 +857,7 @@ export type ThreadNode = {
   deleted: boolean;
   removed: boolean; // deleted by a moderator
   body: string | null; // null when deleted
-  author: { id: string; handle: string; displayName: string } | null;
+  author: { id: string; handle: string; displayName: string; profession: string | null } | null;
   likeCount: number;
   liked: boolean; // by the viewer
   authorLiked: boolean; // by the post's author: shown with a mark, sorted first among top-level
@@ -896,6 +900,7 @@ export async function getThread(
     author_id: string;
     handle: string;
     display_name: string;
+    profession: string | null;
     created_at: string;
     edited_at: string | null;
     child_count: number;
@@ -918,7 +923,7 @@ export async function getThread(
       where t.depth < ${THREAD_DEPTH}
     )
     select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.removed_at, t.body, t.author_id, t.created_at,
-      t.edited_at, u.handle, u.display_name, t.like_count, ${authorLiked("t")} as author_liked,
+      t.edited_at, u.handle, u.display_name, u.profession, t.like_count, ${authorLiked("t")} as author_liked,
       exists (select 1 from comment_likes cl where cl.comment_id = t.id
         and cl.user_id = ${viewerId} and cl.deleted_at is null) as liked,
       (select count(*)::int from comments x
@@ -939,7 +944,14 @@ export async function getThread(
       deleted,
       removed: r.removed_at !== null,
       body: deleted ? null : r.body,
-      author: deleted ? null : { id: r.author_id, handle: r.handle, displayName: r.display_name },
+      author: deleted
+        ? null
+        : {
+            id: r.author_id,
+            handle: r.handle,
+            displayName: r.display_name,
+            profession: r.profession,
+          },
       likeCount: r.like_count,
       liked: r.liked,
       authorLiked: r.author_liked,
