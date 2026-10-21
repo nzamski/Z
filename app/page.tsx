@@ -7,7 +7,7 @@ import { FeedList } from "@/components/feed-list";
 import { FeedTabs } from "@/components/feed-tabs";
 import { Loading } from "@/components/loading";
 import { requireViewer, viewerCard } from "@/lib/auth/viewer";
-import { parseView, PILL_SLOT, VIEW_COOKIE } from "@/lib/feed";
+import { parseTab, PILL_SLOT, VIEW_COOKIE } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
 import { feedPage, ServiceError } from "@/lib/services";
@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 
 async function Home({ searchParams }: PageProps<"/">) {
   await connection();
-  const view = parseView((await cookies()).get(VIEW_COOKIE)?.value);
+  const view = parseTab((await cookies()).get(VIEW_COOKIE)?.value);
   const viewer = viewerCard(await requireViewer());
   const viewerId = viewer.id;
   // `cursor` is the no-JS "load more" link; a garbled one just starts over.

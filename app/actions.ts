@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeNext } from "@/lib/auth/provider";
 import { requireLogin, requireViewer } from "@/lib/auth/viewer";
-import { parseView, VIEW_COOKIE } from "@/lib/feed";
+import { parseTab, VIEW_COOKIE } from "@/lib/feed";
 import { mentionable } from "@/lib/mentions";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
@@ -166,7 +166,7 @@ export async function markNotificationsReadAction(upTo: string) {
 /** Remember the chosen feed tab across sessions (a cookie, so the server renders the right one). */
 export async function setViewAction(f: FormData) {
   await requireViewer();
-  (await cookies()).set(VIEW_COOKIE, parseView(f.get("view")), {
+  (await cookies()).set(VIEW_COOKIE, parseTab(f.get("view")), {
     httpOnly: true,
     sameSite: "lax",
     secure: true, // like the session cookie; browsers allow it on localhost

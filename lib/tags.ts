@@ -6,7 +6,10 @@ export const TAGS_MAX = 10; // per post, so a wall of tags can't spray a post ac
 
 // A letter, then letters (with their marks, e.g. niqqud), digits and "_", with single inner "-"s.
 const BODY = String.raw`\p{L}[\p{L}\p{M}\p{N}_]*(?:-[\p{L}\p{M}\p{N}_]+)*`;
-const TAG = new RegExp(String.raw`(^|[^\p{L}\p{M}\p{N}_#&/])#(${BODY})(?![\p{L}\p{M}\p{N}_-])`, "gu");
+const TAG = new RegExp(
+  String.raw`(^|[^\p{L}\p{M}\p{N}_#&/])#(${BODY})(?![\p{L}\p{M}\p{N}_-])`,
+  "gu",
+);
 const WHOLE = new RegExp(String.raw`^${BODY}$`, "u");
 
 /** One spelling per topic: "K8s" and "k8s" are the same (Hebrew has no case). */

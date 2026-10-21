@@ -618,7 +618,11 @@ export async function feedPage(
     return newestPage(viewerId, match, cursor, now);
   }
   if (opts.authorId) return newestPage(viewerId, eq(posts.authorId, opts.authorId), cursor, now);
-  if (opts.view === "following") return newestPage(viewerId, followsAuthor(viewerId), cursor, now);
+  // Following: people you follow, and you (your new post shows at once, as on X).
+  if (opts.view === "following") {
+    const filter = sql`(${followsAuthor(viewerId)} or ${posts.authorId} = ${viewerId})`;
+    return newestPage(viewerId, filter, cursor, now);
+  }
   if (opts.view === "latest") return newestPage(viewerId, undefined, cursor, now);
   if (opts.view === "top") return topPage(viewerId, cursor, now);
   return forYouPage(viewerId, cursor, now);

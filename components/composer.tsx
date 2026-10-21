@@ -396,15 +396,9 @@ export function Composer(p: Props) {
               </button>
             ))}
           </div>
-          {/* The send button last, at the row's far end: the counter, warnings and cancel that
-              come and go as you type appear before it, so it never moves. */}
+          {/* The send button last, at the row's far end: the counter and cancel that come and go
+              as you type appear before it, so it never moves. */}
           <div className="flex items-center gap-3">
-            {state.error && (
-              <span role="alert" className="text-danger">
-                {state.error}
-              </span>
-            )}
-            {over && <span className="text-danger">{T.tooLong}</span>}
             <LengthRing length={body.length} max={p.max} />
             {p.onCancel && (
               <button
@@ -426,6 +420,12 @@ export function Composer(p: Props) {
             </button>
           </div>
         </div>
+        {/* Errors and warnings in their own row under the buttons, never squeezed beside them. */}
+        {(state.error || over) && (
+          <p role="alert" className="mt-2 text-sm text-danger">
+            {state.error ?? T.tooLong}
+          </p>
+        )}
       </div>
     </form>
   );

@@ -2,17 +2,15 @@
 // Feed tabs. The choice is a cookie (setViewAction), not part of the URL; the form also works
 // before hydration / without JS.
 import { setViewAction } from "@/app/actions";
-import type { FeedView } from "@/lib/feed";
+import type { FeedTab } from "@/lib/feed";
 import { he } from "@/lib/i18n/he";
 
-const TABS: [FeedView, string][] = [
+const TABS: [FeedTab, string][] = [
   ["forYou", he.nav.forYou],
   ["following", he.nav.following],
-  ["latest", he.nav.latest],
-  ["top", he.nav.top],
 ];
 
-export function FeedTabs({ view }: { view: FeedView }) {
+export function FeedTabs({ view }: { view: FeedTab }) {
   return (
     <form
       action={setViewAction}
