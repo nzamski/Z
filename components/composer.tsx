@@ -396,13 +396,16 @@ export function Composer(p: Props) {
               </button>
             ))}
           </div>
+          {/* The send button last, at the row's far end: the counter, warnings and cancel that
+              come and go as you type appear before it, so it never moves. */}
           <div className="flex items-center gap-3">
-            <button
-              disabled={pending || over || (!p.allowEmpty && !body.trim())}
-              className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
-            >
-              {p.submitLabel}
-            </button>
+            {state.error && (
+              <span role="alert" className="text-danger">
+                {state.error}
+              </span>
+            )}
+            {over && <span className="text-danger">{T.tooLong}</span>}
+            <LengthRing length={body.length} max={p.max} />
             {p.onCancel && (
               <button
                 type="button"
@@ -415,13 +418,12 @@ export function Composer(p: Props) {
                 {T.cancel}
               </button>
             )}
-            <LengthRing length={body.length} max={p.max} />
-            {over && <span className="text-danger">{T.tooLong}</span>}
-            {state.error && (
-              <span role="alert" className="text-danger">
-                {state.error}
-              </span>
-            )}
+            <button
+              disabled={pending || over || (!p.allowEmpty && !body.trim())}
+              className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
+            >
+              {p.submitLabel}
+            </button>
           </div>
         </div>
       </div>
