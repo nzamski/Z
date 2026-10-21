@@ -91,6 +91,7 @@ export function SidebarSearch() {
     setOpen(false);
     setQ("");
     setActive(-1);
+    (document.activeElement as HTMLElement | null)?.blur(); // done searching
     router.push(row.href);
   };
   const forget = (href?: string) =>
@@ -129,7 +130,7 @@ export function SidebarSearch() {
           setQ(e.target.value);
           setOpen(true);
         }}
-        // Click too: after going somewhere the box keeps its focus, closed.
+        // Click too: after Esc the box keeps its focus, closed.
         onFocus={reopen}
         onClick={reopen}
         onKeyDown={(e) => {
