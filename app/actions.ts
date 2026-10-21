@@ -155,6 +155,14 @@ export async function mentionSuggestionsAction(q: string): Promise<MentionSugges
     .map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
 }
 
+/** The current cards for posts a feed already shows, when it's shown again (Back, a restored
+ * snapshot): counts, the viewer's like, edits. Deleted or removed posts are missing. No refresh(). */
+export async function postSummariesAction(ids: string[]): Promise<s.PostSummary[]> {
+  const viewer = await requireViewer();
+  const valid = z.array(z.uuid()).max(s.REFRESH_MAX).safeParse(ids);
+  return valid.success ? s.postSummaries(viewer.id, valid.data) : [];
+}
+
 /** Mark notifications read up to what the page showed. No refresh(): the page keeps showing
  * which ones were new on this visit. */
 export async function markNotificationsReadAction(upTo: string) {

@@ -13,6 +13,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { postSummariesAction } from "@/app/actions";
 import { Spinner } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
 import { mergeById, PILL_SLOT, RANKING, type FeedView } from "@/lib/feed";
@@ -104,6 +105,20 @@ export function FeedList(p: {
     });
   }
 
+  // Items from an earlier visit (a restored snapshot, or Back to this route) get their current
+  // state: likes and comments made on the post page meanwhile, edits; deleted posts drop out.
+  // Same order, so nothing moves under the reader.
+  const recheck = useCallback(async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      const fresh = new Map((await postSummariesAction(ids)).map((x) => [x.id, revive(x)]));
+      const checked = new Set(ids);
+      setItems((prev) =>
+        prev.filter((x) => !checked.has(x.id) || fresh.has(x.id)).map((x) => fresh.get(x.id) ?? x),
+      );
+    } catch {} // offline for a moment: the cards stay as they were
+  }, []);
+
   useEffect(() => {
     if (restored.current) return; // Activity re-runs effects when the route is shown again
     restored.current = true;
@@ -115,7 +130,19 @@ export function FeedList(p: {
     setNext(snap.next);
     setAsOf(snap.asOf);
     restoreY.current = snap.scrollY;
-  }, [key]);
+    recheck(snap.items.map((x) => x.id));
+  }, [key, recheck]);
+
+  // Shown again from Next's Activity cache: effects re-run with the list as it was left.
+  const itemsNow = useRef(items);
+  useEffect(() => {
+    itemsNow.current = items;
+  });
+  const visited = useRef(false);
+  useEffect(() => {
+    if (visited.current) recheck(itemsNow.current.map((x) => x.id));
+    visited.current = true;
+  }, [recheck]);
 
   useLayoutEffect(() => {
     if (restoreY.current === null) return;
