@@ -49,6 +49,7 @@ export const he = {
     orderedList: "רשימה ממוספרת",
     quote: "ציטוט",
     codeBlock: "בלוק קוד",
+    direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
   },
   comment: {
     placeholder: "כתבו תגובה…",

@@ -1,23 +1,31 @@
-// Hebrew and English in one post: a paragraph (list item, heading, quote) reads right to left when
-// most of its words are Hebrew, left to right when most are English (a tie: Hebrew, Z's language).
-// Words, not letters: tech terms are long ("Keycloak", "X-Forwarded") and Hebrew writes fewer
-// letters per word, so a Hebrew sentence full of terms would count as English. Not the browser's
-// dir="auto" either (the first letter decides): Hebrew often starts with a term or an @mention.
+// Hebrew and English in one post: each paragraph (list item, heading, quote) has its own direction.
+// By default it follows the paragraph's first word: Hebrew reads right to left, English left to
+// right. @mentions, #tags, links, inline code and numbers are skipped (they're not the sentence).
+// The writer can override a paragraph from the composer: an invisible direction mark at its start
+// (RLM / LRM, which markdown keeps as text) wins over the first word.
 // Used by the renderer (lib/markdown.ts) and the composer, so both agree.
+
+export const DIR_MARK = { rtl: "‏", ltr: "‎" } as const;
 
 const HEBREW = /\p{Script=Hebrew}/u;
 const LATIN = /\p{Script=Latin}/u;
-// Not prose: links, @mentions and inline code don't vote.
-const IGNORED = /https?:\/\/\S+|@[a-zA-Z][a-zA-Z0-9_]*|`[^`]*`/g;
+// Not the sentence: links, @mentions, #tags and inline code.
+const IGNORED = /https?:\/\/\S+|[@#][\p{L}\p{N}_-]+|`[^`]*`/gu;
 
-/** "rtl" or "ltr" by majority of words; null without letters (inherit). */
+/** The direction a writer chose for a paragraph (its leading mark), if any. */
+export function markedDir(text: string): "rtl" | "ltr" | null {
+  const first = text.trimStart()[0];
+  return first === DIR_MARK.rtl ? "rtl" : first === DIR_MARK.ltr ? "ltr" : null;
+}
+
+/** "rtl" or "ltr": the writer's mark, else the first word's script; null without letters (the
+ * paragraph inherits the page's RTL). */
 export function textDir(text: string): "rtl" | "ltr" | null {
-  let he = 0;
-  let la = 0;
+  const marked = markedDir(text);
+  if (marked) return marked;
   for (const word of text.replace(IGNORED, " ").split(/\s+/)) {
-    if (HEBREW.test(word)) he++;
-    else if (LATIN.test(word)) la++;
+    if (HEBREW.test(word)) return "rtl";
+    if (LATIN.test(word)) return "ltr";
   }
-  if (!he && !la) return null;
-  return he >= la ? "rtl" : "ltr";
+  return null;
 }

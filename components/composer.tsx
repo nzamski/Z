@@ -29,7 +29,7 @@ import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { useMentionSuggest } from "@/components/mention-suggest";
-import { textDir } from "@/lib/direction";
+import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
 import { splitMentions } from "@/lib/mentions";
 import { splitTags } from "@/lib/tags";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
@@ -89,6 +89,27 @@ const toggleList =
     inNode(s, type) ? liftListItem(N.list_item)(s, d) : wrapInList(type)(s, d);
 const toggleCodeBlock: Command = (s, d) =>
   setBlockType(s.selection.$from.parent.type === N.code_block ? N.paragraph : N.code_block)(s, d);
+/** Flip the current paragraph's direction: an invisible mark at its start (lib/direction.ts) when
+ * the wanted direction differs from what its first word gives; none when they agree. */
+const flipDir: Command = (s, d) => {
+  const { $from } = s.selection;
+  if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false;
+  const start = $from.start();
+  const text = $from.parent.textContent;
+  const marked = markedDir(text);
+  const plain = marked ? text.slice(1) : text;
+  const want = (textDir(text) ?? "rtl") === "rtl" ? "ltr" : "rtl";
+  let tr = s.tr;
+  if (marked) tr = tr.delete(start, start + 1);
+  if (want !== (textDir(plain) ?? "rtl")) tr = tr.insertText(DIR_MARK[want], start);
+  d?.(tr.scrollIntoView());
+  return true;
+};
+const hasDirMark = (s: EditorState) => {
+  const { parent } = s.selection.$from;
+  return parent.isTextblock && !!markedDir(parent.textContent);
+};
+
 const hardBreak: Command = (s, d) => {
   d?.(s.tr.replaceSelectionWith(N.hard_break.create()).scrollIntoView());
   return true;
@@ -505,6 +526,7 @@ function toolsFor(s: EditorState, linkFieldOpen: boolean) {
       active: s.selection.$from.parent.type === N.code_block,
       cmd: toggleCodeBlock,
     },
+    { label: T.direction, icon: ICONS.direction, active: hasDirMark(s), cmd: flipDir },
   ];
 }
 
@@ -564,6 +586,12 @@ const ICONS = {
     <Svg>
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="m10 10-2 2 2 2M14 10l2 2-2 2" />
+    </Svg>
+  ),
+  // A paragraph mark between two arrows: switch this paragraph's direction.
+  direction: (
+    <Svg>
+      <path d="M10 4v10M14 4v10M17 4h-7a3 3 0 0 0 0 6M3 19h18M6 16l-3 3 3 3M18 16l3 3-3 3" />
     </Svg>
   ),
 };

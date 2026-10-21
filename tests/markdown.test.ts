@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { md, renderMarkdown } from "@/lib/markdown";
 import { computePreview } from "@/lib/preview";
-import { textDir } from "@/lib/direction";
+import { DIR_MARK, textDir } from "@/lib/direction";
 
 // Valid = re-parsing yields balanced open/close tokens and no fence runs to end of input unclosed.
 function assertValid(preview: string) {
@@ -120,16 +120,19 @@ describe("renderMarkdown", () => {
 describe("direction (Hebrew and English in one post)", () => {
   test.each([
     ["Hebrew", "שלום לכולם", "rtl"],
-    ["Hebrew starting with an English word", "PR קטן עדיף על PR מושלם.", "rtl"],
+    ["the first word decides: English", "PR קטן עדיף על PR מושלם.", "ltr"],
     [
       "Hebrew full of long tech terms",
       "מחפשת מישהו שכבר הריץ Keycloak מאחורי OpenShift router עם X-Forwarded headers. נתקענו על redirect URI.",
       "rtl",
     ],
-    ["Hebrew starting with a mention", "@dana תודה רבה על העזרה", "rtl"],
+    ["a mention is skipped", "@dana תודה רבה על העזרה", "rtl"],
+    ["a tag is skipped", "#kubernetes שדרגנו היום", "rtl"],
     ["English", "Hello everyone, this is English", "ltr"],
-    ["English with one Hebrew word", "We migrated the logs to JSON, יופי", "ltr"],
-    ["a URL doesn't vote", "ראו https://example.com/very/long/english/path", "rtl"],
+    ["English ending in a Hebrew word", "We migrated the logs to JSON, יופי", "ltr"],
+    ["the writer chose RTL (a leading RLM)", `${DIR_MARK.rtl}PR קטן עדיף`, "rtl"],
+    ["the writer chose LTR (a leading LRM)", `${DIR_MARK.ltr}שלום world`, "ltr"],
+    ["a leading URL is skipped", "https://example.com/path ראו כאן", "rtl"],
     ["no letters", "1234 !?", null],
   ])("%s", (_, text, dir) => {
     expect(textDir(text)).toBe(dir);
@@ -141,5 +144,9 @@ describe("direction (Hebrew and English in one post)", () => {
     expect(html).toContain('<p dir="rtl">פסקה בעברית</p>');
     expect(html).toContain('<ul dir="ltr">');
     expect(html).toContain('<li dir="ltr">item one</li>');
+  });
+
+  test("a writer's mark wins in rendered posts too", () => {
+    expect(renderMarkdown(`${DIR_MARK.rtl}PR קטן`)).toContain('<p dir="rtl">');
   });
 });
