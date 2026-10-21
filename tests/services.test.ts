@@ -179,6 +179,22 @@ describe("pinned post", () => {
   });
 });
 
+describe("who to follow", () => {
+  test("not yourself, not people you follow; most liked recently first", async () => {
+    const [viewer, followed, quiet, liked, fan] = await Promise.all(
+      Array.from({ length: 5 }, () => makeUser()),
+    );
+    await s.follow(viewer.id, followed.id);
+    const post = await s.createPost(liked.id, "פוסט אהוב");
+    await s.likePost(fan.id, post.id);
+    const ids = (await s.whoToFollow(viewer.id, 1000)).map((u) => u.id);
+    expect(ids).not.toContain(viewer.id);
+    expect(ids).not.toContain(followed.id);
+    expect(ids).toContain(quiet.id);
+    expect(ids.indexOf(liked.id)).toBeLessThan(ids.indexOf(quiet.id));
+  });
+});
+
 describe("postSummaries (a feed shown again re-checks its cards)", () => {
   test("current counts and the viewer's like; deleted posts are left out", async () => {
     const author = await makeUser();

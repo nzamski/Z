@@ -119,8 +119,12 @@ html:has(dialog:modal) {
   line-height: 1.6;
   white-space: nowrap;
   pointer-events: none;
+  /* Not just transparent: a laid-out label beside every icon widened the page on phones. */
+  display: none;
   opacity: 0;
-  transition: opacity 120ms;
+  transition:
+    opacity 120ms,
+    display 120ms allow-discrete;
 }
 [data-tip-up]::after {
   top: auto;
@@ -128,8 +132,15 @@ html:has(dialog:modal) {
 }
 [data-tip]:hover::after,
 [data-tip]:focus-visible::after {
+  display: block;
   opacity: 1;
   transition-delay: 350ms;
+}
+@starting-style {
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    opacity: 0;
+  }
 }
 
 /* Like button "pop" when a post is liked. */

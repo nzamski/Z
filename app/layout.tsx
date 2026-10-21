@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Header } from "@/components/header";
+import { NavRail } from "@/components/nav-rail";
+import { SideBar } from "@/components/side-bar";
 import { he } from "@/lib/i18n/he";
 import { themeScript } from "@/lib/theme";
 import "./globals.css";
@@ -35,11 +38,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           {he.nav.skip}
         </a>
-        <div className="mx-auto min-h-screen w-full max-w-2xl border-x border-neutral-200 dark:border-neutral-800">
-          <Header />
-          <div id="content" tabIndex={-1} className="outline-none">
-            {children}
+        {/* Wide screens: navigation rail | feed | sidebar (start to end). Phones: the feed column
+            only, with navigation in its header. */}
+        <div className="flex w-full justify-center">
+          <aside className="sticky top-0 hidden h-screen w-20 shrink-0 lg:block xl:w-64">
+            <Suspense>
+              <NavRail />
+            </Suspense>
+          </aside>
+          <div className="min-h-screen w-full max-w-2xl min-w-0 border-x border-neutral-200 dark:border-neutral-800">
+            <Header />
+            <div id="content" tabIndex={-1} className="outline-none">
+              {children}
+            </div>
           </div>
+          <aside className="sticky top-0 hidden h-screen w-80 shrink-0 overflow-y-auto xl:block">
+            <Suspense>
+              <SideBar />
+            </Suspense>
+          </aside>
         </div>
       </body>
     </html>
