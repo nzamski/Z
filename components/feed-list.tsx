@@ -65,6 +65,7 @@ export function FeedList(p: {
   view: FeedView;
   author?: string; // profile: that user's posts
   q?: string; // search results
+  tag?: string; // a topic page
   emptyText?: string;
   viewer: Viewer;
   first: PostSummary[];
@@ -72,11 +73,16 @@ export function FeedList(p: {
   asOf: string;
 }) {
   const query = useMemo(
-    () => ({ view: p.view, ...(p.author ? { author: p.author } : {}), ...(p.q ? { q: p.q } : {}) }),
-    [p.view, p.author, p.q],
+    () => ({
+      view: p.view,
+      ...(p.author ? { author: p.author } : {}),
+      ...(p.q ? { q: p.q } : {}),
+      ...(p.tag ? { tag: p.tag } : {}),
+    }),
+    [p.view, p.author, p.q, p.tag],
   );
   const key = `z-feed:${new URLSearchParams(query)}`;
-  const announce = !p.author && !p.q && p.view !== "latest" && p.view !== "top";
+  const announce = !p.author && !p.q && !p.tag && p.view !== "latest" && p.view !== "top";
   const [items, setItems] = useState(p.first);
   const [next, setNext] = useState(p.next);
   const [asOf, setAsOf] = useState(p.asOf);

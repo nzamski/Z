@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import {
   setCommentLikeAction,
   setFollowAction,
+  setTopicFollowAction,
   setLikeAction,
   type ActionResult,
 } from "@/app/actions";
@@ -78,8 +79,10 @@ export function LikeButton(p: {
 }
 
 // Local state rather than useOptimistic: the hover card has no server prop to refresh into.
+/** Follow a person (userId) or a #topic (topic). */
 export function FollowButton(p: {
-  userId: string;
+  userId?: string;
+  topic?: string;
   following: boolean;
   onChange?: (following: boolean) => void;
 }) {
@@ -89,7 +92,9 @@ export function FollowButton(p: {
     start(async () => {
       const next = !following;
       setFollowing(next);
-      const r = await setFollowAction(p.userId, next);
+      const r = p.topic
+        ? await setTopicFollowAction(p.topic, next)
+        : await setFollowAction(p.userId!, next);
       if (r.error) setFollowing(!next);
       else p.onChange?.(next);
     });

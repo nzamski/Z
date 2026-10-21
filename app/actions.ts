@@ -81,6 +81,19 @@ export async function setFollowAction(userId: string, following: boolean) {
   return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)), "handle");
 }
 
+/** Follow or unfollow a #topic (its posts get a For You boost). */
+export async function setTopicFollowAction(tag: string, following: boolean) {
+  return run((uid) => (following ? s.followTopic : s.unfollowTopic)(uid, String(tag)));
+}
+
+export type TopicSuggestion = { tag: string; posts: number };
+
+/** Topics to suggest while typing a #tag (the composer's autocomplete). */
+export async function topicSuggestionsAction(prefix: string): Promise<TopicSuggestion[]> {
+  await requireViewer();
+  return s.topicSuggestions(String(prefix).slice(0, 30));
+}
+
 export type UserCard = {
   id: string;
   handle: string;
