@@ -9,6 +9,7 @@ export const BIO_MAX = 70;
 export const HANDLE_RE = /^[a-z][a-z0-9_]{2,14}$/;
 export const HANDLE_MAX = 15;
 export const REASON_MAX = 300; // moderation reasons
+export const PINS_MAX = 3; // pinned posts per profile
 
 // Rate limits per user (docs/security-notes.md). Writes are counted in Postgres from the rows
 // themselves, soft-deleted ones included, so they hold across replicas and store nothing new.

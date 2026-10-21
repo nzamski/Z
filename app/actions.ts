@@ -48,7 +48,8 @@ export async function editPostAction(_: ActionResult, f: FormData) {
 
 /** Pin your post to the top of your profile, or unpin it. */
 export async function setPinAction(postId: string, pinned: boolean) {
-  return run((uid) => (pinned ? s.pinPost(uid, Id.parse(postId)) : s.unpinPost(uid)));
+  const id = Id.parse(postId);
+  return run((uid) => (pinned ? s.pinPost(uid, id) : s.unpinPost(uid, id)));
 }
 
 export async function deletePostAction(postId: string) {

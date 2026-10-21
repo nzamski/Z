@@ -41,6 +41,7 @@ import {
 } from "@/lib/feed";
 import {
   BIO_MAX,
+  PINS_MAX,
   COMMENT_MAX,
   EDIT_WINDOW_MINUTES,
   HANDLE_RE,
@@ -57,6 +58,7 @@ export class ServiceError extends Error {
   constructor(
     public code:
       | "invalid"
+      | "pin_limit"
       | "empty"
       | "not_found"
       | "forbidden"
@@ -529,6 +531,7 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  pinned: sql<boolean>`${posts.pinnedAt} is not null`, // on the author's profile
   // For the "⋯" menu's follow / unfollow.
   followsAuthor: viewerId
     ? sql<boolean>`exists (select 1 from ${follows} fa where fa.follower_id = ${viewerId}
@@ -1626,28 +1629,46 @@ export async function topicSuggestions(prefix: string, limit = 5) {
     .limit(limit);
 }
 
-// ---- pinned post (one per profile) ----
+// ---- pinned posts (up to PINS_MAX per profile) ----
 
-/** Pin one of your own live posts to the top of your profile (replaces the previous pin). */
+/** Pin one of your own live posts to the top of your profile. */
 export async function pinPost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
-  await db.update(users).set({ pinnedPostId: postId, updatedAt: now }).where(eq(users.id, actorId));
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.authorId, actorId),
+        active(posts),
+        sql`${posts.pinnedAt} is not null`,
+        ne(posts.id, postId),
+      ),
+    );
+  if (n >= PINS_MAX) throw new ServiceError("pin_limit");
+  await db
+    .update(posts)
+    .set({ pinnedAt: sql`coalesce(${posts.pinnedAt}, now())`, updatedAt: now })
+    .where(eq(posts.id, postId));
 }
 
-export async function unpinPost(actorId: string) {
+export async function unpinPost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
-  await db.update(users).set({ pinnedPostId: null, updatedAt: now }).where(eq(users.id, actorId));
+  await db
+    .update(posts)
+    .set({ pinnedAt: null, updatedAt: now })
+    .where(and(eq(posts.id, postId), eq(posts.authorId, actorId)));
 }
 
-/** The card of a user's pinned post, if it's still live. */
-export async function pinnedPost(viewerId: string, userId: string) {
-  const [row] = await db
+/** A profile's pinned posts (live ones), most recently pinned first. */
+export async function pinnedPosts(viewerId: string, userId: string) {
+  return db
     .select(postCols(viewerId))
-    .from(users)
-    .innerJoin(posts, eq(posts.id, users.pinnedPostId))
-    .where(and(eq(users.id, userId), active(posts)));
-  return row ?? null;
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(and(eq(posts.authorId, userId), active(posts), sql`${posts.pinnedAt} is not null`))
+    .orderBy(desc(posts.pinnedAt));
 }
 
 // ---- who to follow (the sidebar) ----

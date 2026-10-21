@@ -4,7 +4,7 @@ import { db, sql } from "@/db/client";
 import { follows, likes, posts } from "@/db/schema";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
-import { EDIT_WINDOW_MINUTES, POST_MAX } from "@/lib/limits";
+import { EDIT_WINDOW_MINUTES, PINS_MAX, POST_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -152,24 +152,29 @@ describe("follows", () => {
   });
 });
 
-describe("pinned post", () => {
-  test("pin your own post; a new pin replaces it; unpin; a deleted one isn't shown", async () => {
+describe("pinned posts", () => {
+  test(`up to ${PINS_MAX}, newest pin first; unpin; a deleted one isn't shown`, async () => {
     const [u, other] = [await makeUser(), await makeUser()];
-    const first = await s.createPost(u.id, "ראשון");
-    const second = await s.createPost(u.id, "שני");
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+    const posts = [];
+    for (let i = 0; i <= PINS_MAX; i++) posts.push(await s.createPost(u.id, `פוסט ${i}`));
+    const pins = async () => (await s.pinnedPosts(other.id, u.id)).map((p) => p.id);
+    expect(await pins()).toEqual([]);
 
-    await s.pinPost(u.id, first.id);
-    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(first.id);
-    await s.pinPost(u.id, second.id);
-    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(second.id);
+    for (const p of posts.slice(0, PINS_MAX)) await s.pinPost(u.id, p.id);
+    expect((await pins()).sort()).toEqual(
+      posts
+        .slice(0, PINS_MAX)
+        .map((p) => p.id)
+        .sort(),
+    );
+    expect(await code(s.pinPost(u.id, posts[PINS_MAX].id))).toBe("pin_limit");
+    await s.pinPost(u.id, posts[0].id); // already pinned: fine, not a fourth
 
-    await s.unpinPost(u.id);
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
-
-    await s.pinPost(u.id, first.id);
-    await s.deletePost(u.id, first.id);
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+    await s.unpinPost(u.id, posts[0].id);
+    expect(await pins()).not.toContain(posts[0].id);
+    await s.deletePost(u.id, posts[1].id);
+    expect(await pins()).not.toContain(posts[1].id);
+    expect((await s.getPost(posts[2].id, u.id))?.pinned).toBe(true);
   });
 
   test("only your own post", async () => {

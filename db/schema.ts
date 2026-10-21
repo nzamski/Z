@@ -43,8 +43,6 @@ export const users = pgTable(
     onboardedAt: ts("onboarded_at"),
     // Set by a moderator: the user can still read, but not post, comment, like or follow.
     suspendedAt: ts("suspended_at"),
-    // The post shown first on the profile (one at a time, as on X). Reads ignore a deleted one.
-    pinnedPostId: uuid("pinned_post_id").references((): AnyPgColumn => posts.id),
   },
   (t) => [
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
@@ -77,10 +75,15 @@ export const posts = pgTable(
     editedAt: ts("edited_at"),
     // Removed by a moderator (deleted_at is set too); null for the author's own delete.
     removedAt: ts("removed_at"),
+    // Pinned by its author to the top of their profile (up to PINS_MAX), newest pin first.
+    pinnedAt: ts("pinned_at"),
     // Search vector kept in sync by Postgres (z_search_vector: drizzle/0005_search.sql).
     search: tsvector("search").generatedAlwaysAs(sql`z_search_vector(body)`),
   },
   (t) => [
+    index("posts_pinned_idx")
+      .on(t.authorId, t.pinnedAt)
+      .where(sql`${t.pinnedAt} is not null and ${t.deletedAt} is null`),
     index("posts_search_idx")
       .using("gin", t.search)
       .where(sql`${t.deletedAt} is null`),

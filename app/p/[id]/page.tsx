@@ -50,7 +50,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               postId={post.id}
               body={post.body}
               canEdit={canEditPost(post.createdAt)}
-              pinned={me.pinnedPostId === post.id}
+              pinned={post.pinned}
               startEditing={q.edit === "1"} // from a card's "⋯" menu
             >
               {body}

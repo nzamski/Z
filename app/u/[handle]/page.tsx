@@ -23,7 +23,7 @@ import {
   followInfo,
   getUserByHandle,
   isAdmin,
-  pinnedPost,
+  pinnedPosts,
   ServiceError,
 } from "@/lib/services";
 import type { Metadata } from "next";
@@ -37,7 +37,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const viewerId = viewer.id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };
-  const [info, page, admin, pinned] = await Promise.all([
+  const [info, page, admin, pins] = await Promise.all([
     followInfo(user.id, viewerId),
     feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
       (e) => {
@@ -46,7 +46,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       },
     ),
     isAdmin(viewerId),
-    pinnedPost(viewerId, user.id),
+    pinnedPosts(viewerId, user.id),
   ]);
 
   const chat = chatLink(user.handle);
@@ -156,9 +156,11 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
         )}
       </section>
       {/* Pinned to the top of the profile (also in its place below, as on X). */}
-      {pinned && !cursor && (
+      {pins.length > 0 && !cursor && (
         <ul>
-          <PostCard post={pinned} viewer={viewer} pinned />
+          {pins.map((post) => (
+            <PostCard key={post.id} post={post} viewer={viewer} pinned />
+          ))}
         </ul>
       )}
       <FeedList

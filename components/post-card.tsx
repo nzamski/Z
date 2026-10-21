@@ -146,6 +146,5 @@ export type Viewer = {
   id: string;
   displayName: string;
   handle: string;
-  pinnedPostId: string | null;
   admin: boolean;
 };

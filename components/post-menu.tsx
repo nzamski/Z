@@ -25,7 +25,7 @@ export function PostMenu(p: { post: PostSummary; viewer: Viewer; onGone?: () => 
   const mine = p.post.authorId === p.viewer.id;
   // The edit window is checked when the menu opens (not during render: it reads the clock).
   const [canEdit, setCanEdit] = useState(false);
-  const pinned = p.viewer.pinnedPostId === p.post.id;
+  const pinned = p.post.pinned;
   const handle = p.post.author.handle;
   const run = (fn: () => Promise<unknown>) =>
     start(async () => {

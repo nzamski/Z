@@ -41,16 +41,10 @@ export async function canSeeContent() {
 }
 
 /** What client components need about the viewer: avatar and name, and for a post's "⋯" menu,
- * whether they moderate and which post they pinned. Safe to hand to client components. */
-export const viewerCard = async (v: {
-  id: string;
-  displayName: string;
-  handle: string;
-  pinnedPostId: string | null;
-}) => ({
+ * whether they moderate. Safe to hand to client components. */
+export const viewerCard = async (v: { id: string; displayName: string; handle: string }) => ({
   id: v.id,
   displayName: v.displayName,
   handle: v.handle,
-  pinnedPostId: v.pinnedPostId,
   admin: await isAdmin(v.id),
 });
