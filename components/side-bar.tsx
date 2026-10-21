@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
+import { SidebarSearch } from "@/components/sidebar-search";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
 import { getUser, popularTopics, whoToFollow } from "@/lib/services";
@@ -16,15 +17,7 @@ export async function SideBar() {
   const [topics, people] = await Promise.all([popularTopics(7, 6), whoToFollow(user.id, 3)]);
   return (
     <div className="space-y-4 p-4 text-start">
-      <form action="/search" role="search">
-        <input
-          name="q"
-          type="search"
-          placeholder={he.search.placeholder}
-          aria-label={he.nav.search}
-          className="w-full rounded-full bg-neutral-500/10 px-4 py-2 outline-none focus:bg-transparent focus:ring-1 focus:ring-sky-500"
-        />
-      </form>
+      <SidebarSearch />
 
       <section className={card}>
         <h2 className="mb-2 text-lg font-bold">{he.side.popular}</h2>

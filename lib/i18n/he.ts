@@ -1,6 +1,7 @@
 // All UI strings live here (Hebrew, RTL).
 export const he = {
   appName: "Z",
+  appFullName: "Zed", // the logo spells it out on hover
   nav: {
     forYou: "בשבילך",
     following: "נעקבים",
@@ -62,6 +63,8 @@ export const he = {
     orderedList: "רשימה ממוספרת",
     quote: "ציטוט",
     codeBlock: "בלוק קוד",
+    emoji: "אימוג׳י",
+    emojiRecent: "בשימוש לאחרונה",
     direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
   },
   comment: {
@@ -179,6 +182,8 @@ export const he = {
     system: "לפי המערכת",
     light: "בהיר",
     dark: "כהה",
+    toDark: "מעבר לערכה כהה",
+    toLight: "מעבר לערכה בהירה",
   },
   topics: {
     title: "נושאים",
@@ -242,6 +247,7 @@ export const he = {
   },
   search: {
     placeholder: "חיפוש אנשים ופוסטים",
+    searchFor: (q: string) => `חיפוש "${q}"`,
     hint: "חפשו אנשים לפי שם תצוגה או @שם משתמש, ופוסטים לפי מילים מתוכם. אפשר גם חלק ממילה.",
     none: (q: string) => `לא נמצאו תוצאות עבור "${q}".`,
     noPosts: "אין פוסטים תואמים.",

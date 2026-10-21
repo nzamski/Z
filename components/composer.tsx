@@ -28,6 +28,7 @@ import { EditorState, Plugin, type Command } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
+import { EmojiPicker } from "@/components/emoji-picker";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
 import { splitMentions } from "@/lib/mentions";
@@ -454,6 +455,14 @@ export function Composer(p: Props) {
                 {t.icon}
               </button>
             ))}
+            <EmojiPicker
+              onPick={(emoji) =>
+                run((st, d) => {
+                  d?.(st.tr.insertText(emoji).scrollIntoView());
+                  return true;
+                })
+              }
+            />
           </div>
           {/* The send button last, at the row's far end: the counter and cancel that come and go
               as you type appear before it, so it never moves. */}
