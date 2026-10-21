@@ -1,16 +1,17 @@
 "use client";
 // The composer's emoji button: frimousse (unstyled, styled here like Z's menus) with categories
 // and search. Its emoji data is served by Z (scripts/copy-emojibase.mjs → /emojibase), never a
-// CDN (air-gapped). English names: emojibase has no Hebrew. Fixed to the screen, below the button
+// CDN (air-gapped). All in English, button included: emojibase's names and categories have no
+// Hebrew, so search is in English anyway. Fixed to the screen, below the button
 // when there's room and above when not, so neither the page edge nor a popup around the composer
 // cuts it off. Picking inserts at the caret and keeps the editor's focus.
 import { EmojiPicker as Picker } from "frimousse";
 import { useState } from "react";
 import { menuBox, useMenu } from "@/components/theme-menu";
-import { he } from "@/lib/i18n/he";
 
 const W = 304; // px: 8 emoji columns and padding
 const H = 336; // px: the picker's height (h-80) and a little room
+const T = { label: "Emoji", search: "Search emoji", none: "No emoji found" };
 
 export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
   const { open, setOpen, root } = useMenu();
@@ -30,8 +31,8 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={he.composer.emoji}
-        data-tip={he.composer.emoji}
+        aria-label={T.label}
+        data-tip={T.label}
         className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-expanded:bg-neutral-500/15 aria-expanded:text-foreground"
       >
         <svg
@@ -51,7 +52,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
       {open && (
         <div
           role="dialog"
-          aria-label={he.composer.emoji}
+          aria-label={T.label}
           style={{ top: at.top, left: at.left, width: W }}
           className={`fixed ${menuBox}`}
         >
@@ -67,7 +68,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
           >
             <Picker.Search
               autoFocus
-              placeholder={he.composer.emojiSearch}
+              placeholder={T.search}
               className="z-10 mx-2 mt-2 mb-1 appearance-none rounded-lg bg-neutral-500/10 px-2.5 py-1.5 text-sm outline-none placeholder:text-muted"
             />
             <Picker.Viewport className="relative flex-1 outline-none">
@@ -75,7 +76,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
                 …
               </Picker.Loading>
               <Picker.Empty className="absolute inset-0 flex items-center justify-center text-sm text-muted">
-                {he.composer.emojiNone}
+                {T.none}
               </Picker.Empty>
               <Picker.List
                 className="pb-1.5 select-none"
@@ -89,6 +90,8 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
                     </div>
                   ),
                   Row: ({ children, ...props }) => (
+                    // Frimousse lays rows out with flex; each emoji takes 1/8 (columns={8}), so
+                    // the grid reaches the scrollbar.
                     <div className="scroll-my-1.5 px-1.5" {...props}>
                       {children}
                     </div>
@@ -97,7 +100,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      className="flex size-8 items-center justify-center rounded-md text-xl data-[active]:bg-neutral-500/15"
+                      className="flex h-8 w-1/8 shrink-0 items-center justify-center rounded-md text-xl data-[active]:bg-neutral-500/15"
                       {...props}
                     >
                       {emoji.emoji}
