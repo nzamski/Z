@@ -35,7 +35,8 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Composer: a ProseMirror WYSIWYG editor (`components/composer.tsx`) over `lib/editor-markdown.ts`, which reads and writes the same markdown `lib/markdown.ts` renders (its own markdown-it: no linkify or mentions, so URLs and `@handles` stay text until render). Bodies are still stored as markdown. `tests/editor-markdown.test.ts` checks that opening and saving a body renders the same.
 - Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
 - Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container; locally `MIGRATIONS_DIR=drizzle`), `scripts/admin.mjs`, `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
-- Feeds: For You / Following / Latest / Top (all-time most liked). Ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
+- Topics (`docs/topics.md`): `#tags` in posts (`lib/tags.ts`) are filed in `post_tags` by `setPostTags` on create and edit; `/t/<tag>` (newest / most liked), `/topics`, topic follows boost For You. Only posts, not comments.
+- Feeds: home tabs For You / Following (Following includes your own posts); newest-first for profiles, search and topics; most liked as a topic page sort. Ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands
 

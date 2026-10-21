@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { FeedList } from "@/components/feed-list";
@@ -7,6 +8,7 @@ import { UserRow } from "@/components/user-row";
 import { requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { allowSearch } from "@/lib/rate-limit";
+import { isTag, normalizeTag, tagHref } from "@/lib/tags";
 import { feedPage, searchUsers, ServiceError, similarPosts } from "@/lib/services";
 import type { Metadata } from "next";
 
@@ -19,6 +21,9 @@ async function Results({ searchParams }: PageProps<"/search">) {
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
   const viewer = viewerCard(await requireViewer());
+  // "#kubernetes": the topic page, not a text search.
+  if (q.startsWith("#") && isTag(normalizeTag(q.slice(1))))
+    redirect(tagHref(normalizeTag(q.slice(1))));
   return (
     <>
       {/* A plain GET form: works without JS and keeps the query in the URL (shareable). */}

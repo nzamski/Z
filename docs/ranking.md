@@ -8,16 +8,18 @@ Spec: PLAN.md §6.
 | View                    | Order                        | Cursor                    | Window  |
 | ----------------------- | ---------------------------- | ------------------------- | ------- |
 | For You                 | `cursor_score DESC, id DESC` | `(feed_as_of, score, id)` | 30 days |
-| Following               | `created_at DESC, id DESC`   | `id` (row's `created_at`) | none    |
-| Latest                  | `created_at DESC, id DESC`   | `id`                      | none    |
-| Top                     | `like_count DESC, id DESC`   | `(like_count, id)`        | none    |
+| Following (and you)     | `created_at DESC, id DESC`   | `id` (row's `created_at`) | none    |
+| Newest (search, topics) | `created_at DESC, id DESC`   | `id`                      | none    |
+| Most liked (topic sort) | `like_count DESC, id DESC`   | `(like_count, id)`        | none    |
 | Profile (`/u/[handle]`) | `created_at DESC, id DESC`   | `id`                      | none    |
 
-Top (`topPage`, index `posts_top_idx`) is the all-time most liked: the place where useful posts
-stay findable. Like counts move while someone pages, so a post can repeat at a page boundary
+Home has two tabs, For You and Following (Latest and Top were removed: at pilot volume Latest
+was For You in another order, and an all-time Top barely changes). Following includes your own
+posts, so a new one shows at once. Most liked (`topPage`, index `posts_top_idx`) is a topic
+page's sort: where useful posts on a subject stay findable. Like counts move while someone pages, so a post can repeat at a page boundary
 (the client drops repeats) or be skipped (it is at most a page away). It has no new-posts pill.
 
-The chosen tab is a cookie (`z_view`, one year), not part of the URL. Pages are 20 posts. The cursor is opaque base64url JSON; a garbled one is a 400 from
+The chosen tab is a cookie (`z_view`, one year), not part of the URL; an old `latest` / `top` falls back to For You. Pages are 20 posts. The cursor is opaque base64url JSON; a garbled one is a 400 from
 `/api/feed` and a fresh first page on the server-rendered pages.
 
 ## For You formula
@@ -40,6 +42,7 @@ All constants live in `RANKING` in `lib/feed.ts`:
 | `ageOffsetHours`       | 2     | Keeps brand-new posts from dividing by ~0          |
 | `gravity`              | 1.5   | How fast posts sink with age                       |
 | `followBoost`          | 2.0   | Posts by people you follow                         |
+| `topicBoost`           | 1.5   | Posts under a topic you follow (docs/topics.md)    |
 | `authorPenalty`        | 0.7   | Spreads one author's posts out within a page       |
 | `pageSize`             | 20    |                                                    |
 | `restoreMaxAgeMinutes` | 30    | Older sessionStorage snapshots start a fresh feed  |

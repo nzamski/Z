@@ -9,13 +9,21 @@ export const RANKING = {
   ageOffsetHours: 2,
   gravity: 1.5,
   followBoost: 2.0,
+  topicBoost: 1.5, // posts under a topic you follow (docs/topics.md)
   authorPenalty: 0.7, // nth post by one author within a page is scaled by 0.7^(n-1)
   restoreMaxAgeMinutes: 30, // sessionStorage scroll snapshot
   newPostsPollSeconds: 15, // For You / Following check for posts newer than the snapshot; the bell polls too
 } as const;
 
+// Orders a feed can have: the home tabs, plus newest-first (profiles, search, topics) and most
+// liked (a topic page's sort).
 export const FEED_VIEWS = ["forYou", "following", "latest", "top"] as const;
 export type FeedView = (typeof FEED_VIEWS)[number];
+// The home page's tabs (and its remembered choice): For You and Following.
+export const FEED_TABS = ["forYou", "following"] as const satisfies readonly FeedView[];
+export type FeedTab = (typeof FEED_TABS)[number];
+export const parseTab = (v: unknown): FeedTab =>
+  FEED_TABS.includes(v as FeedTab) ? (v as FeedTab) : "forYou";
 export const VIEW_COOKIE = "z_view"; // last chosen tab; not in the URL
 export const PILL_SLOT = "new-posts-pill"; // home: the row above the composer that holds the pill
 export const parseView = (v: unknown): FeedView =>

@@ -3,7 +3,7 @@
 import { afterAll, describe, expect, test } from "vitest";
 import { db, sql } from "@/db/client";
 import { posts } from "@/db/schema";
-import { applyAuthorPenalty, mergeById, RANKING } from "@/lib/feed";
+import { applyAuthorPenalty, FEED_TABS, mergeById, parseTab, RANKING } from "@/lib/feed";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
 
@@ -232,5 +232,26 @@ describe("Top", () => {
       cursor = page.next;
     }
     expect(seen.slice(0, expected.length)).toEqual(expected);
+  });
+});
+
+describe("home tabs", () => {
+  test("Following includes your own posts, so a new one shows at once", async () => {
+    const [viewer, followed, stranger] = [await makeUser(), await makeUser(), await makeUser()];
+    await s.follow(viewer.id, followed.id);
+    const mine = await s.createPost(viewer.id, "הפוסט שלי");
+    const theirs = await s.createPost(followed.id, "של מי שאני עוקב");
+    const other = await s.createPost(stranger.id, "של מישהו אחר");
+    const ids = (await s.feedPage(viewer.id, { view: "following" })).items.map((x) => x.id);
+    expect(ids).toContain(mine.id);
+    expect(ids).toContain(theirs.id);
+    expect(ids).not.toContain(other.id);
+  });
+
+  test("only For You and Following are tabs; an old Latest/Top choice falls back", () => {
+    expect(FEED_TABS).toEqual(["forYou", "following"]);
+    expect(parseTab("following")).toBe("following");
+    expect(parseTab("latest")).toBe("forYou");
+    expect(parseTab("top")).toBe("forYou");
   });
 });

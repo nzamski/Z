@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       view: parseView(q.get("view")),
       authorId: author ?? undefined,
       query: q.get("q") ?? undefined,
+      tag: q.get("tag") ?? undefined,
       cursor: q.get("cursor"),
     });
     return NextResponse.json(page);

@@ -30,6 +30,8 @@ import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { textDir } from "@/lib/direction";
+import { splitMentions } from "@/lib/mentions";
+import { splitTags } from "@/lib/tags";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
 import { he } from "@/lib/i18n/he";
 
@@ -176,10 +178,37 @@ const direction = new Plugin({
   },
 });
 
+// #tags and @mentions look in the composer as they will in the post: link colored, and kept whole
+// inside Hebrew ("#kubernetes", not "kubernetes#"). Same rules as the renderer; code is left alone.
+const entities = new Plugin({
+  props: {
+    decorations(state) {
+      const decos: Decoration[] = [];
+      state.doc.descendants((node, pos, parent) => {
+        if (!node.isText || parent?.type.spec.code || M.code.isInSet(node.marks)) return;
+        const text = node.text!;
+        let at = 0;
+        for (const parts of [splitMentions(text), splitTags(text)]) {
+          at = 0;
+          for (const part of parts) {
+            const len = "text" in part ? part.text.length : part.raw.length;
+            if (!("text" in part))
+              decos.push(
+                Decoration.inline(pos + at, pos + at + len, { class: "text-link", dir: "auto" }),
+              );
+            at += len;
+          }
+        }
+      });
+      return DecorationSet.create(state.doc, decos);
+    },
+  },
+});
+
 const createState = (text: string) =>
   EditorState.create({
     doc: parser.parse(text),
-    plugins: [history(), rules, keys, keymap(baseKeymap), direction],
+    plugins: [history(), rules, keys, keymap(baseKeymap), direction, entities],
   });
 
 // Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.
@@ -189,6 +218,14 @@ const clipboardTextParser = (text: string, $at: { parent: { type: NodeType } }) 
     : $at.parent.type.spec.code
       ? new Slice(Fragment.from(schema.text(text)), 0, 0)
       : Slice.maxOpen(parser.parse(text).content);
+
+// Copied as plain text (into a chat, a doc): one line per paragraph, line break or list item. The
+// default puts a blank line between paragraphs, so every Enter came out double spaced. The rich
+// copy (pasting back into Z, or into a rich editor) is unchanged.
+const clipboardTextSerializer = (slice: Slice) =>
+  slice.content.textBetween(0, slice.content.size, "\n", (leaf) =>
+    leaf.type === N.hard_break ? "\n" : "",
+  );
 
 const isEmpty = (s: EditorState | null) =>
   !s ||
@@ -238,6 +275,7 @@ export function Composer(p: Props) {
         },
       },
       clipboardTextParser,
+      clipboardTextSerializer,
     });
     view.current = v;
     setEditor(v.state);
@@ -396,15 +434,9 @@ export function Composer(p: Props) {
               </button>
             ))}
           </div>
-          {/* The send button last, at the row's far end: the counter, warnings and cancel that
-              come and go as you type appear before it, so it never moves. */}
+          {/* The send button last, at the row's far end: the counter and cancel that come and go
+              as you type appear before it, so it never moves. */}
           <div className="flex items-center gap-3">
-            {state.error && (
-              <span role="alert" className="text-danger">
-                {state.error}
-              </span>
-            )}
-            {over && <span className="text-danger">{T.tooLong}</span>}
             <LengthRing length={body.length} max={p.max} />
             {p.onCancel && (
               <button
@@ -426,6 +458,12 @@ export function Composer(p: Props) {
             </button>
           </div>
         </div>
+        {/* Errors and warnings in their own row under the buttons, never squeezed beside them. */}
+        {(state.error || over) && (
+          <p role="alert" className="mt-2 text-sm text-danger">
+            {state.error ?? T.tooLong}
+          </p>
+        )}
       </div>
     </form>
   );

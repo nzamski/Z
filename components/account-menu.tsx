@@ -54,6 +54,13 @@ export function AccountMenu(p: { handle: string; displayName: string; admin: boo
             </svg>
             {he.account.profile}
           </Link>
+          <Link role="menuitem" href="/topics" onClick={close} className={itemClass}>
+            {/* Hash: topics */}
+            <svg {...iconProps}>
+              <path d="M5 9h14M5 15h14M10 3 8 21M16 3l-2 18" />
+            </svg>
+            {he.topics.title}
+          </Link>
           {p.admin && (
             <Link role="menuitem" href="/admin" onClick={close} className={itemClass}>
               {/* Shield: moderation */}

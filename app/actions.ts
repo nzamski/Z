@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeNext } from "@/lib/auth/provider";
 import { requireLogin, requireViewer } from "@/lib/auth/viewer";
-import { parseView, VIEW_COOKIE } from "@/lib/feed";
+import { parseTab, VIEW_COOKIE } from "@/lib/feed";
 import { mentionable } from "@/lib/mentions";
 import { he } from "@/lib/i18n/he";
 import * as s from "@/lib/services";
@@ -79,6 +79,19 @@ export async function setCommentLikeAction(commentId: string, liked: boolean) {
 export async function setFollowAction(userId: string, following: boolean) {
   // "handle": also from the welcome's who-to-follow step.
   return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)), "handle");
+}
+
+/** Follow or unfollow a #topic (its posts get a For You boost). */
+export async function setTopicFollowAction(tag: string, following: boolean) {
+  return run((uid) => (following ? s.followTopic : s.unfollowTopic)(uid, String(tag)));
+}
+
+export type TopicSuggestion = { tag: string; posts: number };
+
+/** Topics to suggest while typing a #tag (the composer's autocomplete). */
+export async function topicSuggestionsAction(prefix: string): Promise<TopicSuggestion[]> {
+  await requireViewer();
+  return s.topicSuggestions(String(prefix).slice(0, 30));
 }
 
 export type UserCard = {
@@ -174,7 +187,7 @@ export async function markNotificationsReadAction(upTo: string) {
 /** Remember the chosen feed tab across sessions (a cookie, so the server renders the right one). */
 export async function setViewAction(f: FormData) {
   await requireViewer();
-  (await cookies()).set(VIEW_COOKIE, parseView(f.get("view")), {
+  (await cookies()).set(VIEW_COOKIE, parseTab(f.get("view")), {
     httpOnly: true,
     sameSite: "lax",
     secure: true, // like the session cookie; browsers allow it on localhost

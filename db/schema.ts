@@ -314,3 +314,44 @@ export const notifications = pgTable(
     index("notifications_updated_at_idx").on(t.updatedAt),
   ],
 );
+
+// #topics (docs/topics.md): which topics a post is filed under, from its #tags (lib/tags.ts).
+// Rewritten on edit: tags that left the body are soft-deleted. `tag` is normalized (lowercase).
+export const postTags = pgTable(
+  "post_tags",
+  {
+    ...base,
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id),
+    tag: text("tag").notNull(),
+  },
+  (t) => [
+    uniqueIndex("post_tags_active_uq")
+      .on(t.postId, t.tag)
+      .where(sql`${t.deletedAt} is null`),
+    // A topic page: its posts. Also counts and suggestions per tag.
+    index("post_tags_tag_idx")
+      .on(t.tag)
+      .where(sql`${t.deletedAt} is null`),
+    index("post_tags_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
+// Following a topic: its posts get a For You boost (lib/feed.ts RANKING.topicBoost).
+export const topicFollows = pgTable(
+  "topic_follows",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tag: text("tag").notNull(),
+  },
+  (t) => [
+    uniqueIndex("topic_follows_active_uq")
+      .on(t.userId, t.tag)
+      .where(sql`${t.deletedAt} is null`),
+    index("topic_follows_updated_at_idx").on(t.updatedAt),
+  ],
+);

@@ -14,7 +14,7 @@ export const REASON_MAX = 300; // moderation reasons
 // themselves, soft-deleted ones included, so they hold across replicas and store nothing new.
 // Search is limited in memory per server process (lib/rate-limit.ts). Mutable for tests only.
 export const RATE = {
-  posts: { max: 10, minutes: 10 },
+  posts: { max: 30, minutes: 10 },
   comments: { max: 30, minutes: 10 },
   likes: { max: 120, minutes: 10 }, // likes rows: each re-like after an unlike counts
   commentLikes: { max: 120, minutes: 10 },
