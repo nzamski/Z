@@ -70,6 +70,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
             action={createCommentAction}
             hidden={{ postId: post.id }}
             draft={`comment:${post.id}`}
+            focusOn="reply"
             max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.placeholder}

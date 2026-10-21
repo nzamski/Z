@@ -43,6 +43,7 @@ type Props = {
   onDone?: () => void;
   allowEmpty?: boolean;
   draft?: string; // autosave key (per browser): new posts, comments and replies, not edits
+  focusOn?: string; // a URL hash ("reply"): arriving with it puts the caret here, ready to type
 };
 
 // Drafts survive a closed tab or a reload; posting, cancelling or emptying the editor drops them.
@@ -210,6 +211,17 @@ export function Composer(p: Props) {
       view.current = null;
     };
   }, [p.initial, p.placeholder, rows, p.draft]);
+
+  // The comment button links to #reply (from a card, or on the post page itself).
+  useEffect(() => {
+    if (!p.focusOn) return;
+    const go = () => {
+      if (location.hash === `#${p.focusOn}`) view.current?.focus();
+    };
+    go();
+    window.addEventListener("hashchange", go);
+    return () => window.removeEventListener("hashchange", go);
+  }, [p.focusOn]);
 
   // The mention list's ARIA lives on the editable element, which ProseMirror owns.
   useEffect(() => {
