@@ -46,7 +46,7 @@ export function PostOwnerActions(p: {
             {he.post.edit}
           </button>
         )}
-        <DeleteButton id={p.postId} action={deletePostAction} />
+        <DeleteButton id={p.postId} kind="post" action={deletePostAction} />
       </div>
     </>
   );

@@ -32,7 +32,7 @@ export function CommentActions(p: {
             {he.comment.reply}
           </button>
         )}
-        {p.isOwner && <DeleteButton id={p.commentId} action={deleteCommentAction} />}
+        {p.isOwner && <DeleteButton id={p.commentId} kind="comment" action={deleteCommentAction} />}
         {p.isAdmin && !p.isOwner && (
           <ModerateButton
             label={he.moderation.remove}

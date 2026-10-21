@@ -373,8 +373,29 @@ export function Composer(p: Props) {
           )}
           {mentions.list}
         </div>
-        {/* One row under a thin line: send (and its state) on one side, formatting on the other. */}
+        {/* One row under a thin line: formatting on one side, send (and its state) on the other. */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-neutral-200 pt-2 text-sm dark:border-neutral-800">
+          <div
+            role="toolbar"
+            aria-label={T.toolbar}
+            className="flex flex-wrap items-center gap-0.5"
+          >
+            {tools.map((t) => (
+              <button
+                key={t.label}
+                type="button"
+                title={t.label}
+                aria-label={t.label}
+                aria-pressed={t.active}
+                onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
+                // No command: the link button, which opens (or closes) the link field.
+                onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
+                className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
+              >
+                {t.icon}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3">
             <button
               disabled={pending || over || (!p.allowEmpty && !body.trim())}
@@ -401,27 +422,6 @@ export function Composer(p: Props) {
                 {state.error}
               </span>
             )}
-          </div>
-          <div
-            role="toolbar"
-            aria-label={T.toolbar}
-            className="flex flex-wrap items-center gap-0.5"
-          >
-            {tools.map((t) => (
-              <button
-                key={t.label}
-                type="button"
-                title={t.label}
-                aria-label={t.label}
-                aria-pressed={t.active}
-                onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
-                // No command: the link button, which opens (or closes) the link field.
-                onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
-                className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
-              >
-                {t.icon}
-              </button>
-            ))}
           </div>
         </div>
       </div>

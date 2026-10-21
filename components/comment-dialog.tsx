@@ -73,6 +73,7 @@ export function CommentButton(p: {
               type="button"
               onClick={close}
               aria-label={he.comment.close}
+              title={he.comment.close}
               className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
             >
               <svg
