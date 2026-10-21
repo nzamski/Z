@@ -67,9 +67,11 @@ function linkRule(
             continue;
           }
           const open = new state.Token("link_open", "a", 1);
+          // dir=auto: "#kubernetes" / "@dana" stay whole inside Hebrew text (not "kubernetes#").
           open.attrs = [
             ["href", part.href],
             ["class", className],
+            ["dir", "auto"],
           ];
           text.content = part.raw;
           out.push(open, text, new state.Token("link_close", "a", -1));

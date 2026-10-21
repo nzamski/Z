@@ -1582,13 +1582,12 @@ export async function unfollowTopic(actorId: string, tagInput: string) {
 /** The topics a user follows, alphabetical, with their live post counts. */
 export async function followedTopics(viewerId: string) {
   return db
-    .select({
-      tag: topicFollows.tag,
-      posts: sql<number>`(select count(*)::int from ${postTags} pt join ${posts} p on p.id = pt.post_id
-        where pt.tag = ${topicFollows.tag} and pt.deleted_at is null and p.deleted_at is null)`,
-    })
+    .select({ tag: topicFollows.tag, posts: sql<number>`count(${posts.id})::int` })
     .from(topicFollows)
+    .leftJoin(postTags, and(eq(postTags.tag, topicFollows.tag), active(postTags)))
+    .leftJoin(posts, and(eq(posts.id, postTags.postId), active(posts)))
     .where(and(eq(topicFollows.userId, viewerId), active(topicFollows)))
+    .groupBy(topicFollows.tag)
     .orderBy(topicFollows.tag);
 }
 

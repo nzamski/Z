@@ -80,8 +80,10 @@ describe("topics", () => {
     const u = await makeUser();
     await s.followTopic(u.id, tag.toUpperCase()); // normalized
     await s.followTopic(u.id, tag); // twice: still one
+    await s.createPost(u.id, `#${tag}`);
+    await s.createPost(u.id, `#${fresh()}`); // another topic: not counted under this one
     expect((await s.topicInfo(u.id, tag)).following).toBe(true);
-    expect((await s.followedTopics(u.id)).map((t) => t.tag)).toEqual([tag]);
+    expect(await s.followedTopics(u.id)).toEqual([{ tag, posts: 1 }]);
     await s.unfollowTopic(u.id, tag);
     expect((await s.topicInfo(u.id, tag)).following).toBe(false);
     expect(await s.followedTopics(u.id)).toEqual([]);

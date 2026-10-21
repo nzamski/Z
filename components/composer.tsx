@@ -30,6 +30,8 @@ import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { textDir } from "@/lib/direction";
+import { splitMentions } from "@/lib/mentions";
+import { splitTags } from "@/lib/tags";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
 import { he } from "@/lib/i18n/he";
 
@@ -176,10 +178,37 @@ const direction = new Plugin({
   },
 });
 
+// #tags and @mentions look in the composer as they will in the post: link colored, and kept whole
+// inside Hebrew ("#kubernetes", not "kubernetes#"). Same rules as the renderer; code is left alone.
+const entities = new Plugin({
+  props: {
+    decorations(state) {
+      const decos: Decoration[] = [];
+      state.doc.descendants((node, pos, parent) => {
+        if (!node.isText || parent?.type.spec.code || M.code.isInSet(node.marks)) return;
+        const text = node.text!;
+        let at = 0;
+        for (const parts of [splitMentions(text), splitTags(text)]) {
+          at = 0;
+          for (const part of parts) {
+            const len = "text" in part ? part.text.length : part.raw.length;
+            if (!("text" in part))
+              decos.push(
+                Decoration.inline(pos + at, pos + at + len, { class: "text-link", dir: "auto" }),
+              );
+            at += len;
+          }
+        }
+      });
+      return DecorationSet.create(state.doc, decos);
+    },
+  },
+});
+
 const createState = (text: string) =>
   EditorState.create({
     doc: parser.parse(text),
-    plugins: [history(), rules, keys, keymap(baseKeymap), direction],
+    plugins: [history(), rules, keys, keymap(baseKeymap), direction, entities],
   });
 
 // Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.
