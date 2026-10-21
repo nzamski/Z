@@ -282,3 +282,16 @@ describe("polls", () => {
     expect(await code(s.votePoll(b.id, q.id, 0))).toBe("gone");
   });
 });
+
+describe("profession badge", () => {
+  test("pick one of the list, change it, clear it; others are refused", async () => {
+    const u = await makeUser();
+    const save = (profession?: string | null) =>
+      s.updateProfile(u.id, { handle: u.handle!, bio: "", profession });
+    expect((await save("devops")).profession).toBe("devops");
+    expect((await save(undefined)).profession).toBe("devops"); // not sent: kept
+    expect((await save("qa")).profession).toBe("qa");
+    expect((await save(null)).profession).toBeNull();
+    expect(await code(save("ceo"))).toBe("invalid");
+  });
+});

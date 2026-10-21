@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getUserCardAction, type UserCard } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
+import { ProfessionBadge } from "@/components/profession-badge";
 import { he } from "@/lib/i18n/he";
 
 const OPEN_DELAY = 400;
@@ -101,6 +102,7 @@ export function UserHoverCard({
             <span className="shrink-[3] truncate text-muted" dir="ltr">
               @{card.handle}
             </span>
+            <ProfessionBadge profession={card.profession} />
           </div>
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-muted">

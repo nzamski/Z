@@ -12,6 +12,7 @@ import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
+import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
 import { PostCard } from "@/components/post-card";
@@ -70,10 +71,16 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               <span className="text-muted" dir="ltr">
                 @{user.handle}
               </span>
+              <ProfessionBadge profession={user.profession} />
             </div>
           </div>
           {viewerId === user.id && (
-            <ProfileEditor displayName={user.displayName} handle={user.handle} bio={user.bio} />
+            <ProfileEditor
+              displayName={user.displayName}
+              handle={user.handle}
+              bio={user.bio}
+              profession={user.profession}
+            />
           )}
           {viewerId !== user.id && (
             <div className="flex items-center gap-2">

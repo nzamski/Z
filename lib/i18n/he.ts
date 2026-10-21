@@ -99,6 +99,7 @@ export const he = {
     expand: (n: number) => `הצגת ${n} תשובות`,
   },
   profile: {
+    profession: "מקצוע",
     follow: "מעקב",
     unfollow: "הפסקת מעקב",
     followers: "עוקבים",
