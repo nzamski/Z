@@ -4,6 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
 import { CommentButton } from "@/components/comment-dialog";
 import { PostMenu } from "@/components/post-menu";
+import { Poll } from "@/components/poll";
 import { PostPreview } from "@/components/post-preview";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
@@ -120,6 +121,9 @@ export function PostCard({
           {viewer && <PostMenu post={p} viewer={viewer} onGone={onGone} />}
         </div>
         <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
+        {p.poll && (
+          <Poll postId={p.id} poll={p.poll} canVote={!!viewer && viewer.id !== p.authorId} />
+        )}
         <div className="mt-2 flex gap-8 text-sm text-muted">
           <LikeButton
             id={p.id}

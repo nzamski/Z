@@ -10,6 +10,7 @@ import { Markdown } from "@/components/markdown";
 import { Avatar } from "@/components/avatar";
 import { CommentButton } from "@/components/comment-dialog";
 import { Byline } from "@/components/post-card";
+import { Poll } from "@/components/poll";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
@@ -57,6 +58,9 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
             </PostOwnerActions>
           ) : (
             body
+          )}
+          {post.poll && (
+            <Poll postId={post.id} poll={post.poll} canVote={viewerId !== post.authorId} />
           )}
           <div className="mt-3 flex gap-8 text-sm text-muted">
             <LikeButton

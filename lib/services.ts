@@ -24,6 +24,7 @@ import {
   likes,
   moderationActions,
   notifications,
+  pollVotes,
   posts,
   postTags,
   topicFollows,
@@ -42,6 +43,9 @@ import {
 import {
   BIO_MAX,
   PINS_MAX,
+  POLL_DAYS,
+  POLL_OPTION_MAX,
+  POLL_OPTIONS_MAX,
   COMMENT_MAX,
   EDIT_WINDOW_MINUTES,
   HANDLE_RE,
@@ -66,7 +70,8 @@ export class ServiceError extends Error {
       | "taken"
       | "suspended"
       | "rate_limited"
-      | "edit_window",
+      | "edit_window"
+      | "poll_closed",
   ) {
     super(code);
   }
@@ -78,6 +83,15 @@ const CommentBody = z.string().trim().max(COMMENT_MAX).refine(hasContent, "empty
 const Bio = z.string().trim().max(BIO_MAX);
 const Handle = z.string().trim().toLowerCase().regex(HANDLE_RE);
 const Reason = z.string().trim().min(1).max(REASON_MAX);
+const Poll = z.object({
+  options: z
+    .array(z.string().trim().min(1).max(POLL_OPTION_MAX))
+    .min(2)
+    .max(POLL_OPTIONS_MAX)
+    .refine((o) => new Set(o).size === o.length), // no duplicates
+  days: z.number().refine((d) => POLL_DAYS.includes(d)),
+});
+export type PollInput = z.infer<typeof Poll>;
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
@@ -251,13 +265,23 @@ async function notifyMentions(
 
 // ---- posts ----
 
-export async function createPost(actorId: string, body: string) {
+/** `poll`: the post's question is its text; the options and duration come here. */
+export async function createPost(actorId: string, body: string, poll?: PollInput) {
   const text = parse(PostBody, body);
+  const p = poll && parse(Poll, poll);
   await assertCanWrite(actorId, "posts");
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(posts)
-      .values({ authorId: actorId, body: text, ...computePreview(text) })
+      .values({
+        authorId: actorId,
+        body: text,
+        ...computePreview(text),
+        ...(p && {
+          pollOptions: p.options,
+          pollEndsAt: sql`now() + make_interval(days => ${p.days})`,
+        }),
+      })
       .returning();
     await notifyMentions(tx, actorId, text, { postId: row.id });
     await setPostTags(tx, row.id, text);
@@ -353,6 +377,35 @@ export async function deleteComment(actorId: string, commentId: string) {
       .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
   });
+}
+
+// ---- polls ----
+
+/** One vote per person, final (X-style), while the poll is open (the database's clock).
+ * `option`: the option's index. */
+export async function votePoll(actorId: string, postId: string, option: number) {
+  await assertCanWrite(actorId);
+  const [p] = await db
+    .select({
+      options: sql<number | null>`cardinality(${posts.pollOptions})`,
+      open: sql<boolean>`${posts.pollEndsAt} > now()`,
+      deletedAt: posts.deletedAt,
+      removedAt: posts.removedAt,
+    })
+    .from(posts)
+    .where(eq(posts.id, postId));
+  if (!p || p.options === null) throw new ServiceError("not_found");
+  if (p.deletedAt || p.removedAt) throw new ServiceError("gone");
+  if (!p.open) throw new ServiceError("poll_closed");
+  if (!Number.isInteger(option) || option < 0 || option >= p.options)
+    throw new ServiceError("invalid");
+  await db
+    .insert(pollVotes)
+    .values({ postId, userId: actorId, option })
+    .onConflictDoNothing({
+      target: [pollVotes.postId, pollVotes.userId],
+      where: active(pollVotes),
+    });
 }
 
 // ---- likes ----
@@ -521,6 +574,14 @@ const likedBy = (viewerId: string | null) =>
         and l.user_id = ${viewerId} and l.deleted_at is null)`
     : sql<boolean>`false`;
 
+export type PollView = {
+  options: string[];
+  endsAt: string;
+  open: boolean;
+  counts: number[];
+  mine: number | null;
+};
+
 const postCols = (viewerId: string | null) => ({
   id: posts.id,
   authorId: posts.authorId,
@@ -540,6 +601,17 @@ const postCols = (viewerId: string | null) => ({
   // The author liked a comment on it: the "answered" mark (comments_author_liked_idx).
   answered: sql<boolean>`exists (select 1 from ${comments} ac where ac.post_id = ${posts.id}
     and ac.author_liked_at is not null and ac.deleted_at is null)`,
+  // Null without a poll. counts[i]: votes for options[i]; mine: the viewer's option, if voted.
+  poll: sql<PollView | null>`case when ${posts.pollOptions} is null then null else json_build_object(
+    'options', ${posts.pollOptions},
+    'endsAt', ${posts.pollEndsAt},
+    'open', ${posts.pollEndsAt} > now(),
+    'counts', (select json_agg((select count(*) from ${pollVotes} pv where pv.post_id = ${posts.id}
+        and pv.option = i - 1 and pv.deleted_at is null) order by i)
+      from generate_subscripts(${posts.pollOptions}, 1) i),
+    'mine', (select pm.option from ${pollVotes} pm where pm.post_id = ${posts.id}
+      and pm.user_id = ${viewerId} and pm.deleted_at is null)
+  ) end`,
   // Authors always have a handle: posting requires finishing the welcome.
   author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
 });

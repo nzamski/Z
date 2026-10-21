@@ -39,7 +39,23 @@ async function run(
 const field = (f: FormData, name: string) => f.get(name) ?? undefined;
 
 export async function createPostAction(_: ActionResult, f: FormData) {
-  return run((uid) => s.createPost(uid, Text.parse(field(f, "body"))));
+  // A poll: its option fields and duration (the composer sends them only with a poll open).
+  const days = f.get("pollDays");
+  const poll = days
+    ? {
+        options: f
+          .getAll("pollOption")
+          .map(String)
+          .filter((o) => o.trim()), // blanks: unused
+        days: Number(days),
+      }
+    : undefined;
+  return run((uid) => s.createPost(uid, Text.parse(field(f, "body")), poll));
+}
+
+/** `option`: the option's index. */
+export async function votePollAction(postId: string, option: number) {
+  return run((uid) => s.votePoll(uid, Id.parse(postId), z.number().parse(option)));
 }
 
 export async function editPostAction(_: ActionResult, f: FormData) {

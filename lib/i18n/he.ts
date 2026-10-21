@@ -70,6 +70,19 @@ export const he = {
     emojiSearch: "חיפוש (באנגלית)",
     emojiNone: "לא נמצא אימוג׳י.",
     direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
+    poll: "סקר",
+  },
+  poll: {
+    option: (n: number) => `אפשרות ${n}`,
+    addOption: "הוספת אפשרות",
+    removeOption: "הסרת האפשרות",
+    remove: "הסרת הסקר",
+    duration: "משך הסקר",
+    days: (n: number) => (n === 1 ? "יום אחד" : `${n} ימים`),
+    votes: (n: number) => (n === 1 ? "הצבעה אחת" : `${n.toLocaleString()} הצבעות`),
+    left: (t: string) => `מסתיים ${t}`,
+    ended: "הסקר הסתיים",
+    yours: "ההצבעה שלך",
   },
   comment: {
     placeholder: "כתבו תגובה…",
@@ -224,6 +237,7 @@ export const he = {
     edit_window: "אפשר לערוך פוסט רק בשעה הראשונה אחרי הפרסום.",
     rate_limited: "יותר מדי פעולות בזמן קצר. נסו שוב בעוד כמה דקות.",
     suspended: "החשבון שלך מושעה.",
+    poll_closed: "הסקר הסתיים.",
     unknown: "משהו השתבש. נסו שוב.",
   },
   // Browser tab titles, X-style "<page> / Z" (the " / Z" comes from the root layout template).

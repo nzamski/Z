@@ -4,7 +4,7 @@ import { db, sql } from "@/db/client";
 import { follows, likes, posts } from "@/db/schema";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
-import { EDIT_WINDOW_MINUTES, PINS_MAX, POST_MAX } from "@/lib/limits";
+import { EDIT_WINDOW_MINUTES, PINS_MAX, POLL_OPTION_MAX, POST_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -222,5 +222,62 @@ describe("postSummaries (a feed shown again re-checks its cards)", () => {
     const got = await s.postSummaries(viewer.id, [kept.id, gone.id]);
     expect(got.map((x) => x.id)).toEqual([kept.id]);
     expect(got[0]).toMatchObject({ likeCount: 1, commentCount: 1, liked: true });
+  });
+});
+
+describe("polls", () => {
+  const options = ["כן", "לא", "אולי"];
+
+  test("validates options and duration", async () => {
+    const a = await makeUser();
+    const bad = (poll: s.PollInput) => code(s.createPost(a.id, "שאלה?", poll));
+    expect(await bad({ options: ["רק אחת"], days: 1 })).toBe("invalid");
+    expect(await bad({ options: ["א", "ב", "ג", "ד", "ה"], days: 1 })).toBe("invalid");
+    expect(await bad({ options: ["כן", " "], days: 1 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "כן"], days: 1 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "א".repeat(POLL_OPTION_MAX + 1)], days: 1 })).toBe(
+      "invalid",
+    );
+    expect(await bad({ options: ["כן", "לא"], days: 2 })).toBe("invalid");
+    expect(await code(s.createPost(a.id, "", { options, days: 1 }))).toBe("empty"); // needs a question
+  });
+
+  test("one final vote per person; counts and the viewer's choice; edits keep the poll", async () => {
+    const [a, b, c] = [await makeUser(), await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "שאלה?", { options, days: 3 });
+    expect((await s.getPost(p.id, b.id))?.poll).toMatchObject({
+      options,
+      open: true,
+      counts: [0, 0, 0],
+      mine: null,
+    });
+    await s.votePoll(b.id, p.id, 1);
+    await s.votePoll(b.id, p.id, 2); // already voted: ignored
+    await s.votePoll(c.id, p.id, 1);
+    expect((await s.getPost(p.id, b.id))?.poll).toMatchObject({ counts: [0, 2, 0], mine: 1 });
+    expect((await s.getPost(p.id, a.id))?.poll?.mine).toBeNull();
+    expect(await code(s.votePoll(c.id, p.id, 3))).toBe("invalid");
+
+    await s.editPost(a.id, p.id, "שאלה אחרת?");
+    expect((await s.getPost(p.id, b.id))?.poll?.counts).toEqual([0, 2, 0]);
+
+    const plain = await s.createPost(a.id, "בלי סקר");
+    expect((await s.getPost(plain.id, b.id))?.poll).toBeNull();
+    expect(await code(s.votePoll(b.id, plain.id, 0))).toBe("not_found");
+  });
+
+  test("no votes after the poll ends or on a deleted post", async () => {
+    const [a, b] = [await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "שאלה?", { options, days: 1 });
+    await db
+      .update(posts)
+      .set({ pollEndsAt: dsql`now() - interval '1 second'` })
+      .where(eq(posts.id, p.id));
+    expect(await code(s.votePoll(b.id, p.id, 0))).toBe("poll_closed");
+    expect((await s.getPost(p.id, b.id))?.poll?.open).toBe(false);
+
+    const q = await s.createPost(a.id, "שאלה?", { options, days: 1 });
+    await s.deletePost(a.id, q.id);
+    expect(await code(s.votePoll(b.id, q.id, 0))).toBe("gone");
   });
 });

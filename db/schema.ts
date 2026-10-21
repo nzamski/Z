@@ -77,10 +77,14 @@ export const posts = pgTable(
     removedAt: ts("removed_at"),
     // Pinned by its author to the top of their profile (up to PINS_MAX), newest pin first.
     pinnedAt: ts("pinned_at"),
+    // A poll (docs/polls.md): 2-POLL_OPTIONS_MAX options and when voting closes; null without one.
+    pollOptions: text("poll_options").array(),
+    pollEndsAt: ts("poll_ends_at"),
     // Search vector kept in sync by Postgres (z_search_vector: drizzle/0005_search.sql).
     search: tsvector("search").generatedAlwaysAs(sql`z_search_vector(body)`),
   },
   (t) => [
+    check("posts_poll_ck", sql`(${t.pollOptions} is null) = (${t.pollEndsAt} is null)`),
     index("posts_pinned_idx")
       .on(t.authorId, t.pinnedAt)
       .where(sql`${t.pinnedAt} is not null and ${t.deletedAt} is null`),
@@ -340,6 +344,28 @@ export const postTags = pgTable(
       .on(t.tag)
       .where(sql`${t.deletedAt} is null`),
     index("post_tags_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
+// A vote in a post's poll: one per person, final. `option` indexes posts.poll_options.
+export const pollVotes = pgTable(
+  "poll_votes",
+  {
+    ...base,
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    option: integer("option").notNull(),
+  },
+  (t) => [
+    // Also the counts: a poll's votes by post.
+    uniqueIndex("poll_votes_active_uq")
+      .on(t.postId, t.userId)
+      .where(sql`${t.deletedAt} is null`),
+    index("poll_votes_updated_at_idx").on(t.updatedAt),
   ],
 );
 

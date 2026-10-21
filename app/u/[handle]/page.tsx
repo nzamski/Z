@@ -7,6 +7,7 @@ import {
   suspendUserAction,
   unsuspendUserAction,
 } from "@/app/actions";
+import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
@@ -55,18 +56,21 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
     <>
       <section className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-            <h2 className="text-xl font-bold">
-              {user.displayName}
-              {user.suspendedAt && admin && (
-                <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
-                  {he.moderation.suspendedBadge}
-                </span>
-              )}
-            </h2>
-            <span className="text-muted" dir="ltr">
-              @{user.handle}
-            </span>
+          <div className="min-w-0">
+            <Avatar name={user.displayName} large />
+            <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <h2 className="text-xl font-bold">
+                {user.displayName}
+                {user.suspendedAt && admin && (
+                  <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
+                    {he.moderation.suspendedBadge}
+                  </span>
+                )}
+              </h2>
+              <span className="text-muted" dir="ltr">
+                @{user.handle}
+              </span>
+            </div>
           </div>
           {viewerId === user.id && (
             <ProfileEditor displayName={user.displayName} handle={user.handle} bio={user.bio} />

@@ -52,11 +52,10 @@ export async function SideBar() {
             {people.map((u) => (
               <li key={u.id} className="flex items-center gap-3">
                 <Avatar name={u.displayName} handle={u.handle} small />
-                <Link
-                  href={`/u/${encodeURIComponent(u.handle)}`}
-                  className="min-w-0 flex-1 hover:underline"
-                >
-                  <span className="block truncate font-bold">{u.displayName}</span>
+                <Link href={`/u/${encodeURIComponent(u.handle)}`} className="group min-w-0 flex-1">
+                  <span className="block truncate font-bold group-hover:underline">
+                    {u.displayName}
+                  </span>
                   {/* bdi: "@user7" reads whole, the line stays RTL (under the name, at the right). */}
                   <span className="block truncate text-sm text-muted">
                     <bdi>@{u.handle}</bdi>

@@ -63,6 +63,7 @@ export function NewPostButton(p: {
             <Composer
               key={open}
               action={createPostAction}
+              poll
               draft="post"
               autoFocus
               author={p.viewer}
