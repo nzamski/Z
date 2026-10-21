@@ -190,6 +190,14 @@ const clipboardTextParser = (text: string, $at: { parent: { type: NodeType } }) 
       ? new Slice(Fragment.from(schema.text(text)), 0, 0)
       : Slice.maxOpen(parser.parse(text).content);
 
+// Copied as plain text (into a chat, a doc): one line per paragraph, line break or list item. The
+// default puts a blank line between paragraphs, so every Enter came out double spaced. The rich
+// copy (pasting back into Z, or into a rich editor) is unchanged.
+const clipboardTextSerializer = (slice: Slice) =>
+  slice.content.textBetween(0, slice.content.size, "\n", (leaf) =>
+    leaf.type === N.hard_break ? "\n" : "",
+  );
+
 const isEmpty = (s: EditorState | null) =>
   !s ||
   (s.doc.childCount === 1 &&
@@ -238,6 +246,7 @@ export function Composer(p: Props) {
         },
       },
       clipboardTextParser,
+      clipboardTextSerializer,
     });
     view.current = v;
     setEditor(v.state);
