@@ -12,6 +12,7 @@ export function ModerateButton(p: {
   action: (reason: string) => Promise<ActionResult>;
   danger?: boolean;
   triggerClass?: string; // e.g. as an item in a post's "⋯" menu
+  icon?: React.ReactNode; // before the label (in a menu)
   onDone?: () => void; // after the action succeeded
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -31,6 +32,7 @@ export function ModerateButton(p: {
         }}
         className={p.triggerClass ?? `transition-colors hover:underline ${tone}`}
       >
+        {p.icon}
         {p.label}
       </button>
       <dialog

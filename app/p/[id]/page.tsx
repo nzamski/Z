@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { z } from "zod";
-import { createCommentAction, removePostAction, restorePostAction } from "@/app/actions";
+import { createCommentAction, restorePostAction } from "@/app/actions";
 import { LikeButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
@@ -11,7 +11,7 @@ import { Avatar } from "@/components/avatar";
 import { CommentButton } from "@/components/comment-dialog";
 import { Byline } from "@/components/post-card";
 import { Poll } from "@/components/poll";
-import { PostOwnerActions } from "@/components/post-owner-actions";
+import { PostDetail } from "@/components/post-detail";
 import { Thread } from "@/components/thread";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
@@ -45,20 +45,16 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
       <article className="flex gap-3 border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <Avatar name={post.author.displayName} handle={post.author.handle} />
         <div className="min-w-0 flex-1">
-          <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
-          {viewerId === post.authorId ? (
-            <PostOwnerActions
-              postId={post.id}
-              body={post.body}
-              canEdit={canEditPost(post.createdAt)}
-              pinned={post.pinned}
-              startEditing={q.edit === "1"} // from a card's "⋯" menu
-            >
-              {body}
-            </PostOwnerActions>
-          ) : (
-            body
-          )}
+          <PostDetail
+            post={post}
+            viewer={viewer}
+            byline={
+              <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
+            }
+            startEditing={q.edit === "1" && canEditPost(post.createdAt)} // from a card's "⋯" menu
+          >
+            {body}
+          </PostDetail>
           {post.poll && (
             <Poll postId={post.id} poll={post.poll} canVote={viewerId !== post.authorId} />
           )}
@@ -77,15 +73,6 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               viewer={viewer}
             />
           </div>
-          {admin && viewerId !== post.authorId && (
-            <div className="mt-2 text-sm text-muted">
-              <ModerateButton
-                label={he.moderation.remove}
-                danger
-                action={removePostAction.bind(null, post.id)}
-              />
-            </div>
-          )}
         </div>
       </article>
       <section id="reply" className="scroll-mt-24 p-4 text-start">

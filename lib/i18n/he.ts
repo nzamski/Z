@@ -16,7 +16,7 @@ export const he = {
   side: {
     popular: "נושאים פופולריים",
     allTopics: "לכל הנושאים",
-    whoToFollow: "מי לעקוב",
+    whoToFollow: "אחרי מי לעקוב",
     noOne: "אין כרגע הצעות.",
     noTopics: "עדיין אין נושאים השבוע.",
   },

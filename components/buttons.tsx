@@ -121,6 +121,7 @@ export function DeleteButton(p: {
   kind: "post" | "comment";
   action: (id: string) => Promise<ActionResult>;
   triggerClass?: string; // e.g. as an item in a post's "⋯" menu
+  icon?: React.ReactNode; // before the label (in a menu)
   onDone?: () => void; // after a successful delete (a feed drops the card)
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -138,6 +139,7 @@ export function DeleteButton(p: {
         }}
         className={p.triggerClass ?? "transition-colors hover:text-danger hover:underline"}
       >
+        {p.icon}
         {he.post.delete}
       </button>
       <dialog
