@@ -4,7 +4,7 @@
 // Someone else's: follow / unfollow its author, and remove (admins). Delete and remove confirm in
 // their popups; `onGone` drops the card from its feed afterwards.
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   deletePostAction,
   removePostAction,
@@ -27,6 +27,8 @@ import { he } from "@/lib/i18n/he";
 import { EDIT_WINDOW_MINUTES } from "@/lib/limits";
 import type { PostSummary } from "@/lib/services";
 
+const PIN_EVENT = "z:pinned";
+
 export function PostMenu(p: {
   post: PostSummary;
   viewer: Viewer;
@@ -40,8 +42,17 @@ export function PostMenu(p: {
   const mine = p.post.authorId === p.viewer.id;
   // The edit window is checked when the menu opens (not during render: it reads the clock).
   const [canEdit, setCanEdit] = useState(false);
-  // Local, like `following`: a feed's cards aren't re-rendered after the action.
+  // Local, like `following`: a feed's cards aren't re-rendered after the action. The same post
+  // can be on the page twice (a profile's pins and its timeline): every copy hears the change.
   const [pinned, setPinned] = useState(p.post.pinned);
+  useEffect(() => {
+    const hear = (e: Event) => {
+      const d = (e as CustomEvent<{ id: string; pinned: boolean }>).detail;
+      if (d.id === p.post.id) setPinned(d.pinned);
+    };
+    addEventListener(PIN_EVENT, hear);
+    return () => removeEventListener(PIN_EVENT, hear);
+  }, [p.post.id]);
   const [error, setError] = useState<string>();
   const handle = p.post.author.handle;
   // Closes on success; an error (e.g. already PINS_MAX pinned) stays in the menu.
@@ -89,7 +100,10 @@ export function PostMenu(p: {
           onClick={() =>
             run(
               () => setPinAction(p.post.id, !pinned),
-              () => setPinned(!pinned),
+              () =>
+                dispatchEvent(
+                  new CustomEvent(PIN_EVENT, { detail: { id: p.post.id, pinned: !pinned } }),
+                ),
             )
           }
           className={item}

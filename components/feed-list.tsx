@@ -271,6 +271,9 @@ export function FeedList(p: {
     return () => io.disconnect();
   }, [next, failed, load]);
 
+  const visible = items.filter((x) => !p.hide?.includes(x.id));
+  // All of them pinned above (a profile): nothing more to show here, not even "no posts".
+  if (!visible.length && items.length && !next) return pill;
   if (!items.length) {
     return (
       <>
@@ -283,16 +286,14 @@ export function FeedList(p: {
     <>
       {pill}
       <ul ref={list}>
-        {items
-          .filter((x) => !p.hide?.includes(x.id))
-          .map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              viewer={p.viewer}
-              onGone={() => setItems((prev) => prev.filter((x) => x.id !== post.id))}
-            />
-          ))}
+        {visible.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            viewer={p.viewer}
+            onGone={() => setItems((prev) => prev.filter((x) => x.id !== post.id))}
+          />
+        ))}
       </ul>
       <div ref={sentinel} className="p-4 text-center text-sm text-muted">
         {loading ? (
