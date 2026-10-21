@@ -42,6 +42,7 @@ All constants live in `RANKING` in `lib/feed.ts`:
 | `ageOffsetHours`       | 2     | Keeps brand-new posts from dividing by ~0          |
 | `gravity`              | 1.5   | How fast posts sink with age                       |
 | `followBoost`          | 2.0   | Posts by people you follow                         |
+| `topicBoost`           | 1.5   | Posts under a topic you follow (docs/topics.md)    |
 | `authorPenalty`        | 0.7   | Spreads one author's posts out within a page       |
 | `pageSize`             | 20    |                                                    |
 | `restoreMaxAgeMinutes` | 30    | Older sessionStorage snapshots start a fresh feed  |

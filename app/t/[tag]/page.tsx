@@ -38,8 +38,8 @@ async function Topic({ params, searchParams }: PageProps<"/t/[tag]">) {
     <>
       <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 pt-3 text-start dark:border-neutral-800">
         <div className="min-w-0 pb-1">
-          <h1 className="truncate text-xl font-bold" dir="auto">
-            #{tag}
+          <h1 className="truncate text-xl font-bold">
+            <bdi>#{tag}</bdi>
           </h1>
           <p className="text-sm text-muted">{he.topics.posts(info.posts)}</p>
         </div>

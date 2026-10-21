@@ -24,8 +24,9 @@ function TopicList(p: {
           {p.topics.map((t) => (
             <li key={t.tag} className="flex items-center justify-between gap-3 py-2">
               <Link href={tagHref(t.tag)} className="min-w-0 flex-1 hover:underline">
-                <span className="block truncate font-medium" dir="auto">
-                  #{t.tag}
+                {/* bdi: the tag reads whole ("#kubernetes"); the line stays RTL, so it's at the right. */}
+                <span className="block truncate font-medium">
+                  <bdi>#{t.tag}</bdi>
                 </span>
                 <span className="text-sm text-muted">{he.topics.posts(t.posts)}</span>
               </Link>
