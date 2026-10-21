@@ -1641,3 +1641,31 @@ export async function pinnedPost(viewerId: string, userId: string) {
     .where(and(eq(users.id, userId), active(posts)));
   return row ?? null;
 }
+
+// ---- who to follow (the sidebar) ----
+
+/** People the viewer doesn't follow yet, most liked in the last 30 days first. Column names are
+ * spelled out in the subqueries: in a one-table query drizzle leaves `users.id` unqualified, and
+ * inside a subquery that would mean the subquery's own `id`. */
+export async function whoToFollow(viewerId: string, limit = 3) {
+  return db
+    .select({ id: users.id, displayName: users.displayName, handle: sql<string>`${users.handle}` })
+    .from(users)
+    .where(
+      and(
+        active(users),
+        isNull(users.suspendedAt),
+        sql`${users.handle} is not null and ${users.onboardedAt} is not null`,
+        ne(users.id, viewerId),
+        sql`not exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
+          and f.followee_id = "users"."id" and f.deleted_at is null)`,
+      ),
+    )
+    .orderBy(
+      desc(sql`(select coalesce(sum(p.like_count), 0) from ${posts} p
+        where p.author_id = "users"."id" and p.deleted_at is null
+          and p.created_at > now() - interval '30 days')`),
+      users.id,
+    )
+    .limit(limit);
+}

@@ -61,8 +61,12 @@ export function useMenu() {
   return { open, setOpen, root };
 }
 
-export const menuClass =
-  "absolute end-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 shadow-lg dark:border-neutral-800";
+// A dropdown's box, and where it opens: under its button, at the end (the default), or above it
+// (the rail's account menu, at the bottom of the screen).
+export const menuBox =
+  "z-20 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 shadow-lg dark:border-neutral-800";
+export const menuClass = `absolute end-0 top-full mt-1 ${menuBox}`;
+export const menuUpClass = `absolute start-0 bottom-full mb-1 ${menuBox}`;
 
 /** Three-way segmented control; lives inside a role="menu". */
 export function ThemePicker() {

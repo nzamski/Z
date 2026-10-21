@@ -37,12 +37,24 @@ async function showDesktop(previous: number) {
   };
 }
 
-export function NotificationBell({ initial }: { initial: number }) {
+/** In the header (an icon) or the rail (`className`, and a `label` beside the icon). */
+export function NotificationBell({
+  initial,
+  label,
+  className,
+}: {
+  initial: number;
+  label?: React.ReactNode;
+  className?: string;
+}) {
+  const link = useRef<HTMLAnchorElement>(null);
   const [count, setCount] = useState(initial);
   const last = useRef(initial);
   const pathname = usePathname();
   useEffect(() => {
     const check = async () => {
+      // The header and the rail each have a bell, one hidden by the screen size: only the shown one polls.
+      if (!link.current?.offsetParent) return;
       const r = await fetch("/api/notifications").catch(() => null);
       if (!r?.ok) return;
       const { count } = (await r.json()) as { count: number };
@@ -68,29 +80,37 @@ export function NotificationBell({ initial }: { initial: number }) {
   const shown = pathname === "/notifications" ? 0 : count;
   return (
     <Link
+      ref={link}
       href="/notifications"
+      aria-current={pathname === "/notifications" ? "page" : undefined} // bold in the rail
       aria-label={he.notifications.bell(shown)}
       data-tip={he.notifications.title}
-      className="relative grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
+      className={
+        className ??
+        "relative grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
+      }
     >
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden
-        className="size-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-      </svg>
-      {shown > 0 && (
-        <span className="absolute -top-0.5 -end-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-sky-600 px-1 text-[10px] font-bold text-white tabular-nums">
-          {shown > 99 ? "99+" : shown}
-        </span>
-      )}
+      <span className="relative grid place-items-center">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+        {shown > 0 && (
+          <span className="absolute -top-2 -end-2 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-sky-600 px-1 text-[10px] font-bold text-white tabular-nums">
+            {shown > 99 ? "99+" : shown}
+          </span>
+        )}
+      </span>
+      {label}
     </Link>
   );
 }

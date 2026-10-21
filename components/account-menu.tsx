@@ -2,7 +2,7 @@
 // Header account menu behind a round initial: profile, moderation (admins), theme.
 import Link from "next/link";
 import { initial } from "@/components/avatar";
-import { menuClass, ThemePicker, useMenu } from "@/components/theme-menu";
+import { menuClass, menuUpClass, ThemePicker, useMenu } from "@/components/theme-menu";
 import { he } from "@/lib/i18n/he";
 
 const itemClass =
@@ -18,7 +18,12 @@ const iconProps = {
   strokeLinejoin: "round",
 } as const;
 
-export function AccountMenu(p: { handle: string; displayName: string; admin: boolean }) {
+export function AccountMenu(p: {
+  handle: string;
+  displayName: string;
+  admin: boolean;
+  up?: boolean; // opens above the button (the rail's, at the bottom of the screen)
+}) {
   const { open, setOpen, root } = useMenu();
   const close = () => setOpen(false);
   return (
@@ -34,7 +39,11 @@ export function AccountMenu(p: { handle: string; displayName: string; admin: boo
         <span aria-hidden>{initial(p.displayName, p.handle)}</span>
       </button>
       {open && (
-        <div role="menu" aria-label={he.account.menu} className={`${menuClass} w-56`}>
+        <div
+          role="menu"
+          aria-label={he.account.menu}
+          className={`${p.up ? menuUpClass : menuClass} w-56`}
+        >
           <div className="flex min-w-0 items-baseline gap-x-2 px-3 py-2">
             <span className="truncate font-bold">{p.displayName}</span>
             <span className="shrink-[3] truncate text-muted" dir="ltr">

@@ -8,6 +8,16 @@ export const he = {
     home: "לדף הבית",
     back: "חזרה",
     skip: "דילוג לתוכן",
+    main: "ניווט ראשי",
+    homePage: "בית",
+    newPost: "פוסט חדש",
+  },
+  side: {
+    popular: "נושאים פופולריים",
+    allTopics: "לכל הנושאים",
+    whoToFollow: "מי לעקוב",
+    noOne: "אין כרגע הצעות.",
+    noTopics: "עדיין אין נושאים השבוע.",
   },
   auth: {
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",

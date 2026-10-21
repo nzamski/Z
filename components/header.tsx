@@ -19,8 +19,9 @@ async function AuthStatus() {
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
   // DOM order runs right to left (RTL): search nearest the logo, the account menu at the edge.
+  // From lg up the navigation rail has these (components/nav-rail.tsx).
   return (
-    <>
+    <div className="flex items-center gap-2 lg:hidden">
       <Link
         href="/search"
         aria-label={he.nav.search}
@@ -42,7 +43,7 @@ async function AuthStatus() {
       </Link>
       <NotificationBell initial={unread} />
       <AccountMenu handle={user.handle} displayName={user.displayName} admin={admin} />
-    </>
+    </div>
   );
 }
 
