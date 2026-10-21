@@ -91,6 +91,12 @@ body {
   font-family: var(--font-sans);
 }
 
+/* A modal popup (edit profile, comment) freezes the page behind it: <dialog> already makes it
+   inert; this stops it scrolling too. */
+html:has(dialog:modal) {
+  overflow: hidden;
+}
+
 /* Like button "pop" when a post is liked. */
 @theme {
   --animate-like-pop: like-pop 280ms ease-out;

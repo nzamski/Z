@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
 import { ClickableCard } from "@/components/clickable-card";
+import { CommentButton } from "@/components/comment-dialog";
 import { PostPreview } from "@/components/post-preview";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
@@ -50,7 +51,6 @@ export function Byline(p: {
   author: { displayName: string; handle: string };
   createdAt: Date;
   editedAt: Date | null;
-  href?: string; // the timestamp links here (X-style; also the keyboard way into a post)
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1 text-sm text-muted">
@@ -67,13 +67,7 @@ export function Byline(p: {
       </UserHoverCard>
       <Dot />
       {/* Also rendered on the client (feed pages), so a minute boundary may differ. */}
-      {p.href ? (
-        <Link href={p.href} className="hover:underline" suppressHydrationWarning>
-          {ago(p.createdAt)}
-        </Link>
-      ) : (
-        <span suppressHydrationWarning>{ago(p.createdAt)}</span>
-      )}
+      <span suppressHydrationWarning>{ago(p.createdAt)}</span>
       {p.editedAt && (
         <>
           <Dot />
@@ -112,11 +106,11 @@ export function PostCard({ post: p }: { post: PostSummary }) {
       href={`/p/${p.id}`}
       className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} href={`/p/${p.id}`} />
+      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
       <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
       <div className="mt-2 flex gap-8 text-sm text-muted">
         <LikeButton id={p.id} liked={p.liked} count={p.likeCount} likersHref={`/p/${p.id}/likes`} />
-        <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
+        <CommentButton postId={p.id} count={p.commentCount} author={p.author} preview={p.preview} />
         {p.answered && <AnsweredMark />}
       </div>
     </ClickableCard>

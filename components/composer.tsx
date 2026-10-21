@@ -44,6 +44,7 @@ type Props = {
   allowEmpty?: boolean;
   draft?: string; // autosave key (per browser): new posts, comments and replies, not edits
   focusOn?: string; // a URL hash ("reply"): arriving with it puts the caret here, ready to type
+  autoFocus?: boolean; // the caret starts here (the comment popup)
 };
 
 // Drafts survive a closed tab or a reload; posting, cancelling or emptying the editor drops them.
@@ -195,7 +196,13 @@ export function Composer(p: Props) {
         setEditor(s);
         latest.current.track(s);
       },
-      handleKeyDown: (_, e) => latest.current.onKeyDown(e),
+      handleKeyDown: (view, e) => {
+        if (latest.current.onKeyDown(e)) return true; // the mention list's keys (Esc closes it)
+        // ProseMirror swallows Esc, so a dialog around the editor (the comment popup) never sees
+        // it: close that dialog here.
+        if (e.key === "Escape") view.dom.closest("dialog")?.close();
+        return false;
+      },
       handleDOMEvents: {
         blur: () => {
           setTimeout(() => latest.current.close(), 150); // let a click on a suggestion land
@@ -206,11 +213,12 @@ export function Composer(p: Props) {
     });
     view.current = v;
     setEditor(v.state);
+    if (p.autoFocus) v.focus();
     return () => {
       v.destroy();
       view.current = null;
     };
-  }, [p.initial, p.placeholder, rows, p.draft]);
+  }, [p.initial, p.placeholder, rows, p.draft, p.autoFocus]);
 
   // The comment button links to #reply (from a card, or on the post page itself).
   useEffect(() => {
