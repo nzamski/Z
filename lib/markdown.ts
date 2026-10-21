@@ -5,6 +5,7 @@
 import MarkdownIt from "markdown-it";
 import { textDir } from "@/lib/direction";
 import { MENTIONS_MAX, splitMentions } from "@/lib/mentions";
+import { splitTags, tagHref, TAGS_MAX } from "@/lib/tags";
 
 export const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
 md.disable("image");
@@ -37,49 +38,85 @@ md.core.ruler.push("direction", (state) => {
   }
 });
 
-// @handle -> a link to the profile (after linkify, so links and code are left alone).
-md.core.ruler.push("mentions", (state) => {
-  for (const block of state.tokens) {
-    if (block.type !== "inline" || !block.children) continue;
-    const out: typeof block.children = [];
-    let inLink = 0;
-    for (const t of block.children) {
-      if (t.type === "link_open") inLink++;
-      if (t.type === "link_close") inLink--;
-      if (t.type !== "text" || inLink) {
-        out.push(t);
-        continue;
-      }
-      for (const part of splitMentions(t.content)) {
-        if ("text" in part) {
-          const text = new state.Token("text", "", 0);
-          text.content = part.text;
-          out.push(text);
+// Typed from the instance, so it's the same markdown-it typing md itself uses.
+type CoreRule = Parameters<typeof md.core.ruler.push>[1];
+
+/** A core rule turning matches in plain text into links (after linkify, so links and code are
+ * left alone). `split` returns text parts and link parts (`raw` text, `href`). */
+function linkRule(
+  className: string,
+  split: (text: string) => ({ text: string } | { raw: string; href: string })[],
+) {
+  const rule: CoreRule = (state) => {
+    for (const block of state.tokens) {
+      if (block.type !== "inline" || !block.children) continue;
+      const out: typeof block.children = [];
+      let inLink = 0;
+      for (const t of block.children) {
+        if (t.type === "link_open") inLink++;
+        if (t.type === "link_close") inLink--;
+        if (t.type !== "text" || inLink) {
+          out.push(t);
           continue;
         }
-        const open = new state.Token("link_open", "a", 1);
-        open.attrs = [
-          ["href", `/u/${part.handle}`],
-          ["class", "mention"],
-        ];
-        const text = new state.Token("text", "", 0);
-        text.content = part.raw;
-        out.push(open, text, new state.Token("link_close", "a", -1));
+        for (const part of split(t.content)) {
+          const text = new state.Token("text", "", 0);
+          if ("text" in part) {
+            text.content = part.text;
+            out.push(text);
+            continue;
+          }
+          const open = new state.Token("link_open", "a", 1);
+          open.attrs = [
+            ["href", part.href],
+            ["class", className],
+          ];
+          text.content = part.raw;
+          out.push(open, text, new state.Token("link_close", "a", -1));
+        }
       }
+      block.children = out;
     }
-    block.children = out;
-  }
-});
+  };
+  return rule;
+}
+
+// @handle -> the profile; #topic -> the topic page.
+md.core.ruler.push(
+  "mentions",
+  linkRule("mention", (s) =>
+    splitMentions(s).map((p) => ("text" in p ? p : { raw: p.raw, href: `/u/${p.handle}` })),
+  ),
+);
+md.core.ruler.push(
+  "tags",
+  linkRule("tag", (s) =>
+    splitTags(s).map((p) => ("text" in p ? p : { raw: p.raw, href: tagHref(p.tag) })),
+  ),
+);
 
 export const renderMarkdown = (src: string) => md.render(src);
 
-/** The handles mentioned in a body: exactly the ones rendered as mention links (lowercase,
- * unique, at most MENTIONS_MAX). */
-export function extractMentions(src: string) {
-  const handles = new Set<string>();
+/** The hrefs of the links of one class, in order of appearance, unique. */
+function linksOf(src: string, className: string) {
+  const hrefs = new Set<string>();
   for (const t of md.parse(src, {}))
     for (const c of t.children ?? [])
-      if (c.type === "link_open" && c.attrGet("class") === "mention")
-        handles.add(String(c.attrGet("href")).slice("/u/".length));
-  return [...handles].slice(0, MENTIONS_MAX);
+      if (c.type === "link_open" && c.attrGet("class") === className)
+        hrefs.add(String(c.attrGet("href")));
+  return [...hrefs];
 }
+
+/** The handles mentioned in a body: exactly the ones rendered as mention links (lowercase,
+ * unique, at most MENTIONS_MAX). */
+export const extractMentions = (src: string) =>
+  linksOf(src, "mention")
+    .map((h) => h.slice("/u/".length))
+    .slice(0, MENTIONS_MAX);
+
+/** The topics of a body: exactly the ones rendered as tag links (normalized, unique, at most
+ * TAGS_MAX). */
+export const extractTags = (src: string) =>
+  linksOf(src, "tag")
+    .map((h) => decodeURIComponent(h.slice("/t/".length)))
+    .slice(0, TAGS_MAX);
