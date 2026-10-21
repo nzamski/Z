@@ -24,11 +24,12 @@ import {
 import { keymap } from "prosemirror-keymap";
 import { Fragment, Slice, type MarkType, type NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
-import { EditorState, type Command } from "prosemirror-state";
-import { EditorView } from "prosemirror-view";
+import { EditorState, Plugin, type Command } from "prosemirror-state";
+import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { useMentionSuggest } from "@/components/mention-suggest";
+import { textDir } from "@/lib/direction";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
 import { he } from "@/lib/i18n/he";
 
@@ -151,10 +152,34 @@ const keys = keymap({
   Backspace: undoInputRule,
 });
 
+// Each block reads in the direction most of its letters do, recomputed as you type (lib/
+// direction.ts; published posts use the same rule).
+const DIRECTED = new Set([
+  "paragraph",
+  "heading",
+  "blockquote",
+  "bullet_list",
+  "ordered_list",
+  "list_item",
+]);
+const direction = new Plugin({
+  props: {
+    decorations(state) {
+      const decos: Decoration[] = [];
+      state.doc.descendants((node, pos) => {
+        if (!DIRECTED.has(node.type.name)) return;
+        const dir = textDir(node.textContent);
+        if (dir) decos.push(Decoration.node(pos, pos + node.nodeSize, { dir }));
+      });
+      return DecorationSet.create(state.doc, decos);
+    },
+  },
+});
+
 const createState = (text: string) =>
   EditorState.create({
     doc: parser.parse(text),
-    plugins: [history(), rules, keys, keymap(baseKeymap)],
+    plugins: [history(), rules, keys, keymap(baseKeymap), direction],
   });
 
 // Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.

@@ -88,7 +88,7 @@ export function CommentButton(p: {
               </svg>
             </button>
           </div>
-          {/* What you're answering: who, and the start of the post, faded out. */}
+          {/* What you're answering: who, and the start of the post. */}
           <div className="rounded-xl border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-800">
             <div className="flex min-w-0 items-baseline gap-x-2">
               <span className="truncate font-bold">{p.author.displayName}</span>
@@ -96,9 +96,9 @@ export function CommentButton(p: {
                 @{p.author.handle}
               </span>
             </div>
-            <div className="relative max-h-24 overflow-hidden text-muted">
+            {/* The feed excerpt (already short); an unusually tall one scrolls, no fade. */}
+            <div className="max-h-48 overflow-y-auto text-muted">
               <Markdown text={p.preview} />
-              <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background" />
             </div>
           </div>
           {open > 0 && (

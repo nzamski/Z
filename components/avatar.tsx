@@ -1,6 +1,8 @@
 // A person's avatar: the first letter of their name in a circle (Z has no profile pictures).
-// Links to the profile for the mouse; keyboards and screen readers use the name link beside it.
+// Links to the profile and shows the same hover card as the name beside it; keyboards and screen
+// readers use that name link.
 import Link from "next/link";
+import { UserHoverCard } from "@/components/user-hover-card";
 
 export const initial = (name: string, handle?: string | null) =>
   ([...name.trim()][0] ?? handle?.[0] ?? "?").toUpperCase();
@@ -16,13 +18,15 @@ export function Avatar(p: { name: string; handle?: string | null; small?: boolea
   );
   if (!p.handle) return circle;
   return (
-    <Link
-      href={`/u/${encodeURIComponent(p.handle)}`}
-      tabIndex={-1}
-      aria-hidden
-      className="shrink-0 self-start transition-opacity hover:opacity-80"
-    >
-      {circle}
-    </Link>
+    <UserHoverCard handle={p.handle} className="shrink-0 self-start">
+      <Link
+        href={`/u/${encodeURIComponent(p.handle)}`}
+        tabIndex={-1}
+        aria-hidden
+        className="block transition-opacity hover:opacity-80"
+      >
+        {circle}
+      </Link>
+    </UserHoverCard>
   );
 }

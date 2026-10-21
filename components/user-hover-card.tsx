@@ -9,7 +9,15 @@ import { he } from "@/lib/i18n/he";
 const OPEN_DELAY = 400;
 const CLOSE_DELAY = 200;
 
-export function UserHoverCard({ handle, children }: { handle: string; children: React.ReactNode }) {
+export function UserHoverCard({
+  handle,
+  children,
+  className = "",
+}: {
+  handle: string;
+  children: React.ReactNode;
+  className?: string; // e.g. self-start for an avatar in a flex row
+}) {
   const [card, setCard] = useState<UserCard | null>(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -50,7 +58,7 @@ export function UserHoverCard({ handle, children }: { handle: string; children: 
 
   return (
     <span
-      className="relative inline-block"
+      className={`relative inline-block ${className}`}
       onMouseEnter={show}
       onMouseLeave={hide}
       // Keyboard focus only: a mouse click also focuses the link, and that focus would keep the

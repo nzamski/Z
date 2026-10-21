@@ -17,7 +17,10 @@ const LIST_WIDTH = 288; // w-72
 function anchor(view: EditorView, pos: number) {
   const box = (view.dom.offsetParent ?? view.dom).getBoundingClientRect();
   const at = view.coordsAtPos(pos);
-  const rtl = getComputedStyle(view.dom).direction === "rtl";
+  // The paragraph's own direction: an English one in a Hebrew post opens the list the other way.
+  const at0 = view.domAtPos(pos).node;
+  const block = at0 instanceof Element ? at0 : (at0.parentElement ?? view.dom);
+  const rtl = getComputedStyle(block).direction === "rtl";
   const start = rtl ? box.right - at.left : at.left - box.left;
   return {
     top: at.bottom - box.top + 4,
