@@ -4,10 +4,16 @@
 // markdown-it's validateLink refuses javascript:, vbscript:, file: and data: links.
 import MarkdownIt from "markdown-it";
 import { textDir } from "@/lib/direction";
+import { highlightCode } from "@/lib/highlight";
 import { MENTIONS_MAX, splitMentions } from "@/lib/mentions";
 import { splitTags, tagHref, TAGS_MAX } from "@/lib/tags";
 
-export const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
+export const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+  highlight: (code, lang) => highlightCode(code, lang.trim().toLowerCase()),
+});
 md.disable("image");
 md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   tokens[idx].attrSet("rel", "noopener noreferrer");
