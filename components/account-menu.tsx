@@ -1,6 +1,7 @@
 "use client";
 // Header account menu behind a round initial: profile, moderation (admins), theme.
 import Link from "next/link";
+import { initial } from "@/components/avatar";
 import { menuClass, ThemePicker, useMenu } from "@/components/theme-menu";
 import { he } from "@/lib/i18n/he";
 
@@ -19,7 +20,6 @@ const iconProps = {
 
 export function AccountMenu(p: { handle: string; displayName: string; admin: boolean }) {
   const { open, setOpen, root } = useMenu();
-  const initial = ([...p.displayName.trim()][0] ?? p.handle[0]).toUpperCase();
   const close = () => setOpen(false);
   return (
     <div ref={root} className="relative">
@@ -28,10 +28,10 @@ export function AccountMenu(p: { handle: string; displayName: string; admin: boo
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={he.account.menu}
-        title={he.account.menu}
+        data-tip={he.account.menu}
         className="grid size-9 place-items-center rounded-full bg-neutral-500/15 text-base font-bold transition-colors hover:bg-neutral-500/25 aria-expanded:bg-neutral-500/25"
       >
-        <span aria-hidden>{initial}</span>
+        <span aria-hidden>{initial(p.displayName, p.handle)}</span>
       </button>
       {open && (
         <div role="menu" aria-label={he.account.menu} className={`${menuClass} w-56`}>

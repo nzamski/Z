@@ -24,10 +24,12 @@ import {
 import { keymap } from "prosemirror-keymap";
 import { Fragment, Slice, type MarkType, type NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
-import { EditorState, type Command } from "prosemirror-state";
-import { EditorView } from "prosemirror-view";
+import { EditorState, Plugin, type Command } from "prosemirror-state";
+import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
+import { Avatar } from "@/components/avatar";
 import { useMentionSuggest } from "@/components/mention-suggest";
+import { textDir } from "@/lib/direction";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
 import { he } from "@/lib/i18n/he";
 
@@ -42,7 +44,29 @@ type Props = {
   onCancel?: () => void;
   onDone?: () => void;
   allowEmpty?: boolean;
+  draft?: string; // autosave key (per browser): new posts, comments and replies, not edits
+  focusOn?: string; // a URL hash ("reply"): arriving with it puts the caret here, ready to type
+  autoFocus?: boolean; // the caret starts here (the comment popup)
+  author?: { displayName: string; handle: string | null }; // the viewer, shown as an avatar
+  compact?: boolean; // a small avatar, as in a comment thread (replies)
 };
+
+// Drafts survive a closed tab or a reload; posting, cancelling or emptying the editor drops them.
+const DRAFT = "z-draft:";
+function readDraft(key?: string) {
+  try {
+    return key ? localStorage.getItem(DRAFT + key) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(key: string | undefined, body: string) {
+  if (!key) return;
+  try {
+    if (body.trim()) localStorage.setItem(DRAFT + key, body);
+    else localStorage.removeItem(DRAFT + key);
+  } catch {} // storage full or blocked: the editor still works, just without a draft
+}
 
 const { nodes: N, marks: M } = schema;
 
@@ -128,10 +152,34 @@ const keys = keymap({
   Backspace: undoInputRule,
 });
 
+// Each block reads in the direction most of its letters do, recomputed as you type (lib/
+// direction.ts; published posts use the same rule).
+const DIRECTED = new Set([
+  "paragraph",
+  "heading",
+  "blockquote",
+  "bullet_list",
+  "ordered_list",
+  "list_item",
+]);
+const direction = new Plugin({
+  props: {
+    decorations(state) {
+      const decos: Decoration[] = [];
+      state.doc.descendants((node, pos) => {
+        if (!DIRECTED.has(node.type.name)) return;
+        const dir = textDir(node.textContent);
+        if (dir) decos.push(Decoration.node(pos, pos + node.nodeSize, { dir }));
+      });
+      return DecorationSet.create(state.doc, decos);
+    },
+  },
+});
+
 const createState = (text: string) =>
   EditorState.create({
     doc: parser.parse(text),
-    plugins: [history(), rules, keys, keymap(baseKeymap)],
+    plugins: [history(), rules, keys, keymap(baseKeymap), direction],
   });
 
 // Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.
@@ -162,12 +210,12 @@ export function Composer(p: Props) {
   const rows = p.rows ?? 4;
   useEffect(() => {
     const v: EditorView = new EditorView(host.current!, {
-      state: createState(p.initial ?? ""),
+      state: createState(readDraft(p.draft) ?? p.initial ?? ""),
       attributes: {
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": p.placeholder,
-        class: "md px-3 pt-2 pb-1 outline-none",
+        class: "md py-1 outline-none",
         style: `min-height: ${rows * 1.7}em`,
       },
       dispatchTransaction(tr) {
@@ -176,7 +224,13 @@ export function Composer(p: Props) {
         setEditor(s);
         latest.current.track(s);
       },
-      handleKeyDown: (_, e) => latest.current.onKeyDown(e),
+      handleKeyDown: (view, e) => {
+        if (latest.current.onKeyDown(e)) return true; // the mention list's keys (Esc closes it)
+        // ProseMirror swallows Esc, so a dialog around the editor (the comment popup) never sees
+        // it: close that dialog here.
+        if (e.key === "Escape") view.dom.closest("dialog")?.close();
+        return false;
+      },
       handleDOMEvents: {
         blur: () => {
           setTimeout(() => latest.current.close(), 150); // let a click on a suggestion land
@@ -187,11 +241,23 @@ export function Composer(p: Props) {
     });
     view.current = v;
     setEditor(v.state);
+    if (p.autoFocus) v.focus();
     return () => {
       v.destroy();
       view.current = null;
     };
-  }, [p.initial, p.placeholder, rows]);
+  }, [p.initial, p.placeholder, rows, p.draft, p.autoFocus]);
+
+  // The comment button links to #reply (from a card, or on the post page itself).
+  useEffect(() => {
+    if (!p.focusOn) return;
+    const go = () => {
+      if (location.hash === `#${p.focusOn}`) view.current?.focus();
+    };
+    go();
+    window.addEventListener("hashchange", go);
+    return () => window.removeEventListener("hashchange", go);
+  }, [p.focusOn]);
 
   // The mention list's ARIA lives on the editable element, which ProseMirror owns.
   useEffect(() => {
@@ -206,10 +272,15 @@ export function Composer(p: Props) {
     () => (editor ? toMarkdown(editor.doc) : (p.initial ?? "")),
     [editor, p.initial],
   );
+  const ready = editor !== null; // before that, body is only p.initial
+  useEffect(() => {
+    if (ready) writeDraft(p.draft, body);
+  }, [ready, body, p.draft]);
 
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
+      writeDraft(p.draft, ""); // now, not on the next render: onDone may unmount this
       const v = view.current;
       if (v) {
         v.updateState(createState(p.initial ?? ""));
@@ -248,99 +319,113 @@ export function Composer(p: Props) {
   const tools = editor ? toolsFor(editor, link !== null) : [];
 
   return (
-    <form action={formAction} className="space-y-2">
-      {Object.entries(p.hidden ?? {}).map(([k, v]) => (
-        <input key={k} type="hidden" name={k} value={v} />
-      ))}
-      <input type="hidden" name="body" value={body} />
-      <div className="relative rounded-xl border border-neutral-300 transition-colors focus-within:border-neutral-500 dark:border-neutral-700 dark:focus-within:border-neutral-400">
-        {isEmpty(editor) && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute start-3 top-2 leading-[1.7] text-muted"
-          >
-            {p.placeholder}
-          </span>
-        )}
-        {/* ProseMirror owns this element's children. */}
-        <div ref={host} />
-        {link !== null && (
-          <div className="flex items-center gap-2 px-3 pb-1 text-sm">
-            <input
-              autoFocus
-              type="text"
-              inputMode="url"
-              dir="ltr"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault(); // not the form
-                  addLink();
-                } else if (e.key === "Escape") {
-                  setLink(null);
-                  view.current?.focus();
-                }
-              }}
-              placeholder={T.linkPlaceholder}
-              aria-label={T.linkPlaceholder}
-              className="min-w-0 flex-1 rounded-md bg-neutral-500/10 px-2 py-1 outline-none"
-            />
-            <button
-              type="button"
-              onClick={addLink}
-              className="font-medium text-link hover:underline"
+    <form action={formAction} className="flex gap-3">
+      {p.author && (
+        <Avatar name={p.author.displayName} handle={p.author.handle} small={p.compact} noCard />
+      )}
+      <div className="min-w-0 flex-1">
+        {Object.entries(p.hidden ?? {}).map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
+        ))}
+        <input type="hidden" name="body" value={body} />
+        {/* No border: the text has the whole box. The mention list is positioned in here. */}
+        <div className="relative">
+          {isEmpty(editor) && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute start-0 top-1 leading-[1.7] text-muted"
             >
-              {T.linkAdd}
+              {p.placeholder}
+            </span>
+          )}
+          {/* ProseMirror owns this element's children. */}
+          <div ref={host} />
+          {link !== null && (
+            <div className="flex items-center gap-2 pb-1 text-sm">
+              <input
+                autoFocus
+                type="text"
+                inputMode="url"
+                dir="ltr"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault(); // not the form
+                    addLink();
+                  } else if (e.key === "Escape") {
+                    setLink(null);
+                    view.current?.focus();
+                  }
+                }}
+                placeholder={T.linkPlaceholder}
+                aria-label={T.linkPlaceholder}
+                className="min-w-0 flex-1 rounded-md bg-neutral-500/10 px-2 py-1 outline-none"
+              />
+              <button
+                type="button"
+                onClick={addLink}
+                className="font-medium text-link hover:underline"
+              >
+                {T.linkAdd}
+              </button>
+            </div>
+          )}
+          {mentions.list}
+        </div>
+        {/* One row under a thin line: formatting on one side, send (and its state) on the other. */}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-neutral-200 pt-2 text-sm dark:border-neutral-800">
+          <div
+            role="toolbar"
+            aria-label={T.toolbar}
+            className="flex flex-wrap items-center gap-0.5"
+          >
+            {tools.map((t) => (
+              <button
+                key={t.label}
+                type="button"
+                data-tip={t.label}
+                aria-label={t.label}
+                aria-pressed={t.active}
+                onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
+                // No command: the link button, which opens (or closes) the link field.
+                onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
+                className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
+              >
+                {t.icon}
+              </button>
+            ))}
+          </div>
+          {/* The send button last, at the row's far end: the counter, warnings and cancel that
+              come and go as you type appear before it, so it never moves. */}
+          <div className="flex items-center gap-3">
+            {state.error && (
+              <span role="alert" className="text-danger">
+                {state.error}
+              </span>
+            )}
+            {over && <span className="text-danger">{T.tooLong}</span>}
+            <LengthRing length={body.length} max={p.max} />
+            {p.onCancel && (
+              <button
+                type="button"
+                onClick={() => {
+                  writeDraft(p.draft, "");
+                  p.onCancel?.();
+                }}
+                className="text-muted hover:text-foreground hover:underline"
+              >
+                {T.cancel}
+              </button>
+            )}
+            <button
+              disabled={pending || over || (!p.allowEmpty && !body.trim())}
+              className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
+            >
+              {p.submitLabel}
             </button>
           </div>
-        )}
-        <div
-          role="toolbar"
-          aria-label={T.toolbar}
-          className="flex flex-wrap items-center gap-0.5 px-1.5 pb-1.5"
-        >
-          {tools.map((t) => (
-            <button
-              key={t.label}
-              type="button"
-              title={t.label}
-              aria-label={t.label}
-              aria-pressed={t.active}
-              onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
-              // No command: the link button, which opens (or closes) the link field.
-              onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
-              className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
-            >
-              {t.icon}
-            </button>
-          ))}
         </div>
-        {mentions.list}
-      </div>
-      <div className="flex items-center gap-3 text-sm">
-        <button
-          disabled={pending || over || (!p.allowEmpty && !body.trim())}
-          className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
-        >
-          {p.submitLabel}
-        </button>
-        {p.onCancel && (
-          <button
-            type="button"
-            onClick={p.onCancel}
-            className="text-muted hover:text-foreground hover:underline"
-          >
-            {T.cancel}
-          </button>
-        )}
-        <LengthRing length={body.length} max={p.max} />
-        {over && <span className="text-danger">{T.tooLong}</span>}
-        {state.error && (
-          <span role="alert" className="text-danger">
-            {state.error}
-          </span>
-        )}
       </div>
     </form>
   );

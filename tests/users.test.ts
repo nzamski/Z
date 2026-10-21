@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, describe, expect, test } from "vitest";
 import { sql } from "@/db/client";
 import * as s from "@/lib/services";
@@ -117,13 +117,13 @@ describe("people search", () => {
   });
 
   test("fuzzy (pg_trgm): finds a name or handle despite a typo", async () => {
-    const t = tag()
-      .replace(/[^a-z]/g, "q")
-      .slice(0, 6);
+    // 10 random a-z letters and nothing shared with other users: the test DB keeps every run's
+    // users, and look-alike names (a hex tag, a common suffix) made this match two people.
+    const t = Array.from(randomBytes(10), (b) => String.fromCharCode(97 + (b % 26))).join("");
     const viewer = await makeUser();
-    const u = await makeUser(`שרון ${t}berg`, `s${t}`);
+    const u = await makeUser(t, `s${t}`);
     const ids = async (q: string) => (await s.searchUsers(viewer.id, q, 10)).map((x) => x.id);
-    expect(await ids(`${t}brg`)).toEqual([u.id]); // typo in the name
-    expect(await ids(`s${t.slice(0, 5)}x`)).toEqual([u.id]); // typo in the handle
+    expect(await ids(t.slice(0, 4) + t.slice(5))).toEqual([u.id]); // a letter missing from the name
+    expect(await ids(`s${t.slice(0, 9)}x`)).toEqual([u.id]); // last letter of the handle wrong
   });
 });

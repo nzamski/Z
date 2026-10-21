@@ -38,6 +38,7 @@ export function ProfileEditor(p: { displayName: string; handle: string; bio: str
             <button
               onClick={close}
               aria-label={he.composer.cancel}
+              data-tip={he.composer.cancel}
               className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
             >
               <svg

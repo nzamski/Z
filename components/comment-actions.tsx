@@ -16,6 +16,7 @@ export function CommentActions(p: {
   isOwner: boolean;
   isAdmin: boolean;
   like?: React.ReactNode; // the comment's like button, first in the row
+  author?: { displayName: string; handle: string }; // the viewer, for the reply box
 }) {
   const [mode, setMode] = useState<"idle" | "reply">("idle");
   const close = () => setMode("idle");
@@ -31,7 +32,7 @@ export function CommentActions(p: {
             {he.comment.reply}
           </button>
         )}
-        {p.isOwner && <DeleteButton id={p.commentId} action={deleteCommentAction} />}
+        {p.isOwner && <DeleteButton id={p.commentId} kind="comment" action={deleteCommentAction} />}
         {p.isAdmin && !p.isOwner && (
           <ModerateButton
             label={he.moderation.remove}
@@ -45,6 +46,9 @@ export function CommentActions(p: {
           <Composer
             action={createCommentAction}
             hidden={{ postId: p.postId, parentId: p.commentId }}
+            draft={`reply:${p.commentId}`}
+            author={p.author}
+            compact
             max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.replyPlaceholder}

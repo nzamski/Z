@@ -15,6 +15,7 @@ export const he = {
     devLoginTitle: "התחברות פיתוח: בחרו משתמש",
   },
   post: {
+    open: "פתיחת הפוסט",
     likes: "לייקים",
     like: "לייק",
     unlike: "ביטול לייק",
@@ -23,7 +24,9 @@ export const he = {
     readMore: "הצגת עוד",
     edit: "עריכה",
     delete: "מחיקה",
-    confirmDelete: "למחוק? אי אפשר לבטל.",
+    deletePostTitle: "למחוק את הפוסט?",
+    deleteCommentTitle: "למחוק את התגובה?",
+    deleteCannotUndo: "אי אפשר לבטל את זה.",
     deletedPage: "הפוסט הזה נמחק.",
     answered: "תגובה נבחרת",
     answeredHint: "כותב/ת הפוסט סימן/ה תגובה בלייק",
@@ -52,6 +55,8 @@ export const he = {
   comment: {
     placeholder: "כתבו תגובה…",
     replyPlaceholder: "כתבו תשובה…",
+    add: "תגובה",
+    close: "סגירה",
     reply: "תשובה",
     send: "שליחה",
     deleted: "[נמחק]",

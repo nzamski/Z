@@ -1,15 +1,19 @@
 "use client";
 // X-style: clicking a post card's empty space opens the post. Real links/buttons keep their own
-// behavior, and selecting text doesn't navigate. Keyboard users use the post's own links.
+// behavior, and selecting text doesn't navigate. The timestamp isn't a link, so keyboard and
+// screen-reader users get a link of their own that shows only when focused.
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { he } from "@/lib/i18n/he";
 
-const INTERACTIVE = "a, button, input, textarea, summary, [role=dialog]";
+// dialog: the comment popup lives inside the card, and its clicks bubble here.
+const INTERACTIVE = "a, button, input, textarea, summary, dialog, [role=dialog]";
 
 export function ClickableCard(p: { href: string; className: string; children: React.ReactNode }) {
   const router = useRouter();
   return (
     <li
-      className={`cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-white/[0.03] ${p.className}`}
+      className={`relative cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-white/[0.03] ${p.className}`}
       onClick={(e) => {
         if ((e.target as Element).closest(INTERACTIVE)) return;
         if (window.getSelection()?.toString()) return;
@@ -18,6 +22,12 @@ export function ClickableCard(p: { href: string; className: string; children: Re
       }}
     >
       {p.children}
+      <Link
+        href={p.href}
+        className="sr-only text-sm text-link focus:not-sr-only focus:absolute focus:end-4 focus:top-4 focus:underline"
+      >
+        {he.post.open}
+      </Link>
     </li>
   );
 }

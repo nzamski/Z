@@ -7,10 +7,11 @@ import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
+import { Avatar } from "@/components/avatar";
 import { Byline, CommentStat } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
-import { canSeeContent, requireViewer } from "@/lib/auth/viewer";
+import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 import { canEditPost, getPost, getThread, isAdmin, ROOTS_PAGE } from "@/lib/services";
@@ -24,7 +25,8 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   const { id } = await params;
   const from = Math.max(0, Number((await searchParams).from) || 0);
   if (!z.uuid().safeParse(id).success) return <Notice text={he.post.notFound} />;
-  const viewerId = (await requireViewer()).id;
+  const viewer = viewerCard(await requireViewer());
+  const viewerId = viewer.id;
   const post = await getPost(id, viewerId);
   if (!post) return <Notice text={he.post.notFound} />;
   const admin = await isAdmin(viewerId);
@@ -36,39 +38,49 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   const body = <Markdown text={post.body} className="mt-2 text-lg" />;
   return (
     <>
-      <article className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
-        <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
-        {viewerId === post.authorId ? (
-          <PostOwnerActions postId={post.id} body={post.body} canEdit={canEditPost(post.createdAt)}>
-            {body}
-          </PostOwnerActions>
-        ) : (
-          body
-        )}
-        <div className="mt-3 flex gap-8 text-sm text-muted">
-          <LikeButton
-            id={post.id}
-            liked={post.liked}
-            count={post.likeCount}
-            likersHref={`/p/${post.id}/likes`}
-          />
-          <CommentStat href="#reply" count={post.commentCount} />
-        </div>
-        {admin && viewerId !== post.authorId && (
-          <div className="mt-2 text-sm text-muted">
-            <ModerateButton
-              label={he.moderation.remove}
-              danger
-              action={removePostAction.bind(null, post.id)}
+      <article className="flex gap-3 border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
+        <Avatar name={post.author.displayName} handle={post.author.handle} />
+        <div className="min-w-0 flex-1">
+          <Byline author={post.author} createdAt={post.createdAt} editedAt={post.editedAt} />
+          {viewerId === post.authorId ? (
+            <PostOwnerActions
+              postId={post.id}
+              body={post.body}
+              canEdit={canEditPost(post.createdAt)}
+            >
+              {body}
+            </PostOwnerActions>
+          ) : (
+            body
+          )}
+          <div className="mt-3 flex gap-8 text-sm text-muted">
+            <LikeButton
+              id={post.id}
+              liked={post.liked}
+              count={post.likeCount}
+              likersHref={`/p/${post.id}/likes`}
             />
+            <CommentStat href="#reply" count={post.commentCount} />
           </div>
-        )}
+          {admin && viewerId !== post.authorId && (
+            <div className="mt-2 text-sm text-muted">
+              <ModerateButton
+                label={he.moderation.remove}
+                danger
+                action={removePostAction.bind(null, post.id)}
+              />
+            </div>
+          )}
+        </div>
       </article>
       <section id="reply" className="scroll-mt-24 p-4 text-start">
         {viewerId ? (
           <Composer
             action={createCommentAction}
             hidden={{ postId: post.id }}
+            draft={`comment:${post.id}`}
+            focusOn="reply"
+            author={viewer}
             max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.placeholder}
@@ -78,7 +90,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
         <div className="mt-4">
           <Thread
             nodes={thread.nodes}
-            ctx={{ postId: post.id, viewerId, postLive: true, isAdmin: admin }}
+            ctx={{ postId: post.id, viewerId, viewer, postLive: true, isAdmin: admin }}
           />
           {from + ROOTS_PAGE < thread.total && (
             <a

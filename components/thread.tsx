@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { restoreCommentAction } from "@/app/actions";
+import { Avatar } from "@/components/avatar";
 import { CommentActions } from "@/components/comment-actions";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
@@ -8,7 +9,13 @@ import { AuthorHeart, Byline } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 
-type Ctx = { postId: string; viewerId: string | null; postLive: boolean; isAdmin: boolean };
+type Ctx = {
+  postId: string;
+  viewerId: string | null;
+  viewer?: { displayName: string; handle: string } | null; // the reply box's avatar
+  postLive: boolean;
+  isAdmin: boolean;
+};
 
 function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
   const hidden = n.childCount - n.children.length;
@@ -28,32 +35,36 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
           )}
         </div>
       ) : (
-        <>
-          <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
-          {n.authorLiked && (
-            <p className="mt-1 flex items-center gap-1 text-xs font-medium text-like">
-              <AuthorHeart />
-              {he.comment.authorLiked}
-            </p>
-          )}
-          <Markdown text={n.body!} className="mt-1" />
-          <CommentActions
-            postId={ctx.postId}
-            commentId={n.id}
-            canReply={!!ctx.viewerId && ctx.postLive}
-            isOwner={ctx.viewerId === n.author!.id}
-            isAdmin={ctx.isAdmin}
-            like={
-              <LikeButton
-                id={n.id}
-                kind="comment"
-                liked={n.liked}
-                count={n.likeCount}
-                likersHref={`/c/${n.id}/likes`}
-              />
-            }
-          />
-        </>
+        <div className="flex gap-2">
+          <Avatar name={n.author!.displayName} handle={n.author!.handle} small />
+          <div className="min-w-0 flex-1">
+            <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
+            {n.authorLiked && (
+              <p className="mt-1 flex items-center gap-1 text-xs font-medium text-like">
+                <AuthorHeart />
+                {he.comment.authorLiked}
+              </p>
+            )}
+            <Markdown text={n.body!} className="mt-1" />
+            <CommentActions
+              postId={ctx.postId}
+              commentId={n.id}
+              canReply={!!ctx.viewerId && ctx.postLive}
+              isOwner={ctx.viewerId === n.author!.id}
+              isAdmin={ctx.isAdmin}
+              author={ctx.viewer ?? undefined}
+              like={
+                <LikeButton
+                  id={n.id}
+                  kind="comment"
+                  liked={n.liked}
+                  count={n.likeCount}
+                  likersHref={`/c/${n.id}/likes`}
+                />
+              }
+            />
+          </div>
+        </div>
       )}
       {n.childCount > 0 &&
         (n.depth >= THREAD_DEPTH ? (

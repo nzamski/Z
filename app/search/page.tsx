@@ -4,7 +4,7 @@ import { FeedList } from "@/components/feed-list";
 import { Loading } from "@/components/loading";
 import { PostCard } from "@/components/post-card";
 import { UserRow } from "@/components/user-row";
-import { requireViewer } from "@/lib/auth/viewer";
+import { requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { allowSearch } from "@/lib/rate-limit";
 import { feedPage, searchUsers, ServiceError, similarPosts } from "@/lib/services";
@@ -18,7 +18,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
-  const viewerId = (await requireViewer()).id;
+  const viewer = viewerCard(await requireViewer());
   return (
     <>
       {/* A plain GET form: works without JS and keeps the query in the URL (shareable). */}
@@ -38,7 +38,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
         />
       </form>
       {q ? (
-        <SearchResults viewerId={viewerId} q={q} cursor={cursor} />
+        <SearchResults viewer={viewer} q={q} cursor={cursor} />
       ) : (
         <p className="p-4 text-start text-muted">{he.search.hint}</p>
       )}
@@ -46,19 +46,24 @@ async function Results({ searchParams }: PageProps<"/search">) {
   );
 }
 
-async function SearchResults(p: { viewerId: string; q: string; cursor: string | null }) {
-  if (!allowSearch(p.viewerId))
+async function SearchResults(p: {
+  viewer: ReturnType<typeof viewerCard>;
+  q: string;
+  cursor: string | null;
+}) {
+  const viewerId = p.viewer.id;
+  if (!allowSearch(viewerId))
     return <p className="p-4 text-start text-danger">{he.search.rateLimited}</p>;
   const opts = { view: "latest" as const, query: p.q };
   const [people, page] = await Promise.all([
-    p.cursor ? [] : searchUsers(p.viewerId, p.q), // people only on the first page
-    feedPage(p.viewerId, { ...opts, cursor: p.cursor }).catch((e) => {
-      if (e instanceof ServiceError) return feedPage(p.viewerId, opts);
+    p.cursor ? [] : searchUsers(viewerId, p.q), // people only on the first page
+    feedPage(viewerId, { ...opts, cursor: p.cursor }).catch((e) => {
+      if (e instanceof ServiceError) return feedPage(viewerId, opts);
       throw e;
     }),
   ]);
   // Nothing matched exactly: offer the closest posts instead (typos, inflections; docs/search.md).
-  const similar = !p.cursor && !page.items.length ? await similarPosts(p.viewerId, p.q) : [];
+  const similar = !p.cursor && !page.items.length ? await similarPosts(viewerId, p.q) : [];
   return (
     <>
       {people.length > 0 && (
@@ -72,7 +77,7 @@ async function SearchResults(p: { viewerId: string; q: string; cursor: string | 
                 key={u.id}
                 user={u}
                 viewerFollows={u.viewerFollows}
-                isSelf={u.id === p.viewerId}
+                isSelf={u.id === viewerId}
               />
             ))}
           </ul>
@@ -95,7 +100,7 @@ async function SearchResults(p: { viewerId: string; q: string; cursor: string | 
           key={p.q}
           view="latest"
           q={p.q}
-          viewerId={p.viewerId}
+          viewer={p.viewer}
           first={page.items}
           next={page.next}
           asOf={page.asOf}

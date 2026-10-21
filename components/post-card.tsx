@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { LikeButton } from "@/components/buttons";
+import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
+import { CommentButton } from "@/components/comment-dialog";
 import { PostPreview } from "@/components/post-preview";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
@@ -13,6 +15,7 @@ export function CommentStat({ href, count }: { href: string; count: number }) {
     <Link
       href={href}
       aria-label={`${count} ${he.post.comments}`}
+      data-tip={he.comment.add}
       className="group -my-1 -ms-2 flex items-center tabular-nums transition-colors hover:text-sky-500"
     >
       <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
@@ -50,7 +53,6 @@ export function Byline(p: {
   author: { displayName: string; handle: string };
   createdAt: Date;
   editedAt: Date | null;
-  href?: string; // the timestamp links here (X-style; also the keyboard way into a post)
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1 text-sm text-muted">
@@ -67,13 +69,7 @@ export function Byline(p: {
       </UserHoverCard>
       <Dot />
       {/* Also rendered on the client (feed pages), so a minute boundary may differ. */}
-      {p.href ? (
-        <Link href={p.href} className="hover:underline" suppressHydrationWarning>
-          {ago(p.createdAt)}
-        </Link>
-      ) : (
-        <span suppressHydrationWarning>{ago(p.createdAt)}</span>
-      )}
+      <span suppressHydrationWarning>{ago(p.createdAt)}</span>
       {p.editedAt && (
         <>
           <Dot />
@@ -88,7 +84,7 @@ export function Byline(p: {
 function AnsweredMark() {
   return (
     <span
-      title={he.post.answeredHint}
+      data-tip={he.post.answeredHint}
       className="ms-auto flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
     >
       <AuthorHeart />
@@ -106,19 +102,37 @@ export function AuthorHeart() {
   );
 }
 
-export function PostCard({ post: p }: { post: PostSummary }) {
+/** `viewer`: who's reading, for the avatar in the comment popup. */
+export function PostCard({ post: p, viewer }: { post: PostSummary; viewer?: Viewer }) {
   return (
     <ClickableCard
       href={`/p/${p.id}`}
-      className="border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
+      className="flex gap-3 border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} href={`/p/${p.id}`} />
-      <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
-      <div className="mt-2 flex gap-8 text-sm text-muted">
-        <LikeButton id={p.id} liked={p.liked} count={p.likeCount} likersHref={`/p/${p.id}/likes`} />
-        <CommentStat href={`/p/${p.id}#reply`} count={p.commentCount} />
-        {p.answered && <AnsweredMark />}
+      <Avatar name={p.author.displayName} handle={p.author.handle} />
+      <div className="min-w-0 flex-1">
+        <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
+        <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
+        <div className="mt-2 flex gap-8 text-sm text-muted">
+          <LikeButton
+            id={p.id}
+            liked={p.liked}
+            count={p.likeCount}
+            likersHref={`/p/${p.id}/likes`}
+          />
+          <CommentButton
+            postId={p.id}
+            count={p.commentCount}
+            author={p.author}
+            preview={p.preview}
+            viewer={viewer}
+          />
+          {p.answered && <AnsweredMark />}
+        </div>
       </div>
     </ClickableCard>
   );
 }
+
+/** The signed-in user, as far as avatars and names need. */
+export type Viewer = { id: string; displayName: string; handle: string };

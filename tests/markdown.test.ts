@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { md, renderMarkdown } from "@/lib/markdown";
 import { computePreview } from "@/lib/preview";
+import { textDir } from "@/lib/direction";
 
 // Valid = re-parsing yields balanced open/close tokens and no fence runs to end of input unclosed.
 function assertValid(preview: string) {
@@ -107,11 +108,38 @@ describe("renderMarkdown", () => {
   });
 
   test("single newlines are line breaks (posts used to be plain text)", () => {
-    expect(renderMarkdown("א\nב")).toBe("<p>א<br>\nב</p>\n");
+    expect(renderMarkdown("א\nב")).toBe('<p dir="rtl">א<br>\nב</p>\n');
   });
 
   test("deep nesting and very long input don't blow up", () => {
     expect(() => renderMarkdown(">".repeat(5000) + " x")).not.toThrow();
     expect(() => renderMarkdown("[".repeat(20000))).not.toThrow();
+  });
+});
+
+describe("direction (Hebrew and English in one post)", () => {
+  test.each([
+    ["Hebrew", "שלום לכולם", "rtl"],
+    ["Hebrew starting with an English word", "PR קטן עדיף על PR מושלם.", "rtl"],
+    [
+      "Hebrew full of long tech terms",
+      "מחפשת מישהו שכבר הריץ Keycloak מאחורי OpenShift router עם X-Forwarded headers. נתקענו על redirect URI.",
+      "rtl",
+    ],
+    ["Hebrew starting with a mention", "@dana תודה רבה על העזרה", "rtl"],
+    ["English", "Hello everyone, this is English", "ltr"],
+    ["English with one Hebrew word", "We migrated the logs to JSON, יופי", "ltr"],
+    ["a URL doesn't vote", "ראו https://example.com/very/long/english/path", "rtl"],
+    ["no letters", "1234 !?", null],
+  ])("%s", (_, text, dir) => {
+    expect(textDir(text)).toBe(dir);
+  });
+
+  test("each block gets its own direction; lists and quotes too", () => {
+    const html = renderMarkdown("English paragraph here\n\nפסקה בעברית\n\n- item one\n- item two");
+    expect(html).toContain('<p dir="ltr">English paragraph here</p>');
+    expect(html).toContain('<p dir="rtl">פסקה בעברית</p>');
+    expect(html).toContain('<ul dir="ltr">');
+    expect(html).toContain('<li dir="ltr">item one</li>');
   });
 });

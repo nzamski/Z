@@ -70,7 +70,7 @@ export function NotificationBell({ initial }: { initial: number }) {
     <Link
       href="/notifications"
       aria-label={he.notifications.bell(shown)}
-      title={he.notifications.title}
+      data-tip={he.notifications.title}
       className="relative grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
     >
       <svg

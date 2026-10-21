@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   setCommentLikeAction,
   setFollowAction,
@@ -41,6 +41,7 @@ export function LikeButton(p: {
         aria-pressed={state.liked}
         aria-busy={pending}
         aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
+        data-tip={state.liked ? he.post.unlike : he.post.like}
         className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
           state.liked ? "text-like" : "hover:text-like"
         }`}
@@ -64,6 +65,7 @@ export function LikeButton(p: {
         <Link
           href={p.likersHref}
           aria-label={he.likers.show(state.count)}
+          data-tip={he.likers.show(state.count)}
           className="min-w-[1ch] text-sm hover:underline"
         >
           {count}
@@ -107,38 +109,72 @@ export function FollowButton(p: {
   );
 }
 
-/** Two-step delete (no browser confirm dialog). */
-export function DeleteButton(p: { id: string; action: (id: string) => Promise<ActionResult> }) {
-  const [armed, setArmed] = useState(false);
+/** Delete behind a confirmation popup (styled like edit profile; a native <dialog>, not the
+ * browser's confirm()). Esc or a click outside cancels. */
+export function DeleteButton(p: {
+  id: string;
+  kind: "post" | "comment";
+  action: (id: string) => Promise<ActionResult>;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
-  if (!armed) {
-    return (
+  const close = () => dialog.current?.close();
+  const titleId = `delete-${p.id}`;
+  return (
+    <>
       <button
-        onClick={() => setArmed(true)}
+        type="button"
+        onClick={() => {
+          setError(undefined);
+          dialog.current?.showModal();
+        }}
         className="transition-colors hover:text-danger hover:underline"
       >
         {he.post.delete}
       </button>
-    );
-  }
-  return (
-    <span className="flex gap-2">
-      <span>{he.post.confirmDelete}</span>
-      <button
-        disabled={pending}
-        onClick={() => start(async () => setError((await p.action(p.id))?.error))}
-        className="font-medium text-danger hover:underline"
+      <dialog
+        ref={dialog}
+        aria-labelledby={titleId}
+        onClick={(e) => e.target === dialog.current && close()}
+        className="m-auto w-[min(24rem,calc(100vw-2rem))] cursor-auto rounded-2xl bg-background p-0 text-start text-base font-normal text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       >
-        {he.post.delete}
-      </button>
-      <button
-        onClick={() => setArmed(false)}
-        className="transition-colors hover:text-foreground hover:underline"
-      >
-        {he.composer.cancel}
-      </button>
-      {error && <span className="text-danger">{error}</span>}
-    </span>
+        <div className="space-y-2 p-5 sm:p-6">
+          <h2 id={titleId} className="text-xl font-bold">
+            {p.kind === "post" ? he.post.deletePostTitle : he.post.deleteCommentTitle}
+          </h2>
+          <p className="text-muted">{he.post.deleteCannotUndo}</p>
+          {error && (
+            <p role="alert" className="text-danger">
+              {error}
+            </p>
+          )}
+          <div className="flex gap-3 pt-3">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await p.action(p.id);
+                  if (r?.error) setError(r.error);
+                  else close();
+                })
+              }
+              className="flex-1 rounded-full bg-red-600 py-2 font-medium text-white transition-opacity enabled:hover:opacity-90 disabled:opacity-50"
+            >
+              {he.post.delete}
+            </button>
+            <button
+              type="button"
+              autoFocus // not the delete button: an Enter right after opening must not delete
+              onClick={close}
+              className="flex-1 rounded-full border border-neutral-400 py-2 font-medium transition-colors hover:bg-neutral-500/10"
+            >
+              {he.composer.cancel}
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }

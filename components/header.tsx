@@ -24,7 +24,7 @@ async function AuthStatus() {
       <Link
         href="/search"
         aria-label={he.nav.search}
-        title={he.nav.search}
+        data-tip={he.nav.search}
         className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
       >
         <svg

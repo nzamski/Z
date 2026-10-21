@@ -3,6 +3,7 @@
 // (html: false), images are off (no media, and remote images would call arbitrary hosts), and
 // markdown-it's validateLink refuses javascript:, vbscript:, file: and data: links.
 import MarkdownIt from "markdown-it";
+import { textDir } from "@/lib/direction";
 import { MENTIONS_MAX, splitMentions } from "@/lib/mentions";
 
 export const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
@@ -11,6 +12,30 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   tokens[idx].attrSet("rel", "noopener noreferrer");
   return self.renderToken(tokens, idx, options);
 };
+
+// Hebrew and English in one post: each block reads in the direction most of its letters do
+// (lib/direction.ts, as in the composer). Code blocks are always left to right (globals.css).
+const DIRECTED = new Set([
+  "paragraph",
+  "heading",
+  "blockquote",
+  "bullet_list",
+  "ordered_list",
+  "list_item",
+]);
+md.core.ruler.push("direction", (state) => {
+  const open: { token: (typeof state.tokens)[number]; text: string }[] = [];
+  for (const t of state.tokens) {
+    const type = t.type.replace(/_(open|close)$/, "");
+    if (t.nesting === 1 && DIRECTED.has(type)) open.push({ token: t, text: "" });
+    else if (t.type === "inline") for (const o of open) o.text += ` ${t.content}`;
+    else if (t.nesting === -1 && DIRECTED.has(type)) {
+      const o = open.pop()!;
+      const dir = textDir(o.text);
+      if (dir) o.token.attrSet("dir", dir);
+    }
+  }
+});
 
 // @handle -> a link to the profile (after linkify, so links and code are left alone).
 md.core.ruler.push("mentions", (state) => {
