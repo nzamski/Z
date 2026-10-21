@@ -24,6 +24,7 @@ import {
   likes,
   moderationActions,
   notifications,
+  pollVotes,
   posts,
   postTags,
   topicFollows,
@@ -41,6 +42,10 @@ import {
 } from "@/lib/feed";
 import {
   BIO_MAX,
+  PINS_MAX,
+  POLL_MINUTES,
+  POLL_OPTION_MAX,
+  POLL_OPTIONS_MAX,
   COMMENT_MAX,
   EDIT_WINDOW_MINUTES,
   HANDLE_RE,
@@ -48,7 +53,7 @@ import {
   RATE,
   REASON_MAX,
 } from "@/lib/limits";
-import { extractMentions, extractTags } from "@/lib/markdown";
+import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
@@ -57,29 +62,43 @@ export class ServiceError extends Error {
   constructor(
     public code:
       | "invalid"
+      | "pin_limit"
+      | "empty"
       | "not_found"
       | "forbidden"
       | "gone"
       | "taken"
       | "suspended"
       | "rate_limited"
-      | "edit_window",
+      | "edit_window"
+      | "poll_closed",
   ) {
     super(code);
   }
 }
 
-const PostBody = z.string().trim().min(1).max(POST_MAX);
-const CommentBody = z.string().trim().min(1).max(COMMENT_MAX);
+// Something to show, not just an empty code block or a direction mark (hasContent).
+const PostBody = z.string().trim().max(POST_MAX).refine(hasContent, "empty");
+const CommentBody = z.string().trim().max(COMMENT_MAX).refine(hasContent, "empty");
 const Bio = z.string().trim().max(BIO_MAX);
 const Handle = z.string().trim().toLowerCase().regex(HANDLE_RE);
 const Reason = z.string().trim().min(1).max(REASON_MAX);
+const Poll = z.object({
+  options: z
+    .array(z.string().trim().min(1).max(POLL_OPTION_MAX))
+    .min(2)
+    .max(POLL_OPTIONS_MAX)
+    .refine((o) => new Set(o).size === o.length), // no duplicates
+  minutes: z.number().int().min(POLL_MINUTES.min).max(POLL_MINUTES.max),
+});
+export type PollInput = z.infer<typeof Poll>;
 const now = sql`now()`;
 const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const r = schema.safeParse(value);
-  if (!r.success) throw new ServiceError("invalid");
+  if (!r.success)
+    throw new ServiceError(r.error.issues.some((i) => i.message === "empty") ? "empty" : "invalid");
   return r.data;
 }
 
@@ -246,13 +265,23 @@ async function notifyMentions(
 
 // ---- posts ----
 
-export async function createPost(actorId: string, body: string) {
+/** `poll`: the post's question is its text; the options and duration come here. */
+export async function createPost(actorId: string, body: string, poll?: PollInput) {
   const text = parse(PostBody, body);
+  const p = poll && parse(Poll, poll);
   await assertCanWrite(actorId, "posts");
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(posts)
-      .values({ authorId: actorId, body: text, ...computePreview(text) })
+      .values({
+        authorId: actorId,
+        body: text,
+        ...computePreview(text),
+        ...(p && {
+          pollOptions: p.options,
+          pollEndsAt: sql`now() + make_interval(mins => ${p.minutes})`,
+        }),
+      })
       .returning();
     await notifyMentions(tx, actorId, text, { postId: row.id });
     await setPostTags(tx, row.id, text);
@@ -348,6 +377,35 @@ export async function deleteComment(actorId: string, commentId: string) {
       .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
   });
+}
+
+// ---- polls ----
+
+/** One vote per person, final (X-style), while the poll is open (the database's clock).
+ * `option`: the option's index. */
+export async function votePoll(actorId: string, postId: string, option: number) {
+  await assertCanWrite(actorId);
+  const [p] = await db
+    .select({
+      options: sql<number | null>`cardinality(${posts.pollOptions})`,
+      open: sql<boolean>`${posts.pollEndsAt} > now()`,
+      deletedAt: posts.deletedAt,
+      removedAt: posts.removedAt,
+    })
+    .from(posts)
+    .where(eq(posts.id, postId));
+  if (!p || p.options === null) throw new ServiceError("not_found");
+  if (p.deletedAt || p.removedAt) throw new ServiceError("gone");
+  if (!p.open) throw new ServiceError("poll_closed");
+  if (!Number.isInteger(option) || option < 0 || option >= p.options)
+    throw new ServiceError("invalid");
+  await db
+    .insert(pollVotes)
+    .values({ postId, userId: actorId, option })
+    .onConflictDoNothing({
+      target: [pollVotes.postId, pollVotes.userId],
+      where: active(pollVotes),
+    });
 }
 
 // ---- likes ----
@@ -516,6 +574,14 @@ const likedBy = (viewerId: string | null) =>
         and l.user_id = ${viewerId} and l.deleted_at is null)`
     : sql<boolean>`false`;
 
+export type PollView = {
+  options: string[];
+  endsAt: string;
+  open: boolean;
+  counts: number[];
+  mine: number | null;
+};
+
 const postCols = (viewerId: string | null) => ({
   id: posts.id,
   authorId: posts.authorId,
@@ -526,9 +592,26 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  pinned: sql<boolean>`${posts.pinnedAt} is not null`, // on the author's profile
+  // For the "⋯" menu's follow / unfollow.
+  followsAuthor: viewerId
+    ? sql<boolean>`exists (select 1 from ${follows} fa where fa.follower_id = ${viewerId}
+        and fa.followee_id = ${posts.authorId} and fa.deleted_at is null)`
+    : sql<boolean>`false`,
   // The author liked a comment on it: the "answered" mark (comments_author_liked_idx).
   answered: sql<boolean>`exists (select 1 from ${comments} ac where ac.post_id = ${posts.id}
     and ac.author_liked_at is not null and ac.deleted_at is null)`,
+  // Null without a poll. counts[i]: votes for options[i]; mine: the viewer's option, if voted.
+  poll: sql<PollView | null>`case when ${posts.pollOptions} is null then null else json_build_object(
+    'options', ${posts.pollOptions},
+    'endsAt', ${posts.pollEndsAt},
+    'open', ${posts.pollEndsAt} > now(),
+    'counts', (select json_agg((select count(*) from ${pollVotes} pv where pv.post_id = ${posts.id}
+        and pv.option = i - 1 and pv.deleted_at is null) order by i)
+      from generate_subscripts(${posts.pollOptions}, 1) i),
+    'mine', (select pm.option from ${pollVotes} pm where pm.post_id = ${posts.id}
+      and pm.user_id = ${viewerId} and pm.deleted_at is null)
+  ) end`,
   // Authors always have a handle: posting requires finishing the welcome.
   author: { displayName: users.displayName, handle: sql<string>`${users.handle}` },
 });
@@ -1631,28 +1714,46 @@ export async function topicSuggestions(prefix: string, limit = 5) {
     .limit(limit);
 }
 
-// ---- pinned post (one per profile) ----
+// ---- pinned posts (up to PINS_MAX per profile) ----
 
-/** Pin one of your own live posts to the top of your profile (replaces the previous pin). */
+/** Pin one of your own live posts to the top of your profile. */
 export async function pinPost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
   await ownActive(posts, postId, actorId);
-  await db.update(users).set({ pinnedPostId: postId, updatedAt: now }).where(eq(users.id, actorId));
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.authorId, actorId),
+        active(posts),
+        sql`${posts.pinnedAt} is not null`,
+        ne(posts.id, postId),
+      ),
+    );
+  if (n >= PINS_MAX) throw new ServiceError("pin_limit");
+  await db
+    .update(posts)
+    .set({ pinnedAt: sql`coalesce(${posts.pinnedAt}, now())`, updatedAt: now })
+    .where(eq(posts.id, postId));
 }
 
-export async function unpinPost(actorId: string) {
+export async function unpinPost(actorId: string, postId: string) {
   await assertCanWrite(actorId);
-  await db.update(users).set({ pinnedPostId: null, updatedAt: now }).where(eq(users.id, actorId));
+  await db
+    .update(posts)
+    .set({ pinnedAt: null, updatedAt: now })
+    .where(and(eq(posts.id, postId), eq(posts.authorId, actorId)));
 }
 
-/** The card of a user's pinned post, if it's still live. */
-export async function pinnedPost(viewerId: string, userId: string) {
-  const [row] = await db
+/** A profile's pinned posts (live ones), most recently pinned first. */
+export async function pinnedPosts(viewerId: string, userId: string) {
+  return db
     .select(postCols(viewerId))
-    .from(users)
-    .innerJoin(posts, eq(posts.id, users.pinnedPostId))
-    .where(and(eq(users.id, userId), active(posts)));
-  return row ?? null;
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(and(eq(posts.authorId, userId), active(posts), sql`${posts.pinnedAt} is not null`))
+    .orderBy(desc(posts.pinnedAt));
 }
 
 // ---- who to follow (the sidebar) ----

@@ -16,10 +16,14 @@
     "seed": "tsx --env-file-if-exists=.env db/seed.mts",
     "seed:large": "tsx --env-file-if-exists=.env db/seed.mts --large",
     "build:images": "sh scripts/build-images.sh",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "predev": "node scripts/copy-emojibase.mjs",
+    "prebuild": "node scripts/copy-emojibase.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
+    "emojibase-data": "^18.0.0",
+    "frimousse": "^0.4.0",
     "jose": "^6.2.12",
     "markdown-it": "^15.0.3",
     "next": "16.4.2",

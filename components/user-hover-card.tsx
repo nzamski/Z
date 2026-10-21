@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getUserCardAction, type UserCard } from "@/app/actions";
+import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { he } from "@/lib/i18n/he";
 
@@ -77,14 +78,9 @@ export function UserHoverCard({
           className="absolute start-0 top-full z-30 mt-2 w-72 rounded-xl border border-neutral-200 bg-background p-4 text-start text-sm font-normal shadow-lg dark:border-neutral-800 dark:shadow-black/60"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-baseline gap-x-2">
-              <Link href={href} className="truncate text-base font-bold hover:underline">
-                {card.displayName}
-              </Link>
-              <span className="shrink-[3] truncate text-muted" dir="ltr">
-                @{card.handle}
-              </span>
-            </div>
+            <Link href={href} tabIndex={-1} aria-hidden className="hover:opacity-80">
+              <Avatar name={card.displayName} />
+            </Link>
             {!card.isSelf && (
               <FollowButton
                 key={String(card.viewerFollows)}
@@ -97,6 +93,14 @@ export function UserHoverCard({
                 }
               />
             )}
+          </div>
+          <div className="mt-2 flex min-w-0 items-baseline gap-x-2">
+            <Link href={href} className="truncate text-base font-bold hover:underline">
+              {card.displayName}
+            </Link>
+            <span className="shrink-[3] truncate text-muted" dir="ltr">
+              @{card.handle}
+            </span>
           </div>
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-muted">

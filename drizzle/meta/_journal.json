@@ -127,6 +127,20 @@
       "when": 1792599435506,
       "tag": "0017_pinned_post",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792612425803,
+      "tag": "0018_pins",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792612914992,
+      "tag": "0019_polls",
+      "breakpoints": true
     }
   ]
 }

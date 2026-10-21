@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
+import { SidebarSearch } from "@/components/sidebar-search";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
 import { getUser, popularTopics, whoToFollow } from "@/lib/services";
@@ -16,15 +17,7 @@ export async function SideBar() {
   const [topics, people] = await Promise.all([popularTopics(7, 6), whoToFollow(user.id, 3)]);
   return (
     <div className="space-y-4 p-4 text-start">
-      <form action="/search" role="search">
-        <input
-          name="q"
-          type="search"
-          placeholder={he.search.placeholder}
-          aria-label={he.nav.search}
-          className="w-full rounded-full bg-neutral-500/10 px-4 py-2 outline-none focus:bg-transparent focus:ring-1 focus:ring-sky-500"
-        />
-      </form>
+      <SidebarSearch />
 
       <section className={card}>
         <h2 className="mb-2 text-lg font-bold">{he.side.popular}</h2>
@@ -59,13 +52,13 @@ export async function SideBar() {
             {people.map((u) => (
               <li key={u.id} className="flex items-center gap-3">
                 <Avatar name={u.displayName} handle={u.handle} small />
-                <Link
-                  href={`/u/${encodeURIComponent(u.handle)}`}
-                  className="min-w-0 flex-1 hover:underline"
-                >
-                  <span className="block truncate font-bold">{u.displayName}</span>
-                  <span className="block truncate text-sm text-muted" dir="ltr">
-                    @{u.handle}
+                <Link href={`/u/${encodeURIComponent(u.handle)}`} className="group min-w-0 flex-1">
+                  <span className="block truncate font-bold group-hover:underline">
+                    {u.displayName}
+                  </span>
+                  {/* bdi: "@user7" reads whole, the line stays RTL (under the name, at the right). */}
+                  <span className="block truncate text-sm text-muted">
+                    <bdi>@{u.handle}</bdi>
                   </span>
                 </Link>
                 <FollowButton userId={u.id} following={false} />

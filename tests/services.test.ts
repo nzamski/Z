@@ -4,7 +4,7 @@ import { db, sql } from "@/db/client";
 import { follows, likes, posts } from "@/db/schema";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
-import { EDIT_WINDOW_MINUTES, POST_MAX } from "@/lib/limits";
+import { EDIT_WINDOW_MINUTES, PINS_MAX, POLL_OPTION_MAX, POST_MAX } from "@/lib/limits";
 
 afterAll(() => sql.end());
 
@@ -33,7 +33,7 @@ describe("posts", () => {
   test("rejects bodies over the limit and blank bodies", async () => {
     const a = await makeUser();
     expect(await code(s.createPost(a.id, "א".repeat(POST_MAX + 1)))).toBe("invalid");
-    expect(await code(s.createPost(a.id, "   "))).toBe("invalid");
+    expect(await code(s.createPost(a.id, "   "))).toBe("empty"); // nothing to show
   });
 
   test("posts can be edited only within the edit window", async () => {
@@ -152,24 +152,29 @@ describe("follows", () => {
   });
 });
 
-describe("pinned post", () => {
-  test("pin your own post; a new pin replaces it; unpin; a deleted one isn't shown", async () => {
+describe("pinned posts", () => {
+  test(`up to ${PINS_MAX}, newest pin first; unpin; a deleted one isn't shown`, async () => {
     const [u, other] = [await makeUser(), await makeUser()];
-    const first = await s.createPost(u.id, "ראשון");
-    const second = await s.createPost(u.id, "שני");
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+    const posts = [];
+    for (let i = 0; i <= PINS_MAX; i++) posts.push(await s.createPost(u.id, `פוסט ${i}`));
+    const pins = async () => (await s.pinnedPosts(other.id, u.id)).map((p) => p.id);
+    expect(await pins()).toEqual([]);
 
-    await s.pinPost(u.id, first.id);
-    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(first.id);
-    await s.pinPost(u.id, second.id);
-    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(second.id);
+    for (const p of posts.slice(0, PINS_MAX)) await s.pinPost(u.id, p.id);
+    expect((await pins()).sort()).toEqual(
+      posts
+        .slice(0, PINS_MAX)
+        .map((p) => p.id)
+        .sort(),
+    );
+    expect(await code(s.pinPost(u.id, posts[PINS_MAX].id))).toBe("pin_limit");
+    await s.pinPost(u.id, posts[0].id); // already pinned: fine, not a fourth
 
-    await s.unpinPost(u.id);
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
-
-    await s.pinPost(u.id, first.id);
-    await s.deletePost(u.id, first.id);
-    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+    await s.unpinPost(u.id, posts[0].id);
+    expect(await pins()).not.toContain(posts[0].id);
+    await s.deletePost(u.id, posts[1].id);
+    expect(await pins()).not.toContain(posts[1].id);
+    expect((await s.getPost(posts[2].id, u.id))?.pinned).toBe(true);
   });
 
   test("only your own post", async () => {
@@ -195,6 +200,16 @@ describe("who to follow", () => {
   });
 });
 
+describe("empty posts", () => {
+  test("a post or comment with nothing to show is refused", async () => {
+    const u = await makeUser();
+    expect(await code(s.createPost(u.id, "```\n```"))).toBe("empty");
+    expect(await code(s.createPost(u.id, "‏ "))).toBe("empty");
+    const post = await s.createPost(u.id, "יש תוכן");
+    expect(await code(s.createComment(u.id, post.id, "****"))).toBe("empty");
+  });
+});
+
 describe("postSummaries (a feed shown again re-checks its cards)", () => {
   test("current counts and the viewer's like; deleted posts are left out", async () => {
     const author = await makeUser();
@@ -207,5 +222,63 @@ describe("postSummaries (a feed shown again re-checks its cards)", () => {
     const got = await s.postSummaries(viewer.id, [kept.id, gone.id]);
     expect(got.map((x) => x.id)).toEqual([kept.id]);
     expect(got[0]).toMatchObject({ likeCount: 1, commentCount: 1, liked: true });
+  });
+});
+
+describe("polls", () => {
+  const options = ["כן", "לא", "אולי"];
+
+  test("validates options and duration", async () => {
+    const a = await makeUser();
+    const bad = (poll: s.PollInput) => code(s.createPost(a.id, "שאלה?", poll));
+    expect(await bad({ options: ["רק אחת"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["א", "ב", "ג", "ד", "ה"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", " "], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "כן"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "א".repeat(POLL_OPTION_MAX + 1)], minutes: 60 })).toBe(
+      "invalid",
+    );
+    expect(await bad({ options: ["כן", "לא"], minutes: 4 })).toBe("invalid"); // under 5 minutes
+    expect(await bad({ options: ["כן", "לא"], minutes: 7 * 24 * 60 + 1 })).toBe("invalid");
+    expect(await code(s.createPost(a.id, "", { options, minutes: 60 }))).toBe("empty"); // needs a question
+  });
+
+  test("one final vote per person; counts and the viewer's choice; edits keep the poll", async () => {
+    const [a, b, c] = [await makeUser(), await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "שאלה?", { options, minutes: 3 * 24 * 60 });
+    expect((await s.getPost(p.id, b.id))?.poll).toMatchObject({
+      options,
+      open: true,
+      counts: [0, 0, 0],
+      mine: null,
+    });
+    await s.votePoll(b.id, p.id, 1);
+    await s.votePoll(b.id, p.id, 2); // already voted: ignored
+    await s.votePoll(c.id, p.id, 1);
+    expect((await s.getPost(p.id, b.id))?.poll).toMatchObject({ counts: [0, 2, 0], mine: 1 });
+    expect((await s.getPost(p.id, a.id))?.poll?.mine).toBeNull();
+    expect(await code(s.votePoll(c.id, p.id, 3))).toBe("invalid");
+
+    await s.editPost(a.id, p.id, "שאלה אחרת?");
+    expect((await s.getPost(p.id, b.id))?.poll?.counts).toEqual([0, 2, 0]);
+
+    const plain = await s.createPost(a.id, "בלי סקר");
+    expect((await s.getPost(plain.id, b.id))?.poll).toBeNull();
+    expect(await code(s.votePoll(b.id, plain.id, 0))).toBe("not_found");
+  });
+
+  test("no votes after the poll ends or on a deleted post", async () => {
+    const [a, b] = [await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "שאלה?", { options, minutes: 60 });
+    await db
+      .update(posts)
+      .set({ pollEndsAt: dsql`now() - interval '1 second'` })
+      .where(eq(posts.id, p.id));
+    expect(await code(s.votePoll(b.id, p.id, 0))).toBe("poll_closed");
+    expect((await s.getPost(p.id, b.id))?.poll?.open).toBe(false);
+
+    const q = await s.createPost(a.id, "שאלה?", { options, minutes: 60 });
+    await s.deletePost(a.id, q.id);
+    expect(await code(s.votePoll(b.id, q.id, 0))).toBe("gone");
   });
 });

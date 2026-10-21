@@ -3,38 +3,13 @@ import { LikeButton } from "@/components/buttons";
 import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
 import { CommentButton } from "@/components/comment-dialog";
+import { PostMenu } from "@/components/post-menu";
+import { Poll } from "@/components/poll";
 import { PostPreview } from "@/components/post-preview";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
 import type { PostSummary } from "@/lib/services";
-
-/** X-style comment count: bubble icon, blue hover circle, no number at zero. */
-export function CommentStat({ href, count }: { href: string; count: number }) {
-  return (
-    <Link
-      href={href}
-      aria-label={`${count} ${he.post.comments}`}
-      data-tip={he.comment.add}
-      className="group -my-1 -ms-2 flex items-center tabular-nums transition-colors hover:text-sky-500"
-    >
-      <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden
-          className="size-[18px]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinejoin="round"
-        >
-          <path d="M12 4c4.97 0 9 3.36 9 7.5S16.97 19 12 19c-1 0-1.96-.13-2.86-.38L4.5 20.5l1.2-3.6C4.03 15.55 3 13.62 3 11.5 3 7.36 7.03 4 12 4Z" />
-        </svg>
-      </span>
-      <span className="min-w-[1ch] text-sm">{count > 0 ? count : ""}</span>
-    </Link>
-  );
-}
 
 /** Plain user text (bios), as typed: React escapes it, newlines are kept, long words wrap. */
 export function PlainText({ text, className = "" }: { text: string; className?: string }) {
@@ -107,10 +82,12 @@ export function PostCard({
   post: p,
   viewer,
   pinned,
+  onGone,
 }: {
   post: PostSummary;
   viewer?: Viewer;
   pinned?: boolean; // the profile's pinned post: labeled
+  onGone?: () => void; // deleted or removed from its "⋯" menu: the feed drops it
 }) {
   return (
     <ClickableCard
@@ -137,8 +114,16 @@ export function PostCard({
             {he.post.pinned}
           </p>
         )}
-        <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
+          </div>
+          {viewer && <PostMenu post={p} viewer={viewer} onGone={onGone} />}
+        </div>
         <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
+        {p.poll && (
+          <Poll postId={p.id} poll={p.poll} canVote={!!viewer && viewer.id !== p.authorId} />
+        )}
         <div className="mt-2 flex gap-8 text-sm text-muted">
           <LikeButton
             id={p.id}
@@ -161,4 +146,9 @@ export function PostCard({
 }
 
 /** The signed-in user, as far as avatars and names need. */
-export type Viewer = { id: string; displayName: string; handle: string };
+export type Viewer = {
+  id: string;
+  displayName: string;
+  handle: string;
+  admin: boolean;
+};

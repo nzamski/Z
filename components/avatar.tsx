@@ -11,12 +11,13 @@ export function Avatar(p: {
   name: string;
   handle?: string | null;
   small?: boolean;
+  large?: boolean; // the profile page's
   noCard?: boolean; // no hover card (your own avatar beside the composer)
 }) {
   const circle = (
     <span
       aria-hidden
-      className={`grid shrink-0 place-items-center rounded-full bg-neutral-500/15 font-bold text-foreground ${p.small ? "size-8 text-sm" : "size-10 text-base"}`}
+      className={`grid shrink-0 place-items-center rounded-full bg-neutral-500/15 font-bold text-foreground ${p.small ? "size-8 text-sm" : p.large ? "size-20 text-3xl" : "size-10 text-base"}`}
     >
       {initial(p.name, p.handle)}
     </span>

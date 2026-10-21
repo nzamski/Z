@@ -18,6 +18,9 @@ test("set_updated_at() advances updated_at on every table", async () => {
   const [fol] = await sql`select id from follows where follower_id = ${a.id}`;
   const [adm] = await sql`insert into admins (user_id) values (${a.id}) returning id`;
   const [notif] = await sql`select id from notifications where recipient_id = ${a.id} limit 1`;
+  const poll = await s.createPost(a.id, "סקר", { options: ["כן", "לא"], minutes: 60 });
+  await s.votePoll(b.id, poll.id, 0);
+  const [vote] = await sql`select id from poll_votes where post_id = ${poll.id}`;
   const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
     values ('suspend_user', ${b.id}, 'test') returning id`;
 
@@ -32,6 +35,7 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["admins", adm.id, "deleted_at = now()"],
     ["moderation_actions", mod.id, "reason = 'x'"],
     ["notifications", notif.id, "read_at = now()"],
+    ["poll_votes", vote.id, "deleted_at = now()"],
   ];
   for (const [table, id, set] of rows) {
     const [before] = await sql`select updated_at::text as t from ${sql(table)} where id = ${id}`;

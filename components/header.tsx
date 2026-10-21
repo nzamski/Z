@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AccountMenu } from "@/components/account-menu";
 import { BackLink, LogoLink } from "@/components/home-link";
 import { NotificationBell } from "@/components/notification-bell";
-import { ThemeMenu } from "@/components/theme-menu";
+import { ThemeToggle } from "@/components/theme-menu";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
 import { getUser, isAdmin, unreadNotifications } from "@/lib/services";
@@ -15,7 +15,7 @@ async function AuthStatus() {
   // links to the rest of Z would only bounce back.
   // Suspended: locked out, links would only bounce back to /suspended.
   // They still get the theme switch, which otherwise lives in the account menu.
-  if (!user?.handle || !user.onboardedAt || user.suspendedAt) return <ThemeMenu />;
+  if (!user?.handle || !user.onboardedAt || user.suspendedAt) return <ThemeToggle />;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
   // DOM order runs right to left (RTL): search nearest the logo, the account menu at the edge.
@@ -55,8 +55,30 @@ export function Header() {
         <BackLink />
       </Suspense>
       <LogoLink>
-        <span className="text-5xl leading-none font-extrabold tracking-tight select-none">
+        {/* "Z"; on hover it spells out "Zed". */}
+        <span
+          dir="ltr"
+          className="flex items-baseline text-5xl leading-none font-extrabold tracking-tight select-none"
+        >
           {he.appName}
+          {/* The space opens smoothly (grid 0fr → 1fr) while each letter rises and fades in, one
+              after the other; leaving plays it back. */}
+          <span
+            aria-hidden
+            className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:grid-cols-[1fr]"
+          >
+            <span className="flex min-w-0 overflow-hidden">
+              {[...he.appFullName.slice(he.appName.length)].map((c, i) => (
+                <span
+                  key={i}
+                  style={{ transitionDelay: `${80 + i * 70}ms` }}
+                  className="inline-block translate-y-3 opacity-0 transition-[translate,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-y-0 group-hover:opacity-100"
+                >
+                  {c}
+                </span>
+              ))}
+            </span>
+          </span>
         </span>
       </LogoLink>
       <div className="flex items-center gap-2 justify-self-end">

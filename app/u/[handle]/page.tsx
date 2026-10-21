@@ -7,6 +7,7 @@ import {
   suspendUserAction,
   unsuspendUserAction,
 } from "@/app/actions";
+import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
@@ -23,7 +24,7 @@ import {
   followInfo,
   getUserByHandle,
   isAdmin,
-  pinnedPost,
+  pinnedPosts,
   ServiceError,
 } from "@/lib/services";
 import type { Metadata } from "next";
@@ -33,11 +34,11 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const handle = decodeURIComponent((await params).handle);
   const user = await getUserByHandle(handle);
   if (!user) return <p className="p-8 text-center text-muted">{he.profile.notFound}</p>;
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   const viewerId = viewer.id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };
-  const [info, page, admin, pinned] = await Promise.all([
+  const [info, page, admin, pins] = await Promise.all([
     followInfo(user.id, viewerId),
     feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
       (e) => {
@@ -46,7 +47,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       },
     ),
     isAdmin(viewerId),
-    pinnedPost(viewerId, user.id),
+    pinnedPosts(viewerId, user.id),
   ]);
 
   const chat = chatLink(user.handle);
@@ -55,18 +56,21 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
     <>
       <section className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-            <h2 className="text-xl font-bold">
-              {user.displayName}
-              {user.suspendedAt && admin && (
-                <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
-                  {he.moderation.suspendedBadge}
-                </span>
-              )}
-            </h2>
-            <span className="text-muted" dir="ltr">
-              @{user.handle}
-            </span>
+          <div className="min-w-0">
+            <Avatar name={user.displayName} large />
+            <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <h2 className="text-xl font-bold">
+                {user.displayName}
+                {user.suspendedAt && admin && (
+                  <span className="ms-2 rounded-full bg-red-500/10 px-2 py-0.5 align-middle text-xs font-medium text-danger">
+                    {he.moderation.suspendedBadge}
+                  </span>
+                )}
+              </h2>
+              <span className="text-muted" dir="ltr">
+                @{user.handle}
+              </span>
+            </div>
           </div>
           {viewerId === user.id && (
             <ProfileEditor displayName={user.displayName} handle={user.handle} bio={user.bio} />
@@ -155,16 +159,19 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </div>
         )}
       </section>
-      {/* Pinned to the top of the profile (also in its place below, as on X). */}
-      {pinned && !cursor && (
+      {/* Pinned to the top of the profile, and not again below. */}
+      {pins.length > 0 && !cursor && (
         <ul>
-          <PostCard post={pinned} viewer={viewer} pinned />
+          {pins.map((post) => (
+            <PostCard key={post.id} post={post} viewer={viewer} pinned />
+          ))}
         </ul>
       )}
       <FeedList
         key={user.id}
         view="latest"
         author={user.id}
+        hide={cursor ? undefined : pins.map((x) => x.id)}
         viewer={viewer}
         first={page.items}
         next={page.next}

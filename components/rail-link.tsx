@@ -1,6 +1,5 @@
 "use client";
-// One navigation rail item: icon, and its label on wide screens (a tooltip when only the icon
-// shows). The current page is bold (aria-current).
+// One navigation rail item: icon, and its label on wide screens. The current page is bold (aria-current).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { railItem } from "@/components/rail-styles";
@@ -18,7 +17,6 @@ export function RailLink(p: {
       href={p.href}
       aria-current={current ? "page" : undefined}
       aria-label={p.label}
-      data-tip={p.label}
       className={railItem}
     >
       {p.icon}

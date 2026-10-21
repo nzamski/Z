@@ -1,9 +1,10 @@
 // The start-side navigation rail on wide screens (the header keeps these on phones): home,
 // search, notifications, topics, profile, admin, a new-post button, and the account menu.
-import { AccountMenu } from "@/components/account-menu";
+import { Avatar } from "@/components/avatar";
 import { NewPostButton } from "@/components/new-post-button";
 import { NotificationBell } from "@/components/notification-bell";
 import { RailLink } from "@/components/rail-link";
+import { ThemeToggle } from "@/components/theme-menu";
 import { railItem } from "@/components/rail-styles";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
@@ -61,8 +62,19 @@ export async function NavRail() {
         viewer={{ displayName: user.displayName, handle: user.handle }}
         icon={<Icon d={ICONS.pen} />}
       />
-      <div className="mt-auto flex justify-center pb-2 xl:justify-start xl:px-2">
-        <AccountMenu handle={user.handle} displayName={user.displayName} admin={admin} up />
+      {/* Bottom: who you are (as on X; not a button: the rail has the links), and the theme at
+          the row's other end. Icon-only rail (lg): the theme under the avatar. */}
+      <div className="mt-auto flex flex-col items-center gap-2 p-2 xl:flex-row xl:gap-3">
+        <Avatar name={user.displayName} />
+        <div className="hidden min-w-0 xl:block">
+          <div className="truncate font-bold">{user.displayName}</div>
+          <div className="truncate text-sm text-muted" dir="ltr">
+            @{user.handle}
+          </div>
+        </div>
+        <div className="xl:ms-auto">
+          <ThemeToggle />
+        </div>
       </div>
     </nav>
   );

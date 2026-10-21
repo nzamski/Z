@@ -95,26 +95,24 @@ export function ThemePicker() {
   );
 }
 
-export function ThemeMenu() {
-  const { open, setOpen, root } = useMenu();
-  const theme = useTheme();
+/** The theme button with its menu; `up` opens it above the button (the rail, at the screen's bottom). */
+// The theme actually shown (a "system" choice resolved by the inline script in the layout).
+const shownTheme = () =>
+  document.documentElement.dataset.theme === "dark" ? ("dark" as const) : ("light" as const);
+
+/** One click switches between light and dark (the account menu keeps the three-way picker). */
+export function ThemeToggle() {
+  const shown = useSyncExternalStore(subscribeTheme, shownTheme, () => "light" as const);
+  const next = shown === "dark" ? "light" : "dark";
+  const label = next === "dark" ? he.theme.toDark : he.theme.toLight;
   return (
-    <div ref={root} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${he.theme.label}: ${he.theme[theme]}`}
-        data-tip={he.theme.label}
-        className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
-      >
-        <Icon theme={theme} />
-      </button>
-      {open && (
-        <div role="menu" aria-label={he.theme.label} className={`${menuClass} w-40 px-2`}>
-          <ThemePicker />
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => setTheme(next)}
+      aria-label={label}
+      className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
+    >
+      <Icon theme={shown} />
+    </button>
   );
 }

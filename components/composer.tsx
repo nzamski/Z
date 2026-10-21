@@ -28,11 +28,14 @@ import { EditorState, Plugin, type Command } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
+import { EmojiPicker } from "@/components/emoji-picker";
+import { PollFields, PollIcon } from "@/components/poll";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
 import { splitMentions } from "@/lib/mentions";
 import { splitTags } from "@/lib/tags";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
+import { hasContent } from "@/lib/markdown";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -51,6 +54,7 @@ type Props = {
   autoFocus?: boolean; // the caret starts here (the comment popup)
   author?: { displayName: string; handle: string | null }; // the viewer, shown as an avatar
   compact?: boolean; // a small avatar, as in a comment thread (replies)
+  poll?: boolean; // offers a poll (new posts)
 };
 
 // Drafts survive a closed tab or a reload; posting, cancelling or emptying the editor drops them.
@@ -265,6 +269,8 @@ export function Composer(p: Props) {
     latest.current = mentions;
   });
 
+  // The poll's option texts while one is attached (PollFields); null without a poll.
+  const [poll, setPoll] = useState<string[] | null>(null);
   const rows = p.rows ?? 4;
   useEffect(() => {
     const v: EditorView = new EditorView(host.current!, {
@@ -307,6 +313,12 @@ export function Composer(p: Props) {
     };
   }, [p.initial, p.placeholder, rows, p.draft, p.autoFocus]);
 
+  // With a poll attached the question is short: one line, and the poll right under it (X-style).
+  const hasPoll = poll !== null;
+  useEffect(() => {
+    view.current?.dom.style.setProperty("min-height", `${(hasPoll ? 1 : rows) * 1.7}em`);
+  }, [hasPoll, rows]);
+
   // The comment button links to #reply (from a card, or on the post page itself).
   useEffect(() => {
     if (!p.focusOn) return;
@@ -336,6 +348,8 @@ export function Composer(p: Props) {
     if (ready) writeDraft(p.draft, body);
   }, [ready, body, p.draft]);
 
+  const pollShort = poll !== null && poll.filter((o) => o.trim()).length < 2;
+
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
@@ -346,6 +360,7 @@ export function Composer(p: Props) {
         setEditor(v.state);
       }
       setLink(null);
+      setPoll(null);
       p.onDone?.();
     }
     return r;
@@ -432,6 +447,7 @@ export function Composer(p: Props) {
           )}
           {mentions.list}
         </div>
+        {poll && <PollFields options={poll} onChange={setPoll} />}
         {/* One row under a thin line: formatting on one side, send (and its state) on the other. */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-neutral-200 pt-2 text-sm dark:border-neutral-800">
           <div
@@ -454,6 +470,27 @@ export function Composer(p: Props) {
                 {t.icon}
               </button>
             ))}
+            {p.poll && (
+              <button
+                type="button"
+                data-tip={T.poll}
+                aria-label={T.poll}
+                aria-pressed={poll !== null}
+                disabled={poll !== null} // removed from the poll box itself
+                onClick={() => setPoll(["", ""])}
+                className="grid size-8 place-items-center rounded-full text-muted transition-colors enabled:hover:bg-neutral-500/10 enabled:hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
+              >
+                <PollIcon />
+              </button>
+            )}
+            <EmojiPicker
+              onPick={(emoji) =>
+                run((st, d) => {
+                  d?.(st.tr.insertText(emoji).scrollIntoView());
+                  return true;
+                })
+              }
+            />
           </div>
           {/* The send button last, at the row's far end: the counter and cancel that come and go
               as you type appear before it, so it never moves. */}
@@ -472,7 +509,7 @@ export function Composer(p: Props) {
               </button>
             )}
             <button
-              disabled={pending || over || (!p.allowEmpty && !body.trim())}
+              disabled={pending || over || pollShort || (!p.allowEmpty && !hasContent(body))}
               className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
             >
               {p.submitLabel}
@@ -596,10 +633,10 @@ const ICONS = {
   ),
 };
 
-/** X-style counter: a ring that fills as you type; the numbers appear only near the limit. */
+/** X-style counter, only near the limit: a filling ring from 80%, the numbers from 90%. */
 export function LengthRing(p: { length: number; max: number; alwaysCount?: boolean }) {
   const { length, max } = p;
-  if (!length) return null;
+  if (!length || (length < max * 0.8 && !p.alwaysCount)) return null;
   const R = 9;
   const C = 2 * Math.PI * R;
   const near = length >= max * 0.9;

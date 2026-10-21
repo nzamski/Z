@@ -1,6 +1,7 @@
 // All UI strings live here (Hebrew, RTL).
 export const he = {
   appName: "Z",
+  appFullName: "Zed", // the logo spells it out on hover
   nav: {
     forYou: "בשבילך",
     following: "נעקבים",
@@ -15,7 +16,7 @@ export const he = {
   side: {
     popular: "נושאים פופולריים",
     allTopics: "לכל הנושאים",
-    whoToFollow: "מי לעקוב",
+    whoToFollow: "אחרי מי לעקוב",
     noOne: "אין כרגע הצעות.",
     noTopics: "עדיין אין נושאים השבוע.",
   },
@@ -34,6 +35,9 @@ export const he = {
     pin: "הצמדה לפרופיל",
     unpin: "ביטול ההצמדה",
     pinned: "פוסט נעוץ",
+    more: "עוד",
+    followAuthor: (h: string) => `מעקב אחרי @${h}`,
+    unfollowAuthor: (h: string) => `הפסקת מעקב אחרי @${h}`,
     delete: "מחיקה",
     deletePostTitle: "למחוק את הפוסט?",
     deleteCommentTitle: "למחוק את התגובה?",
@@ -62,7 +66,25 @@ export const he = {
     orderedList: "רשימה ממוספרת",
     quote: "ציטוט",
     codeBlock: "בלוק קוד",
+    emoji: "אימוג׳י",
+    emojiSearch: "חיפוש (באנגלית)",
+    emojiNone: "לא נמצא אימוג׳י.",
     direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
+    poll: "סקר",
+  },
+  poll: {
+    option: (n: number) => `אפשרות ${n}`,
+    addOption: "הוספת אפשרות",
+    removeOption: "הסרת האפשרות",
+    remove: "הסרת הסקר",
+    duration: "משך הסקר",
+    days: "ימים",
+    hours: "שעות",
+    minutes: "דקות",
+    votes: (n: number) => (n === 1 ? "הצבעה אחת" : `${n.toLocaleString()} הצבעות`),
+    left: (t: string) => `מסתיים ${t}`,
+    ended: "הסקר הסתיים",
+    yours: "ההצבעה שלך",
   },
   comment: {
     placeholder: "כתבו תגובה…",
@@ -179,6 +201,8 @@ export const he = {
     system: "לפי המערכת",
     light: "בהיר",
     dark: "כהה",
+    toDark: "מעבר לערכה כהה",
+    toLight: "מעבר לערכה בהירה",
   },
   topics: {
     title: "נושאים",
@@ -206,6 +230,8 @@ export const he = {
   },
   errors: {
     invalid: "הקלט לא תקין.",
+    empty: "אין כאן תוכן: כתבו משהו לפני הפרסום.",
+    pin_limit: "אפשר להצמיד עד 3 פוסטים. בטלו הצמדה של אחד מהם קודם.",
     not_found: "לא נמצא.",
     forbidden: "אין לך הרשאה לפעולה הזו.",
     gone: "התוכן נמחק.",
@@ -213,6 +239,7 @@ export const he = {
     edit_window: "אפשר לערוך פוסט רק בשעה הראשונה אחרי הפרסום.",
     rate_limited: "יותר מדי פעולות בזמן קצר. נסו שוב בעוד כמה דקות.",
     suspended: "החשבון שלך מושעה.",
+    poll_closed: "הסקר הסתיים.",
     unknown: "משהו השתבש. נסו שוב.",
   },
   // Browser tab titles, X-style "<page> / Z" (the " / Z" comes from the root layout template).
@@ -242,6 +269,7 @@ export const he = {
   },
   search: {
     placeholder: "חיפוש אנשים ופוסטים",
+    searchFor: (q: string) => `חיפוש "${q}"`,
     hint: "חפשו אנשים לפי שם תצוגה או @שם משתמש, ופוסטים לפי מילים מתוכם. אפשר גם חלק ממילה.",
     none: (q: string) => `לא נמצאו תוצאות עבור "${q}".`,
     noPosts: "אין פוסטים תואמים.",

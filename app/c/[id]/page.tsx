@@ -18,7 +18,7 @@ async function CommentPage({ params, searchParams }: PageProps<"/c/[id]">) {
   if (!z.uuid().safeParse(id).success) return notFound;
   const comment = await getComment(id);
   if (!comment) return notFound;
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   const viewerId = viewer.id;
   const post = await getPost(comment.postId, viewerId);
   if (!post || post.deletedAt)

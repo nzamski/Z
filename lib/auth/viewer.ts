@@ -40,9 +40,11 @@ export async function canSeeContent() {
   return !!user && !user.suspendedAt;
 }
 
-/** What avatars and the composer need about the viewer: safe to hand to client components. */
-export const viewerCard = (v: { id: string; displayName: string; handle: string }) => ({
+/** What client components need about the viewer: avatar and name, and for a post's "⋯" menu,
+ * whether they moderate. Safe to hand to client components. */
+export const viewerCard = async (v: { id: string; displayName: string; handle: string }) => ({
   id: v.id,
   displayName: v.displayName,
   handle: v.handle,
+  admin: await isAdmin(v.id),
 });

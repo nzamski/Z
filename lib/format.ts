@@ -11,6 +11,14 @@ export function ago(d: Date) {
   return fmt(-Math.round(min / (24 * 60)), "day");
 }
 
+/** "בעוד יומיים": time left until `d` (a poll's end). */
+export function until(d: Date) {
+  const min = Math.max(1, Math.round((d.getTime() - Date.now()) / 60_000));
+  if (min < 60) return fmt(min, "minute");
+  if (min < 24 * 60) return fmt(Math.round(min / 60), "hour");
+  return fmt(Math.round(min / (24 * 60)), "day");
+}
+
 /** First line of a text, cut to `n` characters at a word boundary: for page titles. */
 export function snippet(text: string, n = 60) {
   const line = text.trim().split("\n")[0];

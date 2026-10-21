@@ -126,7 +126,9 @@ html:has(dialog:modal) {
     opacity 120ms,
     display 120ms allow-discrete;
 }
-[data-tip-up]::after {
+[data-tip-up]::after,
+/* A popup clips what sticks out below it, and the composer's toolbar is at its bottom. */
+dialog [role="toolbar"] [data-tip]::after {
   top: auto;
   bottom: calc(100% + 6px);
 }

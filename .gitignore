@@ -43,3 +43,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /dist/
+
+# Emoji picker data, copied from emojibase-data (scripts/copy-emojibase.mjs)
+/public/emojibase/
