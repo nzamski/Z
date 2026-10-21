@@ -42,7 +42,25 @@ type Props = {
   onCancel?: () => void;
   onDone?: () => void;
   allowEmpty?: boolean;
+  draft?: string; // autosave key (per browser): new posts, comments and replies, not edits
 };
+
+// Drafts survive a closed tab or a reload; posting, cancelling or emptying the editor drops them.
+const DRAFT = "z-draft:";
+function readDraft(key?: string) {
+  try {
+    return key ? localStorage.getItem(DRAFT + key) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(key: string | undefined, body: string) {
+  if (!key) return;
+  try {
+    if (body.trim()) localStorage.setItem(DRAFT + key, body);
+    else localStorage.removeItem(DRAFT + key);
+  } catch {} // storage full or blocked: the editor still works, just without a draft
+}
 
 const { nodes: N, marks: M } = schema;
 
@@ -162,7 +180,7 @@ export function Composer(p: Props) {
   const rows = p.rows ?? 4;
   useEffect(() => {
     const v: EditorView = new EditorView(host.current!, {
-      state: createState(p.initial ?? ""),
+      state: createState(readDraft(p.draft) ?? p.initial ?? ""),
       attributes: {
         role: "textbox",
         "aria-multiline": "true",
@@ -191,7 +209,7 @@ export function Composer(p: Props) {
       v.destroy();
       view.current = null;
     };
-  }, [p.initial, p.placeholder, rows]);
+  }, [p.initial, p.placeholder, rows, p.draft]);
 
   // The mention list's ARIA lives on the editable element, which ProseMirror owns.
   useEffect(() => {
@@ -206,10 +224,15 @@ export function Composer(p: Props) {
     () => (editor ? toMarkdown(editor.doc) : (p.initial ?? "")),
     [editor, p.initial],
   );
+  const ready = editor !== null; // before that, body is only p.initial
+  useEffect(() => {
+    if (ready) writeDraft(p.draft, body);
+  }, [ready, body, p.draft]);
 
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {
     const r = await p.action(prev, f);
     if (r.ok) {
+      writeDraft(p.draft, ""); // now, not on the next render: onDone may unmount this
       const v = view.current;
       if (v) {
         v.updateState(createState(p.initial ?? ""));
@@ -328,7 +351,10 @@ export function Composer(p: Props) {
         {p.onCancel && (
           <button
             type="button"
-            onClick={p.onCancel}
+            onClick={() => {
+              writeDraft(p.draft, "");
+              p.onCancel?.();
+            }}
             className="text-muted hover:text-foreground hover:underline"
           >
             {T.cancel}

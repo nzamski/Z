@@ -32,6 +32,7 @@ async function Home({ searchParams }: PageProps<"/">) {
       <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
         <Composer
           action={createPostAction}
+          draft="post"
           max={POST_MAX}
           placeholder={he.composer.placeholder}
           submitLabel={he.composer.publish}

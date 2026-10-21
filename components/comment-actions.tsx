@@ -45,6 +45,7 @@ export function CommentActions(p: {
           <Composer
             action={createCommentAction}
             hidden={{ postId: p.postId, parentId: p.commentId }}
+            draft={`reply:${p.commentId}`}
             max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.replyPlaceholder}

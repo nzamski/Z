@@ -9,10 +9,33 @@ import { mentionSuggestionsAction, type MentionSuggestion } from "@/app/actions"
 // The partial mention right before the caret (same rule as lib/mentions.ts, without a minimum).
 const PARTIAL = /(^|[^\p{L}\p{N}_@.])@([a-zA-Z][a-zA-Z0-9_]{0,14})$/u;
 
+const LIST_WIDTH = 288; // w-72
+
+/** Just under the caret at `pos`, its inline start at the caret, kept inside the editor box (the
+ * list's positioned parent). The caret, not the "@": a neutral "@" between Hebrew and Latin text
+ * measures unreliably, and the caret is where the eye is. */
+function anchor(view: EditorView, pos: number) {
+  const box = (view.dom.offsetParent ?? view.dom).getBoundingClientRect();
+  const at = view.coordsAtPos(pos);
+  const rtl = getComputedStyle(view.dom).direction === "rtl";
+  const start = rtl ? box.right - at.left : at.left - box.left;
+  return {
+    top: at.bottom - box.top + 4,
+    start: Math.max(0, Math.min(start, box.width - LIST_WIDTH)),
+  };
+}
+
 export function useMentionSuggest(view: RefObject<EditorView | null>) {
   const listId = useId();
-  // from/to: the "@partial" in the document, replaced on pick.
-  const [query, setQuery] = useState<{ q: string; from: number; to: number } | null>(null);
+  // from/to: the "@partial" in the document, replaced on pick. top/start: where the list opens,
+  // under the caret (px from the editor box's top and inline start).
+  const [query, setQuery] = useState<{
+    q: string;
+    from: number;
+    to: number;
+    top: number;
+    start: number;
+  } | null>(null);
   const [items, setItems] = useState<MentionSuggestion[]>([]);
   const [active, setActive] = useState(0);
 
@@ -23,7 +46,14 @@ export function useMentionSuggest(view: RefObject<EditorView | null>) {
     if (!empty || code) return setQuery(null);
     const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
     const m = before.match(PARTIAL);
-    setQuery(m ? { q: m[2], from: $from.pos - m[2].length - 1, to: $from.pos } : null);
+    const v = view.current;
+    if (!m || !v) return setQuery(null);
+    setQuery({
+      q: m[2],
+      from: $from.pos - m[2].length - 1,
+      to: $from.pos,
+      ...anchor(v, $from.pos),
+    });
   };
 
   useEffect(() => {
@@ -71,33 +101,35 @@ export function useMentionSuggest(view: RefObject<EditorView | null>) {
     "aria-activedescendant": open ? `${listId}-${active}` : "",
   };
 
-  const list = open ? (
-    <ul
-      id={listId}
-      role="listbox"
-      className="absolute start-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 text-start shadow-lg dark:border-neutral-800"
-    >
-      {items.map((u, i) => (
-        <li
-          key={u.id}
-          id={`${listId}-${i}`}
-          role="option"
-          aria-selected={i === active}
-          onMouseDown={(e) => {
-            e.preventDefault(); // keep focus in the editor
-            pick(u);
-          }}
-          onMouseEnter={() => setActive(i)}
-          className="flex cursor-pointer items-baseline gap-2 px-3 py-2 text-sm aria-selected:bg-neutral-500/10"
-        >
-          <span className="truncate font-bold">{u.displayName}</span>
-          <span className="shrink-[3] truncate text-muted" dir="ltr">
-            @{u.handle}
-          </span>
-        </li>
-      ))}
-    </ul>
-  ) : null;
+  const list =
+    open && query ? (
+      <ul
+        id={listId}
+        role="listbox"
+        style={{ top: query.top, insetInlineStart: query.start }}
+        className="absolute z-30 w-72 overflow-hidden rounded-xl border border-neutral-200 bg-background py-1 text-start shadow-lg dark:border-neutral-800"
+      >
+        {items.map((u, i) => (
+          <li
+            key={u.id}
+            id={`${listId}-${i}`}
+            role="option"
+            aria-selected={i === active}
+            onMouseDown={(e) => {
+              e.preventDefault(); // keep focus in the editor
+              pick(u);
+            }}
+            onMouseEnter={() => setActive(i)}
+            className="flex cursor-pointer items-baseline gap-2 px-3 py-2 text-sm aria-selected:bg-neutral-500/10"
+          >
+            <span className="truncate font-bold">{u.displayName}</span>
+            <span className="shrink-[3] truncate text-muted" dir="ltr">
+              @{u.handle}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   return { track, onKeyDown, close: () => setQuery(null), aria, list };
 }

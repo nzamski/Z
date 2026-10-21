@@ -69,6 +69,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
           <Composer
             action={createCommentAction}
             hidden={{ postId: post.id }}
+            draft={`comment:${post.id}`}
             max={COMMENT_MAX}
             rows={2}
             placeholder={he.comment.placeholder}
