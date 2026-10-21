@@ -34,6 +34,7 @@ import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
 import { splitMentions } from "@/lib/mentions";
 import { splitTags } from "@/lib/tags";
 import { parser, schema, toMarkdown } from "@/lib/editor-markdown";
+import { hasContent } from "@/lib/markdown";
 import { he } from "@/lib/i18n/he";
 
 type Props = {
@@ -481,7 +482,7 @@ export function Composer(p: Props) {
               </button>
             )}
             <button
-              disabled={pending || over || (!p.allowEmpty && !body.trim())}
+              disabled={pending || over || (!p.allowEmpty && !hasContent(body))}
               className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
             >
               {p.submitLabel}

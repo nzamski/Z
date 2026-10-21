@@ -35,6 +35,9 @@ export const he = {
     pin: "הצמדה לפרופיל",
     unpin: "ביטול ההצמדה",
     pinned: "פוסט נעוץ",
+    more: "עוד",
+    followAuthor: (h: string) => `מעקב אחרי @${h}`,
+    unfollowAuthor: (h: string) => `הפסקת מעקב אחרי @${h}`,
     delete: "מחיקה",
     deletePostTitle: "למחוק את הפוסט?",
     deleteCommentTitle: "למחוק את התגובה?",
@@ -211,6 +214,7 @@ export const he = {
   },
   errors: {
     invalid: "הקלט לא תקין.",
+    empty: "אין כאן תוכן: כתבו משהו לפני הפרסום.",
     not_found: "לא נמצא.",
     forbidden: "אין לך הרשאה לפעולה הזו.",
     gone: "התוכן נמחק.",

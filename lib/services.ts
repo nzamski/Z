@@ -48,7 +48,7 @@ import {
   RATE,
   REASON_MAX,
 } from "@/lib/limits";
-import { extractMentions, extractTags } from "@/lib/markdown";
+import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
@@ -57,6 +57,7 @@ export class ServiceError extends Error {
   constructor(
     public code:
       | "invalid"
+      | "empty"
       | "not_found"
       | "forbidden"
       | "gone"
@@ -69,8 +70,9 @@ export class ServiceError extends Error {
   }
 }
 
-const PostBody = z.string().trim().min(1).max(POST_MAX);
-const CommentBody = z.string().trim().min(1).max(COMMENT_MAX);
+// Something to show, not just an empty code block or a direction mark (hasContent).
+const PostBody = z.string().trim().max(POST_MAX).refine(hasContent, "empty");
+const CommentBody = z.string().trim().max(COMMENT_MAX).refine(hasContent, "empty");
 const Bio = z.string().trim().max(BIO_MAX);
 const Handle = z.string().trim().toLowerCase().regex(HANDLE_RE);
 const Reason = z.string().trim().min(1).max(REASON_MAX);
@@ -79,7 +81,8 @@ const active = (t: { deletedAt: AnyPgColumn }) => isNull(t.deletedAt);
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const r = schema.safeParse(value);
-  if (!r.success) throw new ServiceError("invalid");
+  if (!r.success)
+    throw new ServiceError(r.error.issues.some((i) => i.message === "empty") ? "empty" : "invalid");
   return r.data;
 }
 
@@ -526,6 +529,11 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  // For the "⋯" menu's follow / unfollow.
+  followsAuthor: viewerId
+    ? sql<boolean>`exists (select 1 from ${follows} fa where fa.follower_id = ${viewerId}
+        and fa.followee_id = ${posts.authorId} and fa.deleted_at is null)`
+    : sql<boolean>`false`,
   // The author liked a comment on it: the "answered" mark (comments_author_liked_idx).
   answered: sql<boolean>`exists (select 1 from ${comments} ac where ac.post_id = ${posts.id}
     and ac.author_liked_at is not null and ac.deleted_at is null)`,

@@ -33,7 +33,7 @@ describe("posts", () => {
   test("rejects bodies over the limit and blank bodies", async () => {
     const a = await makeUser();
     expect(await code(s.createPost(a.id, "א".repeat(POST_MAX + 1)))).toBe("invalid");
-    expect(await code(s.createPost(a.id, "   "))).toBe("invalid");
+    expect(await code(s.createPost(a.id, "   "))).toBe("empty"); // nothing to show
   });
 
   test("posts can be edited only within the edit window", async () => {
@@ -192,5 +192,15 @@ describe("who to follow", () => {
     expect(ids).not.toContain(followed.id);
     expect(ids).toContain(quiet.id);
     expect(ids.indexOf(liked.id)).toBeLessThan(ids.indexOf(quiet.id));
+  });
+});
+
+describe("empty posts", () => {
+  test("a post or comment with nothing to show is refused", async () => {
+    const u = await makeUser();
+    expect(await code(s.createPost(u.id, "```\n```"))).toBe("empty");
+    expect(await code(s.createPost(u.id, "‏ "))).toBe("empty");
+    const post = await s.createPost(u.id, "יש תוכן");
+    expect(await code(s.createComment(u.id, post.id, "****"))).toBe("empty");
   });
 });

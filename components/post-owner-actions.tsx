@@ -15,9 +15,10 @@ export function PostOwnerActions(p: {
   body: string;
   canEdit: boolean;
   pinned: boolean; // pinned to the author's profile
+  startEditing?: boolean; // opened from a card's "⋯" menu (?edit=1)
   children: React.ReactNode;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!p.startEditing && p.canEdit);
   const [pinning, startPin] = useTransition();
   if (editing) {
     return (

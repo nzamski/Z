@@ -16,7 +16,7 @@ import type { Metadata } from "next";
 async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const view = parseTab((await cookies()).get(VIEW_COOKIE)?.value);
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   const viewerId = viewer.id;
   // `cursor` is the no-JS "load more" link; a garbled one just starts over.
   const q = await searchParams;

@@ -8,7 +8,8 @@ import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
 import { Avatar } from "@/components/avatar";
-import { Byline, CommentStat } from "@/components/post-card";
+import { CommentButton } from "@/components/comment-dialog";
+import { Byline } from "@/components/post-card";
 import { PostOwnerActions } from "@/components/post-owner-actions";
 import { Thread } from "@/components/thread";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
@@ -23,10 +24,11 @@ const Notice = ({ text }: { text: string }) => <p className="p-8 text-center tex
 async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   await connection();
   const { id } = await params;
-  const from = Math.max(0, Number((await searchParams).from) || 0);
+  const q = await searchParams;
+  const from = Math.max(0, Number(q.from) || 0);
   if (!z.uuid().safeParse(id).success) return <Notice text={he.post.notFound} />;
   const me = await requireViewer();
-  const viewer = viewerCard(me);
+  const viewer = await viewerCard(me);
   const viewerId = viewer.id;
   const post = await getPost(id, viewerId);
   if (!post) return <Notice text={he.post.notFound} />;
@@ -49,6 +51,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               body={post.body}
               canEdit={canEditPost(post.createdAt)}
               pinned={me.pinnedPostId === post.id}
+              startEditing={q.edit === "1"} // from a card's "⋯" menu
             >
               {body}
             </PostOwnerActions>
@@ -62,7 +65,13 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               count={post.likeCount}
               likersHref={`/p/${post.id}/likes`}
             />
-            <CommentStat href="#reply" count={post.commentCount} />
+            <CommentButton
+              postId={post.id}
+              count={post.commentCount}
+              author={post.author}
+              preview={post.body}
+              viewer={viewer}
+            />
           </div>
           {admin && viewerId !== post.authorId && (
             <div className="mt-2 text-sm text-muted">

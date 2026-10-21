@@ -71,7 +71,6 @@ export function NewPostButton(p: {
               rows={5}
               placeholder={he.composer.placeholder}
               submitLabel={he.composer.publish}
-              onCancel={close}
               onDone={close}
             />
           )}

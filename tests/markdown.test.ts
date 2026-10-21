@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { md, renderMarkdown } from "@/lib/markdown";
+import { hasContent, md, renderMarkdown } from "@/lib/markdown";
 import { computePreview } from "@/lib/preview";
 import { DIR_MARK, textDir } from "@/lib/direction";
 
@@ -148,5 +148,27 @@ describe("direction (Hebrew and English in one post)", () => {
 
   test("a writer's mark wins in rendered posts too", () => {
     expect(renderMarkdown(`${DIR_MARK.rtl}PR קטן`)).toContain('<p dir="rtl">');
+  });
+});
+
+describe("hasContent (no empty posts)", () => {
+  test.each([
+    ["an empty code block", "```\n```"],
+    ["only a direction mark", "‏"],
+    ["only invisible characters and spaces", " ​ ‎ \n\n "],
+    ["empty bold", "****"],
+    ["only a rule", "---"],
+  ])("nothing: %s", (_, src) => {
+    expect(hasContent(src)).toBe(false);
+  });
+
+  test.each([
+    ["text", "שלום"],
+    ["an emoji", "🎉"],
+    ["a code block with code", "```\nconst a = 1\n```"],
+    ["inline code", "`x`"],
+    ["text after a direction mark", "‏PR קטן"],
+  ])("something: %s", (_, src) => {
+    expect(hasContent(src)).toBe(true);
   });
 });

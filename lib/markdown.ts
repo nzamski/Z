@@ -99,6 +99,25 @@ md.core.ruler.push(
 
 export const renderMarkdown = (src: string) => md.render(src);
 
+// Not content: whitespace, direction marks (lib/direction.ts), zero-width characters.
+const INVISIBLE = /[\s\u200B-\u200F\u2060\uFEFF]/gu;
+
+/** Whether a body shows anything: some text or code, not just whitespace, invisible marks or empty
+ * markup (an empty code block, "**", a rule). Posts and comments need it (lib/services.ts), and
+ * the composer only enables "publish" when it holds. */
+export function hasContent(src: string) {
+  for (const t of md.parse(src, {})) {
+    const texts =
+      t.type === "inline"
+        ? (t.children ?? []).filter((c) => c.type === "text" || c.type === "code_inline")
+        : t.type === "fence" || t.type === "code_block"
+          ? [t]
+          : [];
+    if (texts.some((c) => c.content.replace(INVISIBLE, ""))) return true;
+  }
+  return false;
+}
+
 /** The hrefs of the links of one class, in order of appearance, unique. */
 function linksOf(src: string, className: string) {
   const hrefs = new Set<string>();

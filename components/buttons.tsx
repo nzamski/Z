@@ -120,6 +120,8 @@ export function DeleteButton(p: {
   id: string;
   kind: "post" | "comment";
   action: (id: string) => Promise<ActionResult>;
+  triggerClass?: string; // e.g. as an item in a post's "⋯" menu
+  onDone?: () => void; // after a successful delete (a feed drops the card)
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string>();
@@ -134,7 +136,7 @@ export function DeleteButton(p: {
           setError(undefined);
           dialog.current?.showModal();
         }}
-        className="transition-colors hover:text-danger hover:underline"
+        className={p.triggerClass ?? "transition-colors hover:text-danger hover:underline"}
       >
         {he.post.delete}
       </button>
@@ -162,7 +164,10 @@ export function DeleteButton(p: {
                 start(async () => {
                   const r = await p.action(p.id);
                   if (r?.error) setError(r.error);
-                  else close();
+                  else {
+                    close();
+                    p.onDone?.();
+                  }
                 })
               }
               className="flex-1 rounded-full bg-red-600 py-2 font-medium text-white transition-opacity enabled:hover:opacity-90 disabled:opacity-50"

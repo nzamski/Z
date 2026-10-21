@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { FeedList } from "@/components/feed-list";
 import { Loading } from "@/components/loading";
-import { PostCard } from "@/components/post-card";
+import { PostCard, type Viewer } from "@/components/post-card";
 import { UserRow } from "@/components/user-row";
 import { requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
@@ -20,7 +20,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   // "#kubernetes": the topic page, not a text search.
   if (q.startsWith("#") && isTag(normalizeTag(q.slice(1))))
     redirect(tagHref(normalizeTag(q.slice(1))));
@@ -51,11 +51,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
   );
 }
 
-async function SearchResults(p: {
-  viewer: ReturnType<typeof viewerCard>;
-  q: string;
-  cursor: string | null;
-}) {
+async function SearchResults(p: { viewer: Viewer; q: string; cursor: string | null }) {
   const viewerId = p.viewer.id;
   if (!allowSearch(viewerId))
     return <p className="p-4 text-start text-danger">{he.search.rateLimited}</p>;

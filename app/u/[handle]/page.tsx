@@ -33,7 +33,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const handle = decodeURIComponent((await params).handle);
   const user = await getUserByHandle(handle);
   if (!user) return <p className="p-8 text-center text-muted">{he.profile.notFound}</p>;
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   const viewerId = viewer.id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };

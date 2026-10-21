@@ -256,7 +256,12 @@ export function FeedList(p: {
       {pill}
       <ul ref={list}>
         {items.map((post) => (
-          <PostCard key={post.id} post={post} viewer={p.viewer} />
+          <PostCard
+            key={post.id}
+            post={post}
+            viewer={p.viewer}
+            onGone={() => setItems((prev) => prev.filter((x) => x.id !== post.id))}
+          />
         ))}
       </ul>
       <div ref={sentinel} className="p-4 text-center text-sm text-muted">

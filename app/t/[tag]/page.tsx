@@ -18,7 +18,7 @@ async function Topic({ params, searchParams }: PageProps<"/t/[tag]">) {
   await connection();
   const tag = await tagOf(params);
   if (!isTag(tag)) return <p className="p-8 text-center text-muted">{he.topics.invalid}</p>;
-  const viewer = viewerCard(await requireViewer());
+  const viewer = await viewerCard(await requireViewer());
   const q = await searchParams;
   const view = q.sort === "top" ? "top" : "latest";
   const cursor = typeof q.cursor === "string" ? q.cursor : null;

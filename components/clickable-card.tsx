@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { he } from "@/lib/i18n/he";
 
 // dialog: the comment popup lives inside the card, and its clicks bubble here.
-const INTERACTIVE = "a, button, input, textarea, summary, dialog, [role=dialog]";
+// [role=menu]: a card's "⋯" menu, whose padding shouldn't open the post either.
+const INTERACTIVE = "a, button, input, textarea, summary, dialog, [role=dialog], [role=menu]";
 
 export function ClickableCard(p: { href: string; className: string; children: React.ReactNode }) {
   const router = useRouter();

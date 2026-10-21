@@ -1,8 +1,7 @@
 "use client";
 // The feed card's comment button: comment in a popup (like "edit profile", components/
 // profile-editor.tsx) instead of leaving the feed. Native <dialog>: focus stays inside, Esc and a
-// click outside close it. Closing keeps the draft (shared with the post page's comment box); the
-// editor's cancel button drops it.
+// click outside close it. Closing keeps the draft (shared with the post page's comment box).
 import { useRef, useState } from "react";
 import { createCommentAction } from "@/app/actions";
 import { Composer } from "@/components/composer";
@@ -114,7 +113,6 @@ export function CommentButton(p: {
               rows={3}
               placeholder={he.comment.placeholder}
               submitLabel={he.comment.send}
-              onCancel={close}
               onDone={() => {
                 setSent((n) => n + 1);
                 close();
