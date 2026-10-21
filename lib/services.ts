@@ -509,6 +509,19 @@ export type PostSummary = Awaited<ReturnType<typeof newestPage>>["items"][number
 /** `asOf`: when the first page was built; new posts after it are announced, not injected. */
 export type FeedPage = { items: PostSummary[]; next: string | null; asOf: string };
 
+export const REFRESH_MAX = 500; // posts a feed can re-check at once (many pages scrolled)
+
+/** Current cards for posts a feed already shows (counts, the viewer's like, edits). Deleted or
+ * removed ones are left out, so the feed drops them. Order is the caller's. */
+export async function postSummaries(viewerId: string, ids: string[]): Promise<PostSummary[]> {
+  if (!ids.length) return [];
+  return db
+    .select(postCols(viewerId))
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .where(and(inArray(posts.id, ids.slice(0, REFRESH_MAX)), active(posts)));
+}
+
 const PAGE = RANKING.pageSize;
 // Ops can widen/narrow the For You window without a rebuild (PLAN.md §9).
 const WINDOW_DAYS = Number(process.env.FEED_WINDOW_DAYS) || RANKING.windowDays;
