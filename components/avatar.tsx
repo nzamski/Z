@@ -7,7 +7,12 @@ import { UserHoverCard } from "@/components/user-hover-card";
 export const initial = (name: string, handle?: string | null) =>
   ([...name.trim()][0] ?? handle?.[0] ?? "?").toUpperCase();
 
-export function Avatar(p: { name: string; handle?: string | null; small?: boolean }) {
+export function Avatar(p: {
+  name: string;
+  handle?: string | null;
+  small?: boolean;
+  noCard?: boolean; // no hover card (your own avatar beside the composer)
+}) {
   const circle = (
     <span
       aria-hidden
@@ -17,16 +22,20 @@ export function Avatar(p: { name: string; handle?: string | null; small?: boolea
     </span>
   );
   if (!p.handle) return circle;
+  const link = (
+    <Link
+      href={`/u/${encodeURIComponent(p.handle)}`}
+      tabIndex={-1}
+      aria-hidden
+      className="block shrink-0 self-start transition-opacity hover:opacity-80"
+    >
+      {circle}
+    </Link>
+  );
+  if (p.noCard) return link;
   return (
     <UserHoverCard handle={p.handle} className="shrink-0 self-start">
-      <Link
-        href={`/u/${encodeURIComponent(p.handle)}`}
-        tabIndex={-1}
-        aria-hidden
-        className="block transition-opacity hover:opacity-80"
-      >
-        {circle}
-      </Link>
+      {link}
     </UserHoverCard>
   );
 }

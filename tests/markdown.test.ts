@@ -121,6 +121,11 @@ describe("direction (Hebrew and English in one post)", () => {
   test.each([
     ["Hebrew", "שלום לכולם", "rtl"],
     ["Hebrew starting with an English word", "PR קטן עדיף על PR מושלם.", "rtl"],
+    [
+      "Hebrew full of long tech terms",
+      "מחפשת מישהו שכבר הריץ Keycloak מאחורי OpenShift router עם X-Forwarded headers. נתקענו על redirect URI.",
+      "rtl",
+    ],
     ["Hebrew starting with a mention", "@dana תודה רבה על העזרה", "rtl"],
     ["English", "Hello everyone, this is English", "ltr"],
     ["English with one Hebrew word", "We migrated the logs to JSON, יופי", "ltr"],

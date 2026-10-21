@@ -321,7 +321,7 @@ export function Composer(p: Props) {
   return (
     <form action={formAction} className="flex gap-3">
       {p.author && (
-        <Avatar name={p.author.displayName} handle={p.author.handle} small={p.compact} />
+        <Avatar name={p.author.displayName} handle={p.author.handle} small={p.compact} noCard />
       )}
       <div className="min-w-0 flex-1">
         {Object.entries(p.hidden ?? {}).map(([k, v]) => (
