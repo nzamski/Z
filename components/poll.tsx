@@ -5,7 +5,8 @@ import { startTransition, useOptimistic, useState } from "react";
 import { votePollAction } from "@/app/actions";
 import { until } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { POLL_DAYS, POLL_OPTION_MAX, POLL_OPTIONS_MAX } from "@/lib/limits";
+import { useMenu } from "@/components/theme-menu";
+import { POLL_MINUTES, POLL_OPTION_MAX, POLL_OPTIONS_MAX } from "@/lib/limits";
 import type { PollView } from "@/lib/services";
 
 /** Bar chart: the composer's poll button. */
@@ -25,12 +26,98 @@ export function PollIcon() {
   );
 }
 
-/** The composer's poll box: option fields (2 to POLL_OPTIONS_MAX) and the duration. Sent with the
- * post's form as pollOption (each) and pollDays. `onChange(null)` removes the poll. */
+const range = (from: number, to: number, step = 1) =>
+  Array.from({ length: Math.floor((to - from) / step) + 1 }, (_, i) => from + i * step);
+const MAX_DAYS = POLL_MINUTES.max / (24 * 60);
+
+const LIST_H = 200; // px: the list's max-h-48 and its margin
+
+/** A duration part (days, hours, minutes): Z's own dropdown, not the browser's. Fixed to the
+ * screen (like the emoji picker), so the new-post popup's edge doesn't cut it off; above the
+ * button when there's no room below. */
+function Pick(p: { label: string; value: number; values: number[]; onPick: (v: number) => void }) {
+  const { open, setOpen, root } = useMenu();
+  const [at, setAt] = useState({ top: 0, left: 0, width: 0 });
+  const disabled = p.values.length < 2;
+  return (
+    <div ref={root} className="relative flex-1">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setAt({
+            top: innerHeight - r.bottom >= LIST_H ? r.bottom + 4 : r.top - LIST_H,
+            left: r.left,
+            width: r.width,
+          });
+          setOpen((o) => !o);
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-1.5 text-start transition-colors enabled:hover:border-neutral-400 disabled:opacity-50 aria-expanded:border-sky-500 dark:border-neutral-800 dark:enabled:hover:border-neutral-600 dark:aria-expanded:border-sky-500"
+      >
+        <span>
+          <span className="block text-xs text-muted">{p.label}</span>
+          <span className="text-base">{p.value}</span>
+        </span>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className={`size-4 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          aria-label={p.label}
+          style={at}
+          className="fixed z-30 max-h-48 overflow-y-auto rounded-xl border border-neutral-200 bg-background py-1 shadow-lg dark:border-neutral-800"
+        >
+          {p.values.map((v) => (
+            <li key={v}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={v === p.value}
+                // The chosen one starts in view.
+                ref={(el) => void (v === p.value && el?.scrollIntoView({ block: "nearest" }))}
+                onClick={() => {
+                  p.onPick(v);
+                  setOpen(false);
+                }}
+                className="w-full px-3 py-1.5 text-start transition-colors hover:bg-neutral-500/10 aria-selected:font-bold aria-selected:text-sky-500"
+              >
+                {v}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** The composer's poll box: option fields (2 to POLL_OPTIONS_MAX) and the duration (days, hours,
+ * minutes: 5 minutes to 7 days). Sent with the post's form as pollOption (each) and pollMinutes.
+ * `onChange(null)` removes the poll. */
 export function PollFields(p: { options: string[]; onChange: (o: string[] | null) => void }) {
   const T = he.poll;
-  // Controlled: React resets a form's uncontrolled fields after every submit, failed ones too.
-  const [days, setDays] = useState(POLL_DAYS[0]);
+  const [time, setTime] = useState({ d: POLL_MINUTES.default / (24 * 60), h: 0, m: 0 });
+  // Kept within the limits: the longest is exactly 7 days, the shortest 5 minutes.
+  const pick = (part: Partial<typeof time>) => {
+    const t = { ...time, ...part };
+    if (t.d === MAX_DAYS) t.h = t.m = 0;
+    if (!t.d && !t.h && t.m < POLL_MINUTES.min) t.m = POLL_MINUTES.min;
+    setTime(t);
+  };
   const set = (i: number, v: string | null) =>
     p.onChange(v === null ? p.options.filter((_, j) => j !== i) : p.options.with(i, v));
   return (
@@ -60,38 +147,45 @@ export function PollFields(p: { options: string[]; onChange: (o: string[] | null
           )}
         </div>
       ))}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-        {p.options.length < POLL_OPTIONS_MAX ? (
-          <button
-            type="button"
-            onClick={() => p.onChange([...p.options, ""])}
-            className="font-medium text-link hover:underline"
-          >
-            + {T.addOption}
-          </button>
-        ) : (
-          <span />
-        )}
-        <label className="flex items-center gap-2 text-muted">
-          {T.duration}
-          <select
-            name="pollDays"
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded-md bg-neutral-500/10 px-2 py-1 text-foreground outline-none"
-          >
-            {POLL_DAYS.map((d) => (
-              <option key={d} value={d}>
-                {T.days(d)}
-              </option>
-            ))}
-          </select>
-        </label>
+      {p.options.length < POLL_OPTIONS_MAX && (
+        <button
+          type="button"
+          onClick={() => p.onChange([...p.options, ""])}
+          className="font-medium text-link hover:underline"
+        >
+          + {T.addOption}
+        </button>
+      )}
+      <div className="border-t border-neutral-200 pt-2 dark:border-neutral-800">
+        <div className="mb-1.5 text-muted">{T.duration}</div>
+        <input type="hidden" name="pollMinutes" value={time.d * 24 * 60 + time.h * 60 + time.m} />
+        <div className="flex gap-2">
+          <Pick
+            label={T.days}
+            value={time.d}
+            values={range(0, MAX_DAYS)}
+            onPick={(d) => pick({ d })}
+          />
+          <Pick
+            label={T.hours}
+            value={time.h}
+            values={time.d === MAX_DAYS ? [0] : range(0, 23)}
+            onPick={(h) => pick({ h })}
+          />
+          <Pick
+            label={T.minutes}
+            value={time.m}
+            values={
+              time.d === MAX_DAYS ? [0] : range(!time.d && !time.h ? POLL_MINUTES.min : 0, 55, 5)
+            }
+            onPick={(m) => pick({ m })}
+          />
+        </div>
       </div>
       <button
         type="button"
         onClick={() => p.onChange(null)}
-        className="w-full rounded-lg py-1.5 text-danger hover:bg-red-500/10"
+        className="w-full rounded-lg border-t border-neutral-200 pt-2 pb-1 text-danger hover:bg-red-500/10 dark:border-neutral-800"
       >
         {T.remove}
       </button>

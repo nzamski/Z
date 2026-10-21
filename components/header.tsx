@@ -61,11 +61,23 @@ export function Header() {
           className="flex items-baseline text-5xl leading-none font-extrabold tracking-tight select-none"
         >
           {he.appName}
+          {/* The space opens smoothly (grid 0fr → 1fr) while each letter rises and fades in, one
+              after the other; leaving plays it back. */}
           <span
             aria-hidden
-            className="max-w-0 overflow-hidden opacity-0 transition-all duration-[450ms] ease-out group-hover:max-w-[2.5ch] group-hover:opacity-100"
+            className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:grid-cols-[1fr]"
           >
-            {he.appFullName.slice(he.appName.length)}
+            <span className="flex min-w-0 overflow-hidden">
+              {[...he.appFullName.slice(he.appName.length)].map((c, i) => (
+                <span
+                  key={i}
+                  style={{ transitionDelay: `${80 + i * 70}ms` }}
+                  className="inline-block translate-y-3 opacity-0 transition-[translate,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-y-0 group-hover:opacity-100"
+                >
+                  {c}
+                </span>
+              ))}
+            </span>
           </span>
         </span>
       </LogoLink>

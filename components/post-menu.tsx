@@ -5,7 +5,13 @@
 // their popups; `onGone` drops the card from its feed afterwards.
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { deletePostAction, removePostAction, setFollowAction, setPinAction } from "@/app/actions";
+import {
+  deletePostAction,
+  removePostAction,
+  setFollowAction,
+  setPinAction,
+  type ActionResult,
+} from "@/app/actions";
 import { DeleteButton } from "@/components/buttons";
 import { ModerateButton } from "@/components/moderate-button";
 import type { Viewer } from "@/components/post-card";
@@ -56,11 +62,16 @@ export function PostMenu(p: {
   const mine = p.post.authorId === p.viewer.id;
   // The edit window is checked when the menu opens (not during render: it reads the clock).
   const [canEdit, setCanEdit] = useState(false);
-  const pinned = p.post.pinned;
+  // Local, like `following`: a feed's cards aren't re-rendered after the action.
+  const [pinned, setPinned] = useState(p.post.pinned);
+  const [error, setError] = useState<string>();
   const handle = p.post.author.handle;
-  const run = (fn: () => Promise<unknown>) =>
+  // Closes on success; an error (e.g. already PINS_MAX pinned) stays in the menu.
+  const run = (fn: () => Promise<ActionResult>, done: () => void) =>
     start(async () => {
-      await fn();
+      const r = await fn();
+      if (r.error) return setError(r.error);
+      done();
       setOpen(false);
     });
   return (
@@ -71,6 +82,7 @@ export function PostMenu(p: {
           setCanEdit(
             mine && Date.now() - p.post.createdAt.getTime() < EDIT_WINDOW_MINUTES * 60_000,
           );
+          setError(undefined);
           setOpen((o) => !o);
         }}
         aria-haspopup="menu"
@@ -111,7 +123,12 @@ export function PostMenu(p: {
             <button
               role="menuitem"
               type="button"
-              onClick={() => run(() => setPinAction(p.post.id, !pinned))}
+              onClick={() =>
+                run(
+                  () => setPinAction(p.post.id, !pinned),
+                  () => setPinned(!pinned),
+                )
+              }
               className={item}
             >
               <Icon d={pinned ? ICON.unpin : ICON.pin} />
@@ -123,10 +140,10 @@ export function PostMenu(p: {
               role="menuitem"
               type="button"
               onClick={() =>
-                run(async () => {
-                  const r = await setFollowAction(p.post.authorId, !following);
-                  if (!r.error) setFollowing(!following);
-                })
+                run(
+                  () => setFollowAction(p.post.authorId, !following),
+                  () => setFollowing(!following),
+                )
               }
               className={item}
             >
@@ -153,6 +170,11 @@ export function PostMenu(p: {
               icon={<Icon d={ICON.remove} />}
               onDone={p.onGone}
             />
+          )}
+          {error && (
+            <p role="alert" className="px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
           )}
         </div>
       )}

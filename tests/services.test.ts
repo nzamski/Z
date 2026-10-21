@@ -231,20 +231,21 @@ describe("polls", () => {
   test("validates options and duration", async () => {
     const a = await makeUser();
     const bad = (poll: s.PollInput) => code(s.createPost(a.id, "שאלה?", poll));
-    expect(await bad({ options: ["רק אחת"], days: 1 })).toBe("invalid");
-    expect(await bad({ options: ["א", "ב", "ג", "ד", "ה"], days: 1 })).toBe("invalid");
-    expect(await bad({ options: ["כן", " "], days: 1 })).toBe("invalid");
-    expect(await bad({ options: ["כן", "כן"], days: 1 })).toBe("invalid");
-    expect(await bad({ options: ["כן", "א".repeat(POLL_OPTION_MAX + 1)], days: 1 })).toBe(
+    expect(await bad({ options: ["רק אחת"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["א", "ב", "ג", "ד", "ה"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", " "], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "כן"], minutes: 60 })).toBe("invalid");
+    expect(await bad({ options: ["כן", "א".repeat(POLL_OPTION_MAX + 1)], minutes: 60 })).toBe(
       "invalid",
     );
-    expect(await bad({ options: ["כן", "לא"], days: 2 })).toBe("invalid");
-    expect(await code(s.createPost(a.id, "", { options, days: 1 }))).toBe("empty"); // needs a question
+    expect(await bad({ options: ["כן", "לא"], minutes: 4 })).toBe("invalid"); // under 5 minutes
+    expect(await bad({ options: ["כן", "לא"], minutes: 7 * 24 * 60 + 1 })).toBe("invalid");
+    expect(await code(s.createPost(a.id, "", { options, minutes: 60 }))).toBe("empty"); // needs a question
   });
 
   test("one final vote per person; counts and the viewer's choice; edits keep the poll", async () => {
     const [a, b, c] = [await makeUser(), await makeUser(), await makeUser()];
-    const p = await s.createPost(a.id, "שאלה?", { options, days: 3 });
+    const p = await s.createPost(a.id, "שאלה?", { options, minutes: 3 * 24 * 60 });
     expect((await s.getPost(p.id, b.id))?.poll).toMatchObject({
       options,
       open: true,
@@ -268,7 +269,7 @@ describe("polls", () => {
 
   test("no votes after the poll ends or on a deleted post", async () => {
     const [a, b] = [await makeUser(), await makeUser()];
-    const p = await s.createPost(a.id, "שאלה?", { options, days: 1 });
+    const p = await s.createPost(a.id, "שאלה?", { options, minutes: 60 });
     await db
       .update(posts)
       .set({ pollEndsAt: dsql`now() - interval '1 second'` })
@@ -276,7 +277,7 @@ describe("polls", () => {
     expect(await code(s.votePoll(b.id, p.id, 0))).toBe("poll_closed");
     expect((await s.getPost(p.id, b.id))?.poll?.open).toBe(false);
 
-    const q = await s.createPost(a.id, "שאלה?", { options, days: 1 });
+    const q = await s.createPost(a.id, "שאלה?", { options, minutes: 60 });
     await s.deletePost(a.id, q.id);
     expect(await code(s.votePoll(b.id, q.id, 0))).toBe("gone");
   });

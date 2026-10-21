@@ -269,6 +269,8 @@ export function Composer(p: Props) {
     latest.current = mentions;
   });
 
+  // The poll's option texts while one is attached (PollFields); null without a poll.
+  const [poll, setPoll] = useState<string[] | null>(null);
   const rows = p.rows ?? 4;
   useEffect(() => {
     const v: EditorView = new EditorView(host.current!, {
@@ -311,6 +313,12 @@ export function Composer(p: Props) {
     };
   }, [p.initial, p.placeholder, rows, p.draft, p.autoFocus]);
 
+  // With a poll attached the question is short: one line, and the poll right under it (X-style).
+  const hasPoll = poll !== null;
+  useEffect(() => {
+    view.current?.dom.style.setProperty("min-height", `${(hasPoll ? 1 : rows) * 1.7}em`);
+  }, [hasPoll, rows]);
+
   // The comment button links to #reply (from a card, or on the post page itself).
   useEffect(() => {
     if (!p.focusOn) return;
@@ -340,8 +348,6 @@ export function Composer(p: Props) {
     if (ready) writeDraft(p.draft, body);
   }, [ready, body, p.draft]);
 
-  // The poll's option texts while one is attached (PollFields); null without a poll.
-  const [poll, setPoll] = useState<string[] | null>(null);
   const pollShort = poll !== null && poll.filter((o) => o.trim()).length < 2;
 
   const [state, formAction, pending] = useActionState(async (prev: ActionResult, f: FormData) => {

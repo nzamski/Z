@@ -159,7 +159,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </div>
         )}
       </section>
-      {/* Pinned to the top of the profile (also in its place below, as on X). */}
+      {/* Pinned to the top of the profile, and not again below. */}
       {pins.length > 0 && !cursor && (
         <ul>
           {pins.map((post) => (
@@ -171,6 +171,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
         key={user.id}
         view="latest"
         author={user.id}
+        hide={cursor ? undefined : pins.map((x) => x.id)}
         viewer={viewer}
         first={page.items}
         next={page.next}

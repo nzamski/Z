@@ -68,6 +68,7 @@ export function FeedList(p: {
   q?: string; // search results
   tag?: string; // a topic page
   emptyText?: string;
+  hide?: string[]; // a profile's pinned posts, shown above it instead
   viewer: Viewer;
   first: PostSummary[];
   next: string | null;
@@ -282,14 +283,16 @@ export function FeedList(p: {
     <>
       {pill}
       <ul ref={list}>
-        {items.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            viewer={p.viewer}
-            onGone={() => setItems((prev) => prev.filter((x) => x.id !== post.id))}
-          />
-        ))}
+        {items
+          .filter((x) => !p.hide?.includes(x.id))
+          .map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              viewer={p.viewer}
+              onGone={() => setItems((prev) => prev.filter((x) => x.id !== post.id))}
+            />
+          ))}
       </ul>
       <div ref={sentinel} className="p-4 text-center text-sm text-muted">
         {loading ? (

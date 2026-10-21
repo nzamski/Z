@@ -4,7 +4,8 @@ X-style polls on posts (added 2026-10-21). The post's text is the question.
 
 - **Creating:** the poll button in the new-post composer (home and the "new post" popup, not comments
   or edits) adds 2–4 options (`POLL_OPTIONS_MAX`, up to `POLL_OPTION_MAX` characters each, no
-  duplicates; blank fields are dropped) and a duration of 1, 3 or 7 days (`POLL_DAYS`, `lib/limits.ts`).
+  duplicates; blank fields are dropped) and a duration in days, hours and minutes, from 5 minutes to 7 days (`POLL_MINUTES`,
+  `lib/limits.ts`; default one day).
 - **Storage:** `posts.poll_options` (text[]) and `posts.poll_ends_at`, both null without a poll
   (`posts_poll_ck`). Votes are rows in `poll_votes` (`option` = the option's index), one active vote
   per person per post (`poll_votes_active_uq`). Editing a post keeps its poll.

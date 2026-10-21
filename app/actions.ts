@@ -40,14 +40,14 @@ const field = (f: FormData, name: string) => f.get(name) ?? undefined;
 
 export async function createPostAction(_: ActionResult, f: FormData) {
   // A poll: its option fields and duration (the composer sends them only with a poll open).
-  const days = f.get("pollDays");
-  const poll = days
+  const minutes = f.get("pollMinutes");
+  const poll = minutes
     ? {
         options: f
           .getAll("pollOption")
           .map(String)
           .filter((o) => o.trim()), // blanks: unused
-        days: Number(days),
+        minutes: Number(minutes),
       }
     : undefined;
   return run((uid) => s.createPost(uid, Text.parse(field(f, "body")), poll));

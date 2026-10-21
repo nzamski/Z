@@ -43,7 +43,7 @@ import {
 import {
   BIO_MAX,
   PINS_MAX,
-  POLL_DAYS,
+  POLL_MINUTES,
   POLL_OPTION_MAX,
   POLL_OPTIONS_MAX,
   COMMENT_MAX,
@@ -89,7 +89,7 @@ const Poll = z.object({
     .min(2)
     .max(POLL_OPTIONS_MAX)
     .refine((o) => new Set(o).size === o.length), // no duplicates
-  days: z.number().refine((d) => POLL_DAYS.includes(d)),
+  minutes: z.number().int().min(POLL_MINUTES.min).max(POLL_MINUTES.max),
 });
 export type PollInput = z.infer<typeof Poll>;
 const now = sql`now()`;
@@ -279,7 +279,7 @@ export async function createPost(actorId: string, body: string, poll?: PollInput
         ...computePreview(text),
         ...(p && {
           pollOptions: p.options,
-          pollEndsAt: sql`now() + make_interval(days => ${p.days})`,
+          pollEndsAt: sql`now() + make_interval(mins => ${p.minutes})`,
         }),
       })
       .returning();
