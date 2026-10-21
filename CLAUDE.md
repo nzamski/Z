@@ -36,6 +36,8 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
 - Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container; locally `MIGRATIONS_DIR=drizzle`), `scripts/admin.mjs`, `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
 - Topics (`docs/topics.md`): `#tags` in posts (`lib/tags.ts`) are filed in `post_tags` by `setPostTags` on create and edit; `/t/<tag>` (newest / most liked), `/topics`, topic follows boost For You. Only posts, not comments.
+- Pinned post: `users.pinned_post_id` (one per profile; `pinPost`/`unpinPost`, own live posts only), shown first on the profile with a label; reads ignore a deleted one.
+- Paragraph direction (`lib/direction.ts`): the first word decides (mentions, tags, links, code skipped); a leading RLM/LRM, set by the composer's direction button, overrides it. Same rule in the composer (decorations) and the renderer (`dir` on each block).
 - Feeds: home tabs For You / Following (Following includes your own posts); newest-first for profiles, search and topics; most liked as a topic page sort. Ranking constants in `lib/feed.ts`, queries in `feedPage()`, notes and query plans in `docs/ranking.md`. Index on `ORDER BY x DESC` needs `.desc().nullsFirst()` in drizzle.
 
 ## Commands

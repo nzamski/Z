@@ -25,7 +25,8 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   const { id } = await params;
   const from = Math.max(0, Number((await searchParams).from) || 0);
   if (!z.uuid().safeParse(id).success) return <Notice text={he.post.notFound} />;
-  const viewer = viewerCard(await requireViewer());
+  const me = await requireViewer();
+  const viewer = viewerCard(me);
   const viewerId = viewer.id;
   const post = await getPost(id, viewerId);
   if (!post) return <Notice text={he.post.notFound} />;
@@ -47,6 +48,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               postId={post.id}
               body={post.body}
               canEdit={canEditPost(post.createdAt)}
+              pinned={me.pinnedPostId === post.id}
             >
               {body}
             </PostOwnerActions>

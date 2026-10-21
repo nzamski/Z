@@ -1617,3 +1617,27 @@ export async function topicSuggestions(prefix: string, limit = 5) {
     .orderBy(desc(sql`count(*)`), postTags.tag)
     .limit(limit);
 }
+
+// ---- pinned post (one per profile) ----
+
+/** Pin one of your own live posts to the top of your profile (replaces the previous pin). */
+export async function pinPost(actorId: string, postId: string) {
+  await assertCanWrite(actorId);
+  await ownActive(posts, postId, actorId);
+  await db.update(users).set({ pinnedPostId: postId, updatedAt: now }).where(eq(users.id, actorId));
+}
+
+export async function unpinPost(actorId: string) {
+  await assertCanWrite(actorId);
+  await db.update(users).set({ pinnedPostId: null, updatedAt: now }).where(eq(users.id, actorId));
+}
+
+/** The card of a user's pinned post, if it's still live. */
+export async function pinnedPost(viewerId: string, userId: string) {
+  const [row] = await db
+    .select(postCols(viewerId))
+    .from(users)
+    .innerJoin(posts, eq(posts.id, users.pinnedPostId))
+    .where(and(eq(users.id, userId), active(posts)));
+  return row ?? null;
+}

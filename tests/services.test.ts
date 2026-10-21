@@ -151,3 +151,30 @@ describe("follows", () => {
     expect(await code(s.follow(a.id, a.id))).toBe("invalid");
   });
 });
+
+describe("pinned post", () => {
+  test("pin your own post; a new pin replaces it; unpin; a deleted one isn't shown", async () => {
+    const [u, other] = [await makeUser(), await makeUser()];
+    const first = await s.createPost(u.id, "ראשון");
+    const second = await s.createPost(u.id, "שני");
+    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+
+    await s.pinPost(u.id, first.id);
+    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(first.id);
+    await s.pinPost(u.id, second.id);
+    expect((await s.pinnedPost(other.id, u.id))?.id).toBe(second.id);
+
+    await s.unpinPost(u.id);
+    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+
+    await s.pinPost(u.id, first.id);
+    await s.deletePost(u.id, first.id);
+    expect(await s.pinnedPost(other.id, u.id)).toBeNull();
+  });
+
+  test("only your own post", async () => {
+    const [u, other] = [await makeUser(), await makeUser()];
+    const theirs = await s.createPost(other.id, "לא שלי");
+    expect(await code(s.pinPost(u.id, theirs.id))).toBe("forbidden");
+  });
+});
