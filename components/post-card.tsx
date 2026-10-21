@@ -103,7 +103,15 @@ export function AuthorHeart() {
 }
 
 /** `viewer`: who's reading, for the avatar in the comment popup. */
-export function PostCard({ post: p, viewer }: { post: PostSummary; viewer?: Viewer }) {
+export function PostCard({
+  post: p,
+  viewer,
+  pinned,
+}: {
+  post: PostSummary;
+  viewer?: Viewer;
+  pinned?: boolean; // the profile's pinned post: labeled
+}) {
   return (
     <ClickableCard
       href={`/p/${p.id}`}
@@ -111,6 +119,24 @@ export function PostCard({ post: p, viewer }: { post: PostSummary; viewer?: View
     >
       <Avatar name={p.author.displayName} handle={p.author.handle} />
       <div className="min-w-0 flex-1">
+        {pinned && (
+          <p className="mb-1 flex items-center gap-1 text-xs font-medium text-muted">
+            {/* Pin */}
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden
+              className="size-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" />
+            </svg>
+            {he.post.pinned}
+          </p>
+        )}
         <Byline author={p.author} createdAt={p.createdAt} editedAt={p.editedAt} />
         <PostPreview id={p.id} preview={p.preview} hasMore={p.hasMore} />
         <div className="mt-2 flex gap-8 text-sm text-muted">

@@ -21,6 +21,9 @@ export const he = {
     edited: "נערך",
     readMore: "הצגת עוד",
     edit: "עריכה",
+    pin: "הצמדה לפרופיל",
+    unpin: "ביטול ההצמדה",
+    pinned: "פוסט נעוץ",
     delete: "מחיקה",
     deletePostTitle: "למחוק את הפוסט?",
     deleteCommentTitle: "למחוק את התגובה?",
@@ -49,6 +52,7 @@ export const he = {
     orderedList: "רשימה ממוספרת",
     quote: "ציטוט",
     codeBlock: "בלוק קוד",
+    direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
   },
   comment: {
     placeholder: "כתבו תגובה…",

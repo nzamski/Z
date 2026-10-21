@@ -13,11 +13,19 @@ import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
 import { ProfileEditor } from "@/components/profile-editor";
 import { FeedList } from "@/components/feed-list";
+import { PostCard } from "@/components/post-card";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
-import { feedPage, followInfo, getUserByHandle, isAdmin, ServiceError } from "@/lib/services";
+import {
+  feedPage,
+  followInfo,
+  getUserByHandle,
+  isAdmin,
+  pinnedPost,
+  ServiceError,
+} from "@/lib/services";
 import type { Metadata } from "next";
 
 async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
@@ -29,7 +37,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   const viewerId = viewer.id;
   const { cursor } = await searchParams;
   const byAuthor = { view: "latest" as const, authorId: user.id };
-  const [info, page, admin] = await Promise.all([
+  const [info, page, admin, pinned] = await Promise.all([
     followInfo(user.id, viewerId),
     feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
       (e) => {
@@ -38,6 +46,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       },
     ),
     isAdmin(viewerId),
+    pinnedPost(viewerId, user.id),
   ]);
 
   const chat = chatLink(user.handle);
@@ -146,6 +155,12 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </div>
         )}
       </section>
+      {/* Pinned to the top of the profile (also in its place below, as on X). */}
+      {pinned && !cursor && (
+        <ul>
+          <PostCard post={pinned} viewer={viewer} pinned />
+        </ul>
+      )}
       <FeedList
         key={user.id}
         view="latest"

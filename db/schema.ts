@@ -43,6 +43,8 @@ export const users = pgTable(
     onboardedAt: ts("onboarded_at"),
     // Set by a moderator: the user can still read, but not post, comment, like or follow.
     suspendedAt: ts("suspended_at"),
+    // The post shown first on the profile (one at a time, as on X). Reads ignore a deleted one.
+    pinnedPostId: uuid("pinned_post_id").references((): AnyPgColumn => posts.id),
   },
   (t) => [
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
