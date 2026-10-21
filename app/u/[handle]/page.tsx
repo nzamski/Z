@@ -1,19 +1,13 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import {
-  clearBioAction,
-  resetHandleAction,
-  suspendUserAction,
-  unsuspendUserAction,
-} from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { Loading } from "@/components/loading";
-import { ModerateButton } from "@/components/moderate-button";
 import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
+import { UserAdminMenu } from "@/components/user-admin-menu";
 import { FeedList } from "@/components/feed-list";
 import { PostCard } from "@/components/post-card";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
@@ -109,6 +103,13 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
                 </a>
               )}
               <FollowButton userId={user.id} following={info.viewerFollows} />
+              {admin && (
+                <UserAdminMenu
+                  userId={user.id}
+                  suspended={!!user.suspendedAt}
+                  hasBio={!!user.bio}
+                />
+              )}
             </div>
           )}
         </div>
@@ -136,35 +137,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
             <b className="text-foreground">{info.followers}</b> {he.profile.followers}
           </Link>
         </div>
-        {admin && viewerId !== user.id && (
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-neutral-200 pt-3 text-sm text-muted dark:border-neutral-800">
-            <span className="font-medium">{he.moderation.title}:</span>
-            {user.suspendedAt ? (
-              <ModerateButton
-                label={he.moderation.unsuspend}
-                action={unsuspendUserAction.bind(null, user.id)}
-              />
-            ) : (
-              <ModerateButton
-                label={he.moderation.suspend}
-                danger
-                action={suspendUserAction.bind(null, user.id)}
-              />
-            )}
-            {user.bio && (
-              <ModerateButton
-                label={he.moderation.clearBio}
-                danger
-                action={clearBioAction.bind(null, user.id)}
-              />
-            )}
-            <ModerateButton
-              label={he.moderation.resetHandle}
-              danger
-              action={resetHandleAction.bind(null, user.id)}
-            />
-          </div>
-        )}
       </section>
       {/* Pinned to the top of the profile, and not again below. */}
       {pins.length > 0 && !cursor && (

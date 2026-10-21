@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { restoreCommentAction } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
-import { CommentActions } from "@/components/comment-actions";
+import { CommentActions, CommentMenu } from "@/components/comment-actions";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
 import { LikeButton } from "@/components/buttons";
@@ -38,7 +38,16 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
         <div className="flex gap-2">
           <Avatar name={n.author!.displayName} handle={n.author!.handle} small />
           <div className="min-w-0 flex-1">
-            <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Byline author={n.author!} createdAt={n.createdAt} editedAt={n.editedAt} />
+              </div>
+              <CommentMenu
+                commentId={n.id}
+                isOwner={ctx.viewerId === n.author!.id}
+                isAdmin={ctx.isAdmin}
+              />
+            </div>
             {n.authorLiked && (
               <p className="mt-1 flex items-center gap-1 text-xs font-medium text-like">
                 <AuthorHeart />
@@ -50,8 +59,6 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
               postId={ctx.postId}
               commentId={n.id}
               canReply={!!ctx.viewerId && ctx.postLive}
-              isOwner={ctx.viewerId === n.author!.id}
-              isAdmin={ctx.isAdmin}
               author={ctx.viewer ?? undefined}
               like={
                 <LikeButton
