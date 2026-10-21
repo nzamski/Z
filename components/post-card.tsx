@@ -15,7 +15,7 @@ export function CommentStat({ href, count }: { href: string; count: number }) {
     <Link
       href={href}
       aria-label={`${count} ${he.post.comments}`}
-      title={he.comment.add}
+      data-tip={he.comment.add}
       className="group -my-1 -ms-2 flex items-center tabular-nums transition-colors hover:text-sky-500"
     >
       <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
@@ -84,7 +84,7 @@ export function Byline(p: {
 function AnsweredMark() {
   return (
     <span
-      title={he.post.answeredHint}
+      data-tip={he.post.answeredHint}
       className="ms-auto flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
     >
       <AuthorHeart />

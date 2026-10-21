@@ -384,7 +384,7 @@ export function Composer(p: Props) {
               <button
                 key={t.label}
                 type="button"
-                title={t.label}
+                data-tip={t.label}
                 aria-label={t.label}
                 aria-pressed={t.active}
                 onMouseDown={(e) => e.preventDefault()} // keep the editor's selection

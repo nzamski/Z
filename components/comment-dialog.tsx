@@ -39,7 +39,7 @@ export function CommentButton(p: {
           dialog.current?.showModal();
         }}
         aria-label={`${count} ${he.post.comments}`}
-        title={he.comment.add}
+        data-tip={he.comment.add}
         className="group -my-1 -ms-2 flex items-center tabular-nums transition-colors hover:text-sky-500"
       >
         <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
@@ -73,7 +73,7 @@ export function CommentButton(p: {
               type="button"
               onClick={close}
               aria-label={he.comment.close}
-              title={he.comment.close}
+              data-tip={he.comment.close}
               className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
             >
               <svg

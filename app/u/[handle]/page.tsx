@@ -68,7 +68,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
                 <a
                   href={chat}
                   aria-label={he.profile.message}
-                  title={he.profile.message}
+                  data-tip={he.profile.message}
                   className="grid size-9 place-items-center rounded-full border border-neutral-400 transition-colors hover:bg-neutral-500/15"
                 >
                   {/* Chat bubble with typing dots: a conversation, not a comment */}

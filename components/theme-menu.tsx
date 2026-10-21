@@ -79,7 +79,8 @@ export function ThemePicker() {
           role="menuitemradio"
           aria-checked={t === theme}
           aria-label={he.theme[t]}
-          title={he.theme[t]}
+          data-tip={he.theme[t]}
+          data-tip-up
           onClick={() => setTheme(t)}
           className="grid flex-1 place-items-center rounded-md py-1.5 text-muted transition-colors hover:text-foreground aria-checked:bg-background aria-checked:text-foreground aria-checked:shadow-sm"
         >
@@ -100,7 +101,7 @@ export function ThemeMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${he.theme.label}: ${he.theme[theme]}`}
-        title={he.theme.label}
+        data-tip={he.theme.label}
         className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
       >
         <Icon theme={theme} />

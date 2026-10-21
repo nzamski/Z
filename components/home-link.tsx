@@ -32,7 +32,7 @@ export function BackLink() {
     <Link
       href="/"
       aria-label={he.nav.back}
-      title={he.nav.back}
+      data-tip={he.nav.back}
       onClick={(e) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || !canGoBack()) return;
         e.preventDefault();
@@ -63,7 +63,7 @@ export function LogoLink({ children }: { children: React.ReactNode }) {
     <Link
       href="/"
       aria-label={he.nav.home}
-      title={he.nav.home}
+      data-tip={he.nav.home}
       className="grid size-15 place-items-center justify-self-center rounded-full transition-colors hover:bg-neutral-500/15"
       onClick={(e) => {
         if (location.pathname !== "/" || e.metaKey || e.ctrlKey || e.shiftKey) return;

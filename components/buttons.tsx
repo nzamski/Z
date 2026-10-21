@@ -41,7 +41,7 @@ export function LikeButton(p: {
         aria-pressed={state.liked}
         aria-busy={pending}
         aria-label={`${state.liked ? he.post.unlike : he.post.like} · ${state.count} ${he.post.likes}`}
-        title={state.liked ? he.post.unlike : he.post.like}
+        data-tip={state.liked ? he.post.unlike : he.post.like}
         className={`group -my-1 -ms-2 flex items-center tabular-nums transition-colors ${
           state.liked ? "text-like" : "hover:text-like"
         }`}
@@ -65,7 +65,7 @@ export function LikeButton(p: {
         <Link
           href={p.likersHref}
           aria-label={he.likers.show(state.count)}
-          title={he.likers.show(state.count)}
+          data-tip={he.likers.show(state.count)}
           className="min-w-[1ch] text-sm hover:underline"
         >
           {count}
