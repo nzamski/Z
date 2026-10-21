@@ -23,8 +23,7 @@ export function NewPostButton(p: {
           dialog.current?.showModal();
         }}
         aria-label={he.nav.newPost}
-        data-tip={he.nav.newPost}
-        className="mt-3 flex items-center justify-center gap-2 rounded-full bg-foreground p-3 font-bold text-background transition-opacity hover:opacity-85 xl:py-3 xl:after:hidden"
+        className="mt-3 flex items-center justify-center gap-2 rounded-full bg-foreground p-3 font-bold text-background transition-opacity hover:opacity-85 xl:py-3"
       >
         <span className="xl:hidden">{p.icon}</span>
         <span className="hidden xl:inline">{he.nav.newPost}</span>

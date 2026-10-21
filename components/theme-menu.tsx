@@ -110,7 +110,6 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(next)}
       aria-label={label}
-      data-tip={label}
       className="grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
     >
       <Icon theme={shown} />

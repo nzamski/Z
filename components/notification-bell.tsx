@@ -84,7 +84,7 @@ export function NotificationBell({
       href="/notifications"
       aria-current={pathname === "/notifications" ? "page" : undefined} // bold in the rail
       aria-label={he.notifications.bell(shown)}
-      data-tip={he.notifications.title}
+      data-tip={label ? undefined : he.notifications.title} // the rail's has its label
       className={
         className ??
         "relative grid size-9 place-items-center rounded-full transition-colors hover:bg-neutral-500/15"
