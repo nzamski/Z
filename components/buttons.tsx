@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import {
+  setBookmarkAction,
   setCommentLikeAction,
   setFollowAction,
   setTopicFollowAction,
@@ -9,6 +10,48 @@ import {
   type ActionResult,
 } from "@/app/actions";
 import { he } from "@/lib/i18n/he";
+
+/** Save for later (private): a bookmark that fills when saved. Optimistic, like LikeButton. */
+export function BookmarkButton(p: { id: string; kind: "post" | "comment"; saved: boolean }) {
+  const [saved, setSaved] = useState(p.saved);
+  const [prop, setProp] = useState(p.saved);
+  if (prop !== p.saved) {
+    setProp(p.saved);
+    setSaved(p.saved);
+  }
+  const [pending, start] = useTransition();
+  const label = saved ? he.bookmarks.unsave : he.bookmarks.save;
+  return (
+    <button
+      onClick={() =>
+        start(async () => {
+          setSaved(!saved);
+          const r = await setBookmarkAction(p.kind, p.id, !saved);
+          if (r.error) setSaved(saved);
+        })
+      }
+      aria-pressed={saved}
+      aria-busy={pending}
+      aria-label={label}
+      data-tip={label}
+      className={`group -my-1 flex items-center transition-colors ${saved ? "text-link" : "hover:text-link"}`}
+    >
+      <span className="grid size-8 place-items-center rounded-full transition-colors group-hover:bg-sky-500/10 group-focus-visible:bg-sky-500/10">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-[18px]"
+          fill={saved ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        >
+          <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z" />
+        </svg>
+      </span>
+    </button>
+  );
+}
 
 // Local state, not useOptimistic: feed pages fetched on the client have no server prop that
 // refresh() would update, so an optimistic value would snap back. Fresh server props still win.

@@ -23,6 +23,13 @@
   /* Sticky stack: header, then the feed tabs right under it. */
   --header-h: 4.5rem;
   --tabs-h: 2.75rem;
+  /* Code highlighting (GitHub's light colors). */
+  --hl-keyword: #cf222e;
+  --hl-string: #0a3069;
+  --hl-value: #0550ae;
+  --hl-title: #8250df;
+  --hl-type: #116329;
+  --hl-comment: #6e7781;
   color-scheme: light;
 }
 
@@ -44,6 +51,12 @@
   --link: #38bdf8; /* sky-400: 9.2:1 */
   --danger: #f87171; /* red-400: 7.2:1 */
   --like: #f43f5e; /* rose-500: 5.4:1 */
+  --hl-keyword: #ff7b72;
+  --hl-string: #a5d6ff;
+  --hl-value: #79c0ff;
+  --hl-title: #d2a8ff;
+  --hl-type: #7ee787;
+  --hl-comment: #8b949e;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -54,6 +67,12 @@
     --link: #38bdf8;
     --danger: #f87171;
     --like: #f43f5e;
+    --hl-keyword: #ff7b72;
+    --hl-string: #a5d6ff;
+    --hl-value: #79c0ff;
+    --hl-title: #d2a8ff;
+    --hl-type: #7ee787;
+    --hl-comment: #8b949e;
     color-scheme: dark;
   }
 }
@@ -242,4 +261,37 @@ dialog [role="toolbar"] [data-tip]::after {
 .md pre code {
   background: none;
   padding: 0;
+}
+/* Code highlighting (lib/highlight.ts): GitHub-like colors, from the theme tokens (--hl-*). */
+.md .hljs-keyword,
+.md .hljs-built_in,
+.md .hljs-meta,
+.md .hljs-selector-tag {
+  color: var(--hl-keyword);
+}
+.md .hljs-string,
+.md .hljs-regexp {
+  color: var(--hl-string);
+}
+.md .hljs-number,
+.md .hljs-literal,
+.md .hljs-variable,
+.md .hljs-attr,
+.md .hljs-attribute {
+  color: var(--hl-value);
+}
+.md .hljs-title,
+.md .hljs-section {
+  color: var(--hl-title);
+}
+.md .hljs-type,
+.md .hljs-name,
+.md .hljs-tag,
+.md .hljs-selector-class {
+  color: var(--hl-type);
+}
+.md .hljs-comment,
+.md .hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
 }

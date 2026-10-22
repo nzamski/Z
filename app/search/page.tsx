@@ -1,15 +1,30 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { FeedList } from "@/components/feed-list";
 import { Loading } from "@/components/loading";
 import { PostCard, type Viewer } from "@/components/post-card";
+import { professionHref } from "@/components/profession-badge";
 import { UserRow } from "@/components/user-row";
 import { requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { he } from "@/lib/i18n/he";
 import { allowSearch } from "@/lib/rate-limit";
 import { isTag, normalizeTag, tagHref } from "@/lib/tags";
-import { feedPage, searchUsers, ServiceError, similarPosts } from "@/lib/services";
+import {
+  feedPage,
+  peopleByProfession,
+  searchUsers,
+  ServiceError,
+  similarPosts,
+} from "@/lib/services";
+import {
+  isProfession,
+  PROFESSION_COLOR,
+  PROFESSION_LABEL,
+  PROFESSIONS,
+  type Profession,
+} from "@/lib/professions";
 import type { Metadata } from "next";
 
 const heading =
@@ -20,6 +35,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
+  const profession = isProfession(sp.profession) ? sp.profession : null;
   const viewer = await viewerCard(await requireViewer());
   // "#kubernetes": the topic page, not a text search.
   if (q.startsWith("#") && isTag(normalizeTag(q.slice(1))))
@@ -46,9 +62,65 @@ async function Results({ searchParams }: PageProps<"/search">) {
       {q ? (
         <SearchResults viewer={viewer} q={q} cursor={cursor} />
       ) : (
-        <p className="p-4 text-start text-muted">{he.search.hint}</p>
+        <>
+          <ProfessionChips current={profession} />
+          {profession ? (
+            <ProfessionPeople viewer={viewer} profession={profession} />
+          ) : (
+            <p className="p-4 text-start text-muted">{he.search.hint}</p>
+          )}
+        </>
       )}
     </>
+  );
+}
+
+/** Browse people by profession badge (lib/professions.ts): one chip each; the chosen one again
+ * clears it. */
+function ProfessionChips({ current }: { current: Profession | null }) {
+  return (
+    <nav
+      aria-label={he.search.byProfession}
+      className="flex flex-wrap items-center gap-2 border-b border-neutral-200 px-4 py-3 text-sm dark:border-neutral-800"
+    >
+      <span className="text-muted">{he.search.byProfession}:</span>
+      {PROFESSIONS.map((v) => (
+        <Link
+          key={v}
+          href={v === current ? "/search" : professionHref(v)}
+          aria-current={v === current ? "page" : undefined}
+          className={`rounded-full border px-3 py-1 transition-colors ${
+            v === current
+              ? `border-transparent font-medium ${PROFESSION_COLOR[v]}`
+              : "border-neutral-300 hover:bg-neutral-500/10 dark:border-neutral-700"
+          }`}
+        >
+          {PROFESSION_LABEL[v]}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+async function ProfessionPeople(p: { viewer: Viewer; profession: Profession }) {
+  const people = await peopleByProfession(p.viewer.id, p.profession);
+  if (!people.length)
+    return (
+      <p className="p-4 text-start text-muted">
+        {he.search.noProfession(PROFESSION_LABEL[p.profession])}
+      </p>
+    );
+  return (
+    <ul>
+      {people.map((u) => (
+        <UserRow
+          key={u.id}
+          user={u}
+          viewerFollows={u.viewerFollows}
+          isSelf={u.id === p.viewer.id}
+        />
+      ))}
+    </ul>
   );
 }
 

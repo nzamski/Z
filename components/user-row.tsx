@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { FollowButton } from "@/components/buttons";
 import { PlainText } from "@/components/post-card";
+import { ProfessionBadge } from "@/components/profession-badge";
 
 /** A person in a list (followers, following, welcome suggestions), with a follow button. */
 export function UserRow(p: {
-  user: { id: string; handle: string; displayName: string; bio: string };
+  user: {
+    id: string;
+    handle: string;
+    displayName: string;
+    bio: string;
+    profession?: string | null;
+  };
   viewerFollows: boolean;
   isSelf: boolean;
 }) {
@@ -18,6 +25,12 @@ export function UserRow(p: {
           <span className="shrink-[3] truncate text-sm text-muted" dir="ltr">
             @{p.user.handle}
           </span>
+          {/* Inside the row's link: a plain badge, not a link of its own. */}
+          {p.user.profession && (
+            <span className="self-center">
+              <ProfessionBadge profession={p.user.profession} link={false} />
+            </span>
+          )}
         </span>
         {p.user.bio && <PlainText text={p.user.bio} className="mt-0.5 text-sm" />}
       </Link>

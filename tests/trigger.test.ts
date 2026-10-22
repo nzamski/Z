@@ -21,6 +21,8 @@ test("set_updated_at() advances updated_at on every table", async () => {
   const poll = await s.createPost(a.id, "סקר", { options: ["כן", "לא"], minutes: 60 });
   await s.votePoll(b.id, poll.id, 0);
   const [vote] = await sql`select id from poll_votes where post_id = ${poll.id}`;
+  await s.setBookmark(b.id, { postId: p.id }, true);
+  const [bm] = await sql`select id from bookmarks where post_id = ${p.id}`;
   const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
     values ('suspend_user', ${b.id}, 'test') returning id`;
 
@@ -36,6 +38,7 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["moderation_actions", mod.id, "reason = 'x'"],
     ["notifications", notif.id, "read_at = now()"],
     ["poll_votes", vote.id, "deleted_at = now()"],
+    ["bookmarks", bm.id, "deleted_at = now()"],
   ];
   for (const [table, id, set] of rows) {
     const [before] = await sql`select updated_at::text as t from ${sql(table)} where id = ${id}`;

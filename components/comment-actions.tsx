@@ -44,6 +44,7 @@ export function CommentActions(p: {
   commentId: string;
   canReply: boolean;
   like?: React.ReactNode; // the comment's like button, first in the row
+  bookmark?: React.ReactNode; // its save button, at the row's far end
   author?: { displayName: string; handle: string }; // the viewer, for the reply box
 }) {
   const [mode, setMode] = useState<"idle" | "reply">("idle");
@@ -60,6 +61,7 @@ export function CommentActions(p: {
             {he.comment.reply}
           </button>
         )}
+        {p.bookmark && <span className="ms-auto">{p.bookmark}</span>}
       </div>
       {mode === "reply" && (
         <div className="mt-2">

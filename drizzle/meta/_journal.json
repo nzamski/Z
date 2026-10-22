@@ -148,6 +148,20 @@
       "when": 1792614880124,
       "tag": "0020_professions",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792616547342,
+      "tag": "0021_bookmarks",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792638855968,
+      "tag": "0022_poll_ended",
+      "breakpoints": true
     }
   ]
 }

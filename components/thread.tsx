@@ -4,7 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { CommentActions, CommentMenu } from "@/components/comment-actions";
 import { ModerateButton } from "@/components/moderate-button";
 import { Markdown } from "@/components/markdown";
-import { LikeButton } from "@/components/buttons";
+import { BookmarkButton, LikeButton } from "@/components/buttons";
 import { AuthorHeart, Byline } from "@/components/post-card";
 import { he } from "@/lib/i18n/he";
 import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
@@ -60,6 +60,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
               commentId={n.id}
               canReply={!!ctx.viewerId && ctx.postLive}
               author={ctx.viewer ?? undefined}
+              bookmark={<BookmarkButton id={n.id} kind="comment" saved={n.bookmarked} />}
               like={
                 <LikeButton
                   id={n.id}

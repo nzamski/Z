@@ -1,7 +1,7 @@
 "use client";
 // Polls (docs/polls.md), X-style: the post's text is the question. Until you vote (and while it's
 // open) the options are buttons; after voting, when it ends, or on your own poll: the results.
-import { startTransition, useOptimistic, useState } from "react";
+import { startTransition, useEffect, useOptimistic, useState } from "react";
 import { votePollAction } from "@/app/actions";
 import { until } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -38,6 +38,14 @@ const LIST_H = 200; // px: the list's max-h-48 and its margin
 function Pick(p: { label: string; value: number; values: number[]; onPick: (v: number) => void }) {
   const { open, setOpen, root } = useMenu();
   const [at, setAt] = useState({ top: 0, left: 0, width: 0 });
+  // Fixed to the screen: scrolling the page would leave it behind, so that closes it (scrolling
+  // the list itself doesn't).
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => !root.current?.contains(e.target as Node) && setOpen(false);
+    addEventListener("scroll", close, true);
+    return () => removeEventListener("scroll", close, true);
+  }, [open, root, setOpen]);
   const disabled = p.values.length < 2;
   return (
     <div ref={root} className="relative flex-1">

@@ -90,6 +90,10 @@ export const posts = pgTable(
     search: tsvector("search").generatedAlwaysAs(sql`z_search_vector(body)`),
   },
   (t) => [
+    // Recently ended polls (notifyEndedPolls).
+    index("posts_poll_ends_idx")
+      .on(t.pollEndsAt)
+      .where(sql`${t.pollEndsAt} is not null`),
     check("posts_poll_ck", sql`(${t.pollOptions} is null) = (${t.pollEndsAt} is null)`),
     index("posts_pinned_idx")
       .on(t.authorId, t.pinnedAt)
@@ -169,6 +173,33 @@ export const likes = pgTable(
       .where(sql`${t.deletedAt} is null`),
     index("likes_updated_at_idx").on(t.updatedAt),
     index("likes_rate_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+// Saved posts and comments (bookmarks): private to their user. Exactly one of post / comment.
+export const bookmarks = pgTable(
+  "bookmarks",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    postId: uuid("post_id").references(() => posts.id),
+    commentId: uuid("comment_id").references(() => comments.id),
+  },
+  (t) => [
+    check("bookmarks_one_ck", sql`(${t.postId} is null) <> (${t.commentId} is null)`),
+    uniqueIndex("bookmarks_post_active_uq")
+      .on(t.userId, t.postId)
+      .where(sql`${t.deletedAt} is null and ${t.postId} is not null`),
+    uniqueIndex("bookmarks_comment_active_uq")
+      .on(t.userId, t.commentId)
+      .where(sql`${t.deletedAt} is null and ${t.commentId} is not null`),
+    // The saved page: yours, newest first.
+    index("bookmarks_user_idx")
+      .on(t.userId, t.createdAt.desc())
+      .where(sql`${t.deletedAt} is null`),
+    index("bookmarks_updated_at_idx").on(t.updatedAt),
   ],
 );
 
@@ -296,6 +327,7 @@ export const NOTIFICATION_TYPES = [
   "removed_comment",
   "restored_post",
   "restored_comment",
+  "poll_ended", // a poll you wrote or voted in (written when you next check: notifyEndedPolls)
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -327,6 +359,10 @@ export const notifications = pgTable(
       .on(t.recipientId)
       .where(sql`${t.readAt} is null and ${t.deletedAt} is null`),
     index("notifications_updated_at_idx").on(t.updatedAt),
+    // One "poll ended" per person and poll, however many checks race to write it.
+    uniqueIndex("notifications_poll_ended_uq")
+      .on(t.recipientId, t.postId)
+      .where(sql`${t.type} = 'poll_ended'`),
   ],
 );
 

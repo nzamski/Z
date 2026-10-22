@@ -295,3 +295,67 @@ describe("profession badge", () => {
     expect(await code(save("ceo"))).toBe("invalid");
   });
 });
+
+describe("bookmarks, liked and replies lists", () => {
+  test("save and unsave posts and comments; newest first; deleted ones drop out", async () => {
+    const [u, a] = [await makeUser(), await makeUser()];
+    const p1 = await s.createPost(a.id, "ראשון");
+    const p2 = await s.createPost(a.id, "שני");
+    const c = await s.createComment(a.id, p1.id, "תגובה");
+    await s.setBookmark(u.id, { postId: p1.id }, true);
+    await s.setBookmark(u.id, { commentId: c.id }, true);
+    await s.setBookmark(u.id, { postId: p2.id }, true);
+    await s.setBookmark(u.id, { postId: p2.id }, true); // twice: one
+    const ids = async () =>
+      (await s.savedPage(u.id, null)).items.map((x) =>
+        x.kind === "post" ? x.post.id : x.comment.id,
+      );
+    expect(await ids()).toEqual([p2.id, c.id, p1.id]);
+    expect((await s.getPost(p2.id, u.id))?.bookmarked).toBe(true);
+    expect((await s.getPost(p2.id, a.id))?.bookmarked).toBe(false); // private
+
+    await s.setBookmark(u.id, { postId: p2.id }, false);
+    await s.deletePost(a.id, p1.id); // its comment goes with it
+    expect(await ids()).toEqual([]);
+    expect(await code(s.setBookmark(u.id, { postId: p1.id }, true))).toBe("gone");
+  });
+
+  test("liked: posts and comments together, newest first; replies: a user's comments", async () => {
+    const [u, a] = [await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "פוסט");
+    const c = await s.createComment(a.id, p.id, "תגובה");
+    const r = await s.createComment(u.id, p.id, "תשובה", c.id);
+    await s.likePost(u.id, p.id);
+    await s.likeComment(u.id, c.id);
+    const liked = (await s.likedPage(u.id, null)).items;
+    expect(liked.map((x) => x.kind)).toEqual(["comment", "post"]);
+
+    const replies = (await s.repliesPage(a.id, u.id, null)).items;
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toMatchObject({ kind: "comment", comment: { id: r.id, replyTo: a.handle } });
+  });
+});
+
+describe("people by profession", () => {
+  test("only that badge, with the viewer's follow state", async () => {
+    const [v, de, other] = [await makeUser(), await makeUser(), await makeUser()];
+    await s.updateProfile(de.id, { handle: de.handle!, bio: "", profession: "data_engineer" });
+    await s.updateProfile(other.id, { handle: other.handle!, bio: "", profession: "qa" });
+    await s.follow(v.id, de.id);
+    const got = await s.peopleByProfession(v.id, "data_engineer");
+    expect(got.find((u) => u.id === de.id)).toMatchObject({ viewerFollows: true });
+    expect(got.some((u) => u.id === other.id)).toBe(false);
+  });
+});
+
+describe("people lists know whom you follow", () => {
+  // These columns sat in subqueries as a bare "id", which matched the subquery's own table.
+  test("search shows the follow state; suggestions skip people you follow", async () => {
+    const [v, t] = [await makeUser("זזזבדיקה"), await makeUser("זזזבדיקה")];
+    await s.follow(v.id, t.id);
+    expect((await s.searchUsers(v.id, t.handle!)).find((u) => u.id === t.id)?.viewerFollows).toBe(
+      true,
+    );
+    expect((await s.suggestedUsers(v.id, 1000)).some((u) => u.id === t.id)).toBe(false);
+  });
+});

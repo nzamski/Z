@@ -172,3 +172,22 @@ describe("hasContent (no empty posts)", () => {
     expect(hasContent(src)).toBe(true);
   });
 });
+
+describe("code highlighting", () => {
+  test("a fence's language; a confident guess without one; plain otherwise; still escaped", () => {
+    const named = renderMarkdown("```python\ndef f(x):\n    return x  # done\n```");
+    expect(named).toContain('<span class="hljs-keyword">def</span>');
+    expect(named).toContain('<span class="hljs-comment"># done</span>');
+
+    const guessed = renderMarkdown(
+      "```\nSELECT id, name FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC;\n```",
+    );
+    expect(guessed).toContain("hljs-keyword");
+
+    expect(renderMarkdown("```\nhello there\n```")).not.toContain("hljs"); // nothing to guess
+    expect(renderMarkdown("```cobol\nMOVE A TO B\n```")).not.toContain("hljs"); // not ours: plain
+
+    const xss = renderMarkdown('```js\nconst s = "<img src=x onerror=alert(1)>";\n```');
+    expect(xss).not.toContain("<img");
+  });
+});

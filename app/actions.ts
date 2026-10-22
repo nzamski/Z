@@ -98,6 +98,12 @@ export async function setCommentLikeAction(commentId: string, liked: boolean) {
   return run((uid) => (liked ? s.likeComment : s.unlikeComment)(uid, Id.parse(commentId)));
 }
 
+/** Save (bookmark) a post or comment for yourself, or unsave it. */
+export async function setBookmarkAction(kind: "post" | "comment", id: string, saved: boolean) {
+  const target = kind === "post" ? { postId: Id.parse(id) } : { commentId: Id.parse(id) };
+  return run((uid) => s.setBookmark(uid, target, saved));
+}
+
 export async function setFollowAction(userId: string, following: boolean) {
   // "handle": also from the welcome's who-to-follow step.
   return run((uid) => (following ? s.follow : s.unfollow)(uid, Id.parse(userId)), "handle");

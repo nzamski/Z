@@ -40,6 +40,8 @@ export function notificationText(n: NotificationItem): string {
       return T.restoredPost;
     case "restored_comment":
       return T.restoredComment;
+    case "poll_ended":
+      return n.actors.length ? T.pollEnded(who(n)) : T.yourPollEnded; // no actor: your own
   }
 }
 

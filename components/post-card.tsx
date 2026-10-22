@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LikeButton } from "@/components/buttons";
+import { BookmarkButton, LikeButton } from "@/components/buttons";
 import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
 import { CommentButton } from "@/components/comment-dialog";
 import { PostMenu } from "@/components/post-menu";
 import { Poll } from "@/components/poll";
 import { PostPreview } from "@/components/post-preview";
+import { ProfessionBadge } from "@/components/profession-badge";
 import { UserHoverCard } from "@/components/user-hover-card";
 import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -25,7 +26,7 @@ const Dot = () => (
 );
 
 export function Byline(p: {
-  author: { displayName: string; handle: string };
+  author: { displayName: string; handle: string; profession?: string | null };
   createdAt: Date;
   editedAt: Date | null;
 }) {
@@ -42,6 +43,11 @@ export function Byline(p: {
           <span dir="ltr">@{p.author.handle}</span>
         </span>
       </UserHoverCard>
+      {p.author.profession && (
+        <span className="self-center">
+          <ProfessionBadge profession={p.author.profession} />
+        </span>
+      )}
       <Dot />
       {/* Also rendered on the client (feed pages), so a minute boundary may differ. */}
       <span suppressHydrationWarning>{ago(p.createdAt)}</span>
@@ -60,7 +66,7 @@ function AnsweredMark() {
   return (
     <span
       data-tip={he.post.answeredHint}
-      className="ms-auto flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
+      className="flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
     >
       <AuthorHeart />
       {he.post.answered}
@@ -138,7 +144,11 @@ export function PostCard({
             preview={p.preview}
             viewer={viewer}
           />
-          {p.answered && <AnsweredMark />}
+          {/* The far end: the answered mark, then save (as on X). */}
+          <div className="ms-auto flex items-center gap-4">
+            {p.answered && <AnsweredMark />}
+            <BookmarkButton id={p.id} kind="post" saved={p.bookmarked} />
+          </div>
         </div>
       </div>
     </ClickableCard>
