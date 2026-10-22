@@ -90,6 +90,10 @@ export const posts = pgTable(
     search: tsvector("search").generatedAlwaysAs(sql`z_search_vector(body)`),
   },
   (t) => [
+    // Recently ended polls (notifyEndedPolls).
+    index("posts_poll_ends_idx")
+      .on(t.pollEndsAt)
+      .where(sql`${t.pollEndsAt} is not null`),
     check("posts_poll_ck", sql`(${t.pollOptions} is null) = (${t.pollEndsAt} is null)`),
     index("posts_pinned_idx")
       .on(t.authorId, t.pinnedAt)
@@ -323,6 +327,7 @@ export const NOTIFICATION_TYPES = [
   "removed_comment",
   "restored_post",
   "restored_comment",
+  "poll_ended", // a poll you wrote or voted in (written when you next check: notifyEndedPolls)
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -354,6 +359,10 @@ export const notifications = pgTable(
       .on(t.recipientId)
       .where(sql`${t.readAt} is null and ${t.deletedAt} is null`),
     index("notifications_updated_at_idx").on(t.updatedAt),
+    // One "poll ended" per person and poll, however many checks race to write it.
+    uniqueIndex("notifications_poll_ended_uq")
+      .on(t.recipientId, t.postId)
+      .where(sql`${t.type} = 'poll_ended'`),
   ],
 );
 

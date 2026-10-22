@@ -136,3 +136,21 @@ test("grouping: likes per item and follows collapse, newest first", () => {
     ["4", 1, ["dana"], false],
   ]);
 });
+
+describe("poll ended", () => {
+  test("the author and the voters hear once, on their next check; not before it ends", async () => {
+    const [a, v, other] = [await makeUser(), await makeUser(), await makeUser()];
+    const p = await s.createPost(a.id, "שאלה?", { options: ["כן", "לא"], minutes: 60 });
+    await s.votePoll(v.id, p.id, 0);
+    await s.unreadNotifications(v.id);
+    expect(await inbox(v.id)).toEqual([]); // still open
+
+    await sql`update posts set poll_ends_at = now() - interval '1 second' where id = ${p.id}`;
+    await Promise.all([s.unreadNotifications(v.id), s.unreadNotifications(v.id)]); // racing checks
+    await s.unreadNotifications(a.id);
+    await s.unreadNotifications(other.id);
+    expect(await inbox(v.id)).toEqual([["poll_ended", a.handle]]);
+    expect(await inbox(a.id)).toEqual([["poll_ended", null]]); // your own: no actor
+    expect(await inbox(other.id)).toEqual([]); // didn't vote
+  });
+});

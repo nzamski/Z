@@ -1713,9 +1713,24 @@ const shownNotification = sql`(n.type like 'removed\_%' or n.type like 'restored
   and (n.comment_id is null
     or exists (select 1 from comments c where c.id = n.comment_id and c.deleted_at is null))))`;
 
+/** "Poll ended" for polls the user wrote or voted in that ended lately: nobody's action ends a
+ * poll, so these are written when the user next checks (the unread count: every page and the
+ * bell's poll). Once each (notifications_poll_ended_uq). Actor: the poll's author, none on your own. */
+async function notifyEndedPolls(userId: string) {
+  await db.execute(sql`
+    insert into notifications (recipient_id, actor_id, type, post_id)
+    select ${userId}, nullif(p.author_id, ${userId}), 'poll_ended', p.id from posts p
+    where p.poll_ends_at <= now() and p.poll_ends_at > now() - interval '30 days'
+      and p.deleted_at is null
+      and (p.author_id = ${userId} or exists (select 1 from poll_votes v
+        where v.post_id = p.id and v.user_id = ${userId} and v.deleted_at is null))
+    on conflict (recipient_id, post_id) where type = 'poll_ended' do nothing`);
+}
+
 /** Unread count for the bell, capped at UNREAD_CAP (the badge shows "99+"), so the poll stays
  * cheap however much someone has left unread. */
 export async function unreadNotifications(userId: string) {
+  await notifyEndedPolls(userId);
   const [r] = await db.execute<{ n: number }>(sql`
     select count(*)::int as n from (select 1 from notifications n
       where n.recipient_id = ${userId} and n.read_at is null and n.deleted_at is null

@@ -155,6 +155,13 @@
       "when": 1792616547342,
       "tag": "0021_bookmarks",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792638855968,
+      "tag": "0022_poll_ended",
+      "breakpoints": true
     }
   ]
 }

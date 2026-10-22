@@ -187,6 +187,8 @@ export const he = {
     removedComment: "מנהל הסיר את התגובה שלך",
     restoredPost: "מנהל שחזר את הפוסט שלך",
     restoredComment: "מנהל שחזר את התגובה שלך",
+    pollEnded: (name: string) => `הסקר של ${name} הסתיים: אפשר לראות את התוצאות`,
+    yourPollEnded: "הסקר שלך הסתיים: אפשר לראות את התוצאות",
     reason: (r: string) => `סיבה: ${r}`,
     desktop: "התראות בשולחן העבודה",
     desktopHint: "כש־Z פתוח בלשונית (גם ברקע), התראות חדשות יקפצו גם בחלון של הדפדפן.",
