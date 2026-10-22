@@ -11,7 +11,6 @@ checks), `components/service-fields.tsx` (form), `components/service-details.tsx
 | Arm            | `service_arm`   | ground / air / navy (`SERVICE_ARMS`); picks the rank insignia set |
 | Service start  | `service_start` | a date, not in the future, within 60 years                        |
 | Service end    | `service_end`   | a date after the start, up to 40 years ahead                      |
-| Birth date     | `birth_date`    | a date giving an age of 14 to 100; the profile shows the age only |
 | Civilian phone | `civic_phone`   | digits, optional leading `+`, spaces and dashes; 7-15 digits      |
 | Civilian email | `civic_email`   | `x@y.z`, lowercased, up to 254 characters                         |
 
@@ -26,6 +25,9 @@ is no longer used and stays until a later migration, so a rollback still works.
 Ranks show as their official insignia (`components/rank-insignia.tsx`), one set per arm in
 `public/ranks/<arm>/` (sources and licenses: `public/ranks/ATTRIBUTION.md`; fetched by
 `scripts/fetch-rank-insignia.sh`). No arm set: the ground forces' insignia.
+
+Birth date / age was dropped on 2026-10-22: `users.birth_date` is no longer used and stays until a
+later migration, so a rollback still works.
 
 Adding a rank or service type: list it in `lib/service-info.ts`, then `npm run db:generate`
 (the DB checks are built from the lists).

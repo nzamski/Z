@@ -310,10 +310,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
             .toISOString()
             .slice(0, 10),
           // Regular service ends: some still ahead (days left), some past.
-          // Ages 19 to 45.
-          birth_date: new Date(NOW - (19 * 365 + ((i * 433) % (26 * 365))) * 24 * HOUR)
-            .toISOString()
-            .slice(0, 10),
           service_end:
             SERVICE_TYPES[i % SERVICE_TYPES.length] === "regular"
               ? new Date(NOW + (((i * 131) % 900) - 150) * 24 * HOUR).toISOString().slice(0, 10)
@@ -327,7 +323,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
           service_arm: null,
           service_start: null,
           service_end: null,
-          birth_date: null,
           civic_phone: "",
           civic_email: "",
         }),

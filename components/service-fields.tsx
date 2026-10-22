@@ -83,17 +83,6 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
         </div>
         {/* Dates take the whole row: day, month and year side by side (DatePick). */}
         {dateField(
-          he.profile.birthDate,
-          <DatePick
-            name="birthDate"
-            value={v.birthDate ?? ""}
-            onChange={(d) => setV((cur) => ({ ...cur, birthDate: d || null }))}
-            fromYear={year - 100}
-            toYear={year - 14}
-          />,
-          he.profile.birthDateHint,
-        )}
-        {dateField(
           he.profile.serviceStart,
           <DatePick
             name="serviceStart"

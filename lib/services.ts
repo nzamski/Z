@@ -80,7 +80,6 @@ import {
   isServiceStart,
   isServiceEnd,
   isServiceArm,
-  isBirthDate,
   isServiceType,
 } from "@/lib/service-info";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
@@ -1247,7 +1246,6 @@ function serviceInfo(i: {
   serviceArm?: string | null;
   serviceStart?: string | null;
   serviceEnd?: string | null;
-  birthDate?: string | null;
   civicPhone?: string;
   civicEmail?: string;
 }) {
@@ -1259,7 +1257,6 @@ function serviceInfo(i: {
   const [rank, serviceType, serviceStart] = [opt(i.rank), opt(i.serviceType), opt(i.serviceStart)];
   const serviceEnd = opt(i.serviceEnd);
   const serviceArm = opt(i.serviceArm);
-  const birthDate = opt(i.birthDate);
   // Both sent (the form sends both): the release comes after the start.
   if (serviceStart && serviceEnd && serviceEnd <= serviceStart) throw new ServiceError("invalid");
   const phone = i.civicPhone?.trim();
@@ -1277,9 +1274,6 @@ function serviceInfo(i: {
     }),
     ...(serviceEnd !== undefined && {
       serviceEnd: check(serviceEnd, serviceEnd === null || isServiceEnd(serviceEnd)),
-    }),
-    ...(birthDate !== undefined && {
-      birthDate: check(birthDate, birthDate === null || isBirthDate(birthDate)),
     }),
     ...(phone !== undefined && { civicPhone: check(phone, !phone || isPhone(phone)) }),
     ...(email !== undefined && { civicEmail: check(email, !email || isEmail(email)) }),
@@ -1303,7 +1297,6 @@ export async function updateProfile(
     serviceArm?: string | null;
     serviceStart?: string | null;
     serviceEnd?: string | null;
-    birthDate?: string | null;
     civicPhone?: string;
     civicEmail?: string;
   },

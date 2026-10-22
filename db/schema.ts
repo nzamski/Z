@@ -53,7 +53,9 @@ export const users = pgTable(
     serviceArm: text("service_arm"), // ground / air / navy: which insignia the rank shows
     serviceStart: date("service_start", { mode: "string" }), // days in service count from it
     serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
-    birthDate: date("birth_date", { mode: "string" }), // the profile shows the age, not the date
+    // Unused since 2026-10-22 (birth date and age were dropped from profiles); kept so the
+    // previous version still works during a rollback. Drop in a later migration.
+    birthDate: date("birth_date", { mode: "string" }),
     // Unused since 2026-10-22 (location moved to each experience role); kept so the previous
     // version still works during a rollback. Drop in a later migration.
     location: text("location").notNull().default(""),

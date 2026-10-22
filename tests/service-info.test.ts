@@ -2,11 +2,9 @@
 import { afterAll, expect, test } from "vitest";
 import { sql } from "@/db/client";
 import {
-  age,
   daysUntil,
   isEmail,
   isPhone,
-  isBirthDate,
   isServiceEnd,
   isServiceStart,
   serviceDays,
@@ -35,14 +33,6 @@ test("days left to the release; end dates may be past or ahead, within limits", 
     expect(isServiceEnd(bad, today), bad).toBe(false);
 });
 
-test("age counts whole years; birth dates give an age of 14 to 100", () => {
-  expect(age("2000-10-22", today)).toBe(26);
-  expect(age("2000-10-23", today)).toBe(25); // the day before the birthday
-  expect(isBirthDate("2000-01-01", today)).toBe(true);
-  for (const bad of ["2015-01-01", "1900-01-01", "2000-02-30"])
-    expect(isBirthDate(bad, today), bad).toBe(false);
-});
-
 test("civilian phone and email formats", () => {
   for (const ok of ["050-1234567", "+972 50 123 4567", "0501234567"])
     expect(isPhone(ok), ok).toBe(true);
@@ -64,7 +54,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceArm: "air",
     serviceStart: "2020-03-01",
     serviceEnd: "2030-03-01",
-    birthDate: "1995-06-15",
     civicPhone: "050-1234567",
     civicEmail: "Dana@Example.com",
   });
@@ -88,7 +77,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     { serviceStart: "2999-01-01" },
     { serviceStart: "2020-03-01", serviceEnd: "2020-03-01" }, // not after the start
     { serviceEnd: "2099-01-01" },
-    { birthDate: "2020-01-01" }, // too young
     { civicPhone: "abc" },
     { civicEmail: "nope" },
   ])
@@ -102,7 +90,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceArm: "",
     serviceStart: "",
     serviceEnd: "",
-    birthDate: "",
     civicPhone: "",
     civicEmail: "",
   });
@@ -112,7 +99,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceArm: null,
     serviceStart: null,
     serviceEnd: null,
-    birthDate: null,
     civicPhone: "",
     civicEmail: "",
   });

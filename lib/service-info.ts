@@ -100,20 +100,6 @@ export function serviceDays(start: string, today = new Date()) {
 /** Days from today until a date (release): negative once it has passed. */
 export const daysUntil = (day: string, today = new Date()) => -serviceDays(day, today);
 
-/** Age in whole years on `today` (birthdays count from the day itself). */
-export function age(birth: string, today = new Date()) {
-  const [y, m, d] = birth.split("-").map(Number);
-  const [ty, tm, td] = [today.getUTCFullYear(), today.getUTCMonth() + 1, today.getUTCDate()];
-  return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
-}
-
-/** A birth date: a real day giving an age of 14 to 100. Only the age is shown. */
-export function isBirthDate(v: string, today = new Date()) {
-  if (!isDay(v)) return false;
-  const a = age(v, today);
-  return a >= 14 && a <= 100;
-}
-
 /** Civilian phone as typed: digits with optional leading +, spaces and dashes (7-15 digits). */
 export const isPhone = (v: string) =>
   /^\+?[0-9][0-9 -]*[0-9]$/.test(v) &&
@@ -130,7 +116,6 @@ export type ServiceInfo = {
   serviceArm: string | null;
   serviceStart: string | null;
   serviceEnd: string | null;
-  birthDate: string | null; // shown as the age only
   civicPhone: string;
   civicEmail: string;
 };

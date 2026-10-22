@@ -1,11 +1,10 @@
-// Service details on a profile (lib/service-info.ts): rank (as its insignia), service type, age,
+// Service details on a profile (lib/service-info.ts): rank (as its insignia), service type,
 // days in service and days left to the release, and civilian phone and email. Only what the
 // person filled in. Phone and email are plain text, not tel:/mailto: links: nothing on the
 // air-gapped network would open them.
 import { RankInsignia } from "@/components/rank-insignia";
 import { he } from "@/lib/i18n/he";
 import {
-  age,
   daysUntil,
   isRank,
   isServiceArm,
@@ -21,7 +20,6 @@ export function ServiceDetails({ info }: { info: ServiceInfo }) {
       <RankInsignia rank={info.rank} arm={isServiceArm(info.serviceArm) ? info.serviceArm : null} />
     ),
     type,
-    info.birthDate && he.profile.age(age(info.birthDate)),
     info.serviceStart && he.profile.serviceDays(serviceDays(info.serviceStart)),
     // Only while it is ahead: after the release there is nothing left to count.
     info.serviceEnd &&
