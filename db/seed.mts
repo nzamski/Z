@@ -463,8 +463,9 @@ async function insert(table: string, rows: Row[]) {
 }
 
 const started = Date.now();
-await sql`truncate users, posts, comments, likes, comment_likes, follows, admins, moderation_actions,
-  notifications`;
+// Every table (a new one needs no change here): the seed replaces the whole dev database.
+const tables = await sql`select tablename from pg_tables where schemaname = 'public'`;
+await sql`truncate ${sql(tables.map((t) => t.tablename as string))}`;
 await insert("users", users);
 await insert("posts", posts);
 // Parents must exist before replies: comments were generated parent-first, insert in that order.

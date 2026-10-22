@@ -14,6 +14,7 @@ import {
 } from "@/app/actions";
 import { DeleteButton } from "@/components/buttons";
 import { ModerateButton } from "@/components/moderate-button";
+import { ReportButton } from "@/components/report-button";
 import type { Viewer } from "@/components/post-card";
 import {
   MENU_ICON as ICON,
@@ -136,6 +137,15 @@ export function PostMenu(p: {
           triggerClass={danger}
           icon={<Icon d={ICON.delete} />}
           onDone={p.onGone}
+        />
+      )}
+      {!mine && (
+        <ReportButton
+          kind="post"
+          id={p.post.id}
+          triggerClass={item}
+          icon={<Icon d={ICON.report} />}
+          onDone={() => setOpen(false)}
         />
       )}
       {!mine && p.viewer.admin && (

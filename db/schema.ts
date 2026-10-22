@@ -14,6 +14,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { REPORT_REASONS, type ReportReason } from "../lib/reports";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
@@ -434,8 +435,7 @@ export const topicFollows = pgTable(
 
 // Reports of posts and comments (docs/reports.md). One open report per reporter and item; closed
 // when an admin removes the item or dismisses its reports. Admins see who reported.
-export const REPORT_REASONS = ["spam", "abuse", "misleading", "other"] as const;
-export type ReportReason = (typeof REPORT_REASONS)[number];
+export { REPORT_REASONS, type ReportReason };
 export const REPORT_RESOLUTIONS = ["removed", "dismissed"] as const;
 
 export const reports = pgTable(

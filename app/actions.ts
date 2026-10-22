@@ -19,9 +19,12 @@ const Text = z.string();
 // "full": through the welcome (everything else). "setup": logged in, welcome unfinished: only the
 // welcome's own actions. Following needs at least a handle, so a handle-less user never shows up
 // in anyone's followers.
+// `refresh: false`: nothing on the page changes (a report), and a refresh would unmount the
+// popup that's about to say thanks.
 async function run(
   fn: (uid: string) => Promise<unknown>,
   level: "full" | "setup" | "handle" = "full",
+  opts: { refresh?: boolean } = {},
 ): Promise<ActionResult> {
   const viewer = level === "full" ? await requireViewer() : await requireLogin();
   if (level === "handle" && !viewer.handle) return { error: he.errors.invalid };
@@ -32,7 +35,7 @@ async function run(
     if (e instanceof z.ZodError) return { error: he.errors.invalid };
     throw e;
   }
-  refresh();
+  if (opts.refresh !== false) refresh();
   return { ok: true };
 }
 
@@ -206,6 +209,36 @@ export async function postSummariesAction(ids: string[]): Promise<s.PostSummary[
   const viewer = await requireViewer();
   const valid = z.array(z.uuid()).max(s.REFRESH_MAX).safeParse(ids);
   return valid.success ? s.postSummaries(viewer.id, valid.data) : [];
+}
+
+/** Report a post or comment (docs/reports.md). */
+export async function reportAction(
+  kind: "post" | "comment",
+  id: string,
+  reason: string,
+  note: string,
+) {
+  return run(
+    (uid) =>
+      s.reportContent(
+        uid,
+        kind === "post" ? { postId: Id.parse(id) } : { commentId: Id.parse(id) },
+        { reason: Text.parse(reason), note: Text.parse(note) },
+      ),
+    "full",
+    { refresh: false },
+  );
+}
+
+/** Close an item's open reports without removing it (admins; the service checks). */
+export async function dismissReportsAction(kind: "post" | "comment", id: string, reason: string) {
+  return run((uid) =>
+    s.dismissReports(
+      uid,
+      kind === "post" ? { postId: Id.parse(id) } : { commentId: Id.parse(id) },
+      Text.parse(reason),
+    ),
+  );
 }
 
 /** Mark notifications read up to what the page showed. No refresh(): the page keeps showing

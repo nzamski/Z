@@ -46,6 +46,8 @@ export const MENU_ICON = {
   clearBio: "M4 6h16M4 11h10M4 16h6M14 20l6-6M20 20l-6-6",
   // @ with a circular arrow
   resetHandle: "M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a8 8 0 1 0-3.2 6.4",
+  // A flag on a pole
+  report: "M5 21V4M5 4h11l-2 4 2 4H5",
 };
 
 export function MoreMenu(p: {

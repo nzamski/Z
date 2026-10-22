@@ -22,6 +22,7 @@ export function AccountMenu(p: {
   handle: string;
   displayName: string;
   admin: boolean;
+  reports?: number; // open reports (admins): a dot on the button, the count on the admin item
   up?: boolean; // opens above the button (the rail's, at the bottom of the screen)
 }) {
   const { open, setOpen, root } = useMenu();
@@ -32,11 +33,19 @@ export function AccountMenu(p: {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={he.account.menu}
+        aria-label={
+          p.reports ? `${he.account.menu}: ${he.reports.badge(p.reports)}` : he.account.menu
+        }
         data-tip={he.account.menu}
-        className="grid size-9 place-items-center rounded-full bg-neutral-500/15 text-base font-bold transition-colors hover:bg-neutral-500/25 aria-expanded:bg-neutral-500/25"
+        className="relative grid size-9 place-items-center rounded-full bg-neutral-500/15 text-base font-bold transition-colors hover:bg-neutral-500/25 aria-expanded:bg-neutral-500/25"
       >
         <span aria-hidden>{initial(p.displayName, p.handle)}</span>
+        {!!p.reports && (
+          <span
+            aria-hidden
+            className="absolute -top-0.5 -end-0.5 size-2.5 rounded-full bg-red-600"
+          />
+        )}
       </button>
       {open && (
         <div
@@ -84,6 +93,11 @@ export function AccountMenu(p: {
                 <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6L12 3Z" />
               </svg>
               {he.moderation.nav}
+              {!!p.reports && (
+                <span className="ms-auto rounded-full bg-red-600 px-1.5 text-xs font-bold text-white tabular-nums">
+                  {p.reports > 99 ? "99+" : p.reports}
+                </span>
+              )}
             </Link>
           )}
           <hr className="border-neutral-200 dark:border-neutral-800" />

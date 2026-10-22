@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-menu";
 import { railItem } from "@/components/rail-styles";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
-import { getUser, isAdmin, unreadNotifications } from "@/lib/services";
+import { getUser, isAdmin, unreadNotifications, openReportCount } from "@/lib/services";
 
 const Icon = ({ d }: { d: string }) => (
   <svg
@@ -41,6 +41,7 @@ export async function NavRail() {
   // Same rule as the header: nothing to navigate to before the welcome, or while suspended.
   if (!user?.handle || !user.onboardedAt || user.suspendedAt) return null;
   const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
+  const reports = admin ? await openReportCount() : 0;
   return (
     <nav aria-label={he.nav.main} className="flex h-full flex-col gap-1 p-2 xl:p-3">
       <RailLink href="/" exact label={he.nav.homePage} icon={<Icon d={ICONS.home} />} />
@@ -58,7 +59,12 @@ export async function NavRail() {
         icon={<Icon d={ICONS.profile} />}
       />
       {admin && (
-        <RailLink href="/admin" label={he.moderation.nav} icon={<Icon d={ICONS.admin} />} />
+        <RailLink
+          href="/admin"
+          label={he.moderation.nav}
+          icon={<Icon d={ICONS.admin} />}
+          badge={{ count: reports, label: he.reports.badge(reports) }}
+        />
       )}
       <NewPostButton
         viewer={{ displayName: user.displayName, handle: user.handle }}
