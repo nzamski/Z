@@ -5,7 +5,7 @@ import { makeUser } from "./helpers";
 
 afterAll(() => sql.end());
 
-// Raw SQL that never mentions updated_at must still advance it (PLAN.md M1).
+// Raw SQL that never mentions updated_at must still advance it.
 test("set_updated_at() advances updated_at on every table", async () => {
   const [a, b] = [await makeUser(), await makeUser()];
   const p = await s.createPost(a.id, "פוסט");

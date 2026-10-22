@@ -1,4 +1,4 @@
-// PLAN.md §5. Table names are plural because `user` and `like` are reserved words in SQL.
+// Table names are plural because `user` and `like` are reserved words in SQL.
 import { sql } from "drizzle-orm";
 import {
   boolean,

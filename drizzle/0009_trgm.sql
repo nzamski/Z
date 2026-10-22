@@ -1,4 +1,4 @@
--- pg_trgm (PLAN.md Q4, confirmed available 2026-10-19): substring and fuzzy people search, and a
+-- pg_trgm (confirmed available 2026-10-19): substring and fuzzy people search, and a
 -- typo-tolerant fallback for post search (docs/search.md). pg_trgm is a trusted extension, so the
 -- database owner can create it; if the DBA already has, this is a no-op.
 -- Hebrew needs a UTF-8 aware LC_CTYPE (e.g. C.UTF-8, he_IL.UTF-8): under plain "C" pg_trgm skips

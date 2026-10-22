@@ -1,8 +1,7 @@
 # Moderation
 
 Admins can remove and restore posts and comments, suspend users, clear bios and reset handles.
-Every action needs a reason and is written to an append-only audit log. Added 2026-10-19 (PLAN.md
-§12 "moderation", at the user's request).
+Every action needs a reason and is written to an append-only audit log. Added 2026-10-19 at the user's request.
 
 Code: services in `lib/services.ts` (section "moderation"), actions in `app/actions.ts`, page
 `app/admin/page.tsx`, control `components/moderate-button.tsx`, CLI `scripts/admin.mjs`, schema

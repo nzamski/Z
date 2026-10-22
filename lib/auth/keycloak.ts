@@ -84,7 +84,7 @@ export async function finishLogin(callbackUrl: URL) {
     idTokenExpected: true,
   });
   const c = tokens.claims()!;
-  // Claim mapping (PLAN.md Q2): adjust here once the network's claims are confirmed.
+  // Claim mapping: adjust here once the network's claims are confirmed.
   // Only identity and the display name come from Keycloak; the handle is chosen in Z.
   const claims: Claims = {
     sub: c.sub,

@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 
-// PLAN.md M2: login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
+// login → post → edit → comment → reply → delete parent → like/unlike/like → follow → logout.
 
 async function login(page: Page, user: string) {
   await page.goto("/"); // no session: the proxy sends us straight to Keycloak

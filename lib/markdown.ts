@@ -1,4 +1,4 @@
-// Shared markdown renderer (PLAN.md §4) for posts and comments; bios stay plain text.
+// Shared markdown renderer for posts and comments; bios stay plain text.
 // Runs on the server and in the composer preview. Safe to inject as HTML: raw HTML is escaped
 // (html: false), images are off (no media, and remote images would call arbitrary hosts), and
 // markdown-it's validateLink refuses javascript:, vbscript:, file: and data: links.

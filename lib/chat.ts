@@ -1,4 +1,4 @@
-// "Message privately" hands off to the operational chat (PLAN.md §7.8): no DMs in Z.
+// "Message privately" hands off to the operational chat: no DMs in Z.
 // CHAT_DEEPLINK_TEMPLATE, e.g. "chat://user/{handle}" or "https://chat.example/dm/{handle}".
 
 const UNSAFE = /^\s*(javascript|data|vbscript):/i;

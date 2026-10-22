@@ -3,7 +3,7 @@
 Code: `lib/search.ts` (query builder, fuzzy thresholds), `feedPage({ query })`, `similarPosts()`
 and `searchUsers()` in `lib/services.ts`, page `app/search/page.tsx`, SQL in
 `drizzle/0005_search.sql` (function), `drizzle/0006_search_column.sql` (column + index) and
-`drizzle/0009_trgm.sql` (pg_trgm). Spec: PLAN.md §7.7.
+`drizzle/0009_trgm.sql` (pg_trgm).
 
 ## How it works
 
@@ -47,7 +47,7 @@ So `שרת` finds "השרת", `השרת` finds "שרת", and `מערכת` finds 
 
 ## pg_trgm (migration 0009)
 
-Confirmed available on the managed Postgres (PLAN.md Q4, 2026-10-19). The migration runs
+Confirmed available on the managed Postgres (2026-10-19). The migration runs
 `CREATE EXTENSION IF NOT EXISTS pg_trgm` (a trusted extension: the database owner may create it).
 
 - **People search** (`searchUsers`): handle or display name contains the query (ILIKE, literal:

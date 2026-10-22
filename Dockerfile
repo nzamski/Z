@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-# Z production image (PLAN.md §9). One image: `node server.js` (default), `node migrate.mjs`, and
+# Z production image. One image: `node server.js` (default), `node migrate.mjs`, and
 # `node admin.mjs` (grant/revoke admins; docs/moderation.md).
 # Build on a connected machine: `npm run build:images` (docs/deploy.md).
 #
-# Base: pinned by digest. Replace with the organization's approved Node 22 base (PLAN.md Q3):
+# Base: pinned by digest. Replace with the organization's approved Node 22 base:
 #   --build-arg NODE_IMAGE=<registry>/ubi9/nodejs-22@sha256:...
 ARG NODE_IMAGE=node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 

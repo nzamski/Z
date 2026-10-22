@@ -1,4 +1,4 @@
-// Feed preview of a markdown post, computed on save (PLAN.md §6.3): whole top-level blocks up to
+// Feed preview of a markdown post, computed on save: whole top-level blocks up to
 // `limit` characters and `maxLines` lines. An oversized first block is cut on a line, then a word,
 // and a code fence left open by the cut is closed again, so the preview is always valid markdown.
 import { md } from "@/lib/markdown";

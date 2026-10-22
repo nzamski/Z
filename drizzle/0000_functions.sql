@@ -13,7 +13,7 @@ LANGUAGE sql VOLATILE AS $$
     'hex')::uuid
 $$;
 --> statement-breakpoint
--- Backstop for PLAN.md §3: every UPDATE advances updated_at, even raw SQL that forgets it.
+-- Backstop for soft delete and sync readiness: every UPDATE advances updated_at, even raw SQL that forgets it.
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

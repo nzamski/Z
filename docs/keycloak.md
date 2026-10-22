@@ -24,7 +24,7 @@ runs only). `APP_URL` must be the public Route URL, since it builds the redirect
 The dev realm (`dev/keycloak/realm-z.json`) is the reference: same flow, but `localhost`
 redirect URIs, a dev secret and three test users. Never reuse its secret.
 
-## Claim mapping (PLAN.md Q2, still open)
+## Claim mapping (still open)
 
 Mapped in `finishLogin` (`lib/auth/keycloak.ts`) on every login:
 

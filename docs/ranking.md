@@ -1,7 +1,6 @@
 # Feed ranking
 
 Code: `lib/feed.ts` (config, cursor, penalty, dedupe) and `feedPage()` in `lib/services.ts`.
-Spec: PLAN.md §6.
 
 ## Views
 
@@ -49,7 +48,7 @@ All constants live in `RANKING` in `lib/feed.ts`:
 
 **Provenance**: the shape is the well-known time-decay "gravity" ranking used by link
 aggregators. The constants are untested guesses, not derived from data. The needs survey
-(PLAN.md open question 3) has not run yet; calibrate with pilot usage.
+has not run yet; calibrate with pilot usage.
 
 ## Cursor stability
 
@@ -102,3 +101,29 @@ To re-measure: `npm run seed:large`, enable `auto_explain` on the `z` database
 (`session_preload_libraries`, `auto_explain.log_min_duration = 0`, `log_analyze = on`), run
 `npx tsx --env-file-if-exists=.env scripts/explain-feeds.mts`, read `docker compose logs db`,
 then `alter database z reset all`.
+
+## Load test
+
+`scripts/load-feeds.mts` runs N viewers at once, each loading For You page 1 then page 2, for a
+fixed time, calling `feedPage()` directly (the query and service layer; no HTTP, auth or
+rendering). It prints throughput and p50/p95/p99 and exits 1 on any error or a p95 over budget.
+
+```
+npm run seed:large
+npx tsx --env-file-if-exists=.env scripts/load-feeds.mts [concurrency=20] [seconds=30] [p95BudgetMs=200]
+npm run seed   # back to the normal dev data
+```
+
+Measured 2026-10-22 on `seed:large` (7.5k posts in the window, 200 viewers), same laptop setup
+as above, 20 s per run:
+
+| Concurrent | Requests/s | p50    | p95    | p99    |
+| ---------- | ---------- | ------ | ------ | ------ |
+| 1          | 73         | 14 ms  | 17 ms  | 19 ms  |
+| 20         | 162        | 125 ms | 140 ms | 149 ms |
+| 50         | 165        | 309 ms | 328 ms | 336 ms |
+
+Throughput levels off at ~165 pages/s: beyond ~20 concurrent viewers, requests queue (one
+process, postgres-js's default 10-connection pool, one Postgres). Each replica has its own
+pool, so replicas add throughput until Postgres CPU is the limit. Not yet measured: the HTTP
+path (session check, rendering) and the platform's Postgres.

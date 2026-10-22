@@ -1,4 +1,4 @@
-// PLAN.md §6.1 required tests, with a fixed clock. Each test seeds posts in its own past year,
+// Feed paging tests, with a fixed clock. Each test seeds posts in its own past year,
 // so posts other test files create at now() are never candidates.
 import { afterAll, describe, expect, test } from "vitest";
 import { db, sql } from "@/db/client";
