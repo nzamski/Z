@@ -14,6 +14,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { PROFESSIONS } from "../lib/professions";
 import { REPORT_REASONS, type ReportReason } from "../lib/reports";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -54,7 +55,7 @@ export const users = pgTable(
   (t) => [
     check(
       "users_profession_ck",
-      sql`${t.profession} in ('developer', 'devops', 'data_engineer', 'data_scientist', 'qa', 'data_analyst')`,
+      sql.raw(`profession in (${PROFESSIONS.map((p) => `'${p}'`).join(", ")})`),
     ),
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
     uniqueIndex("users_handle_active_uq")

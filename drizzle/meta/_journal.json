@@ -176,6 +176,13 @@
       "when": 1792690044708,
       "tag": "0024_avatar_seed_default",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792690740626,
+      "tag": "0025_more_professions",
+      "breakpoints": true
     }
   ]
 }
