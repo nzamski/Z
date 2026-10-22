@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
 
-/** A person in a list (followers, following, welcome suggestions), with a follow button. */
+/** A person in a list (search, followers, following, likers, welcome suggestions): avatar, name,
+ * badge and bio, with a follow button. */
 export function UserRow(p: {
   user: {
     id: string;
@@ -18,6 +20,7 @@ export function UserRow(p: {
   const href = `/u/${encodeURIComponent(p.user.handle)}`;
   return (
     <li className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 py-2.5 text-start transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-white/[0.03]">
+      <Avatar name={p.user.displayName} handle={p.user.handle} />
       <Link href={href} className="min-w-0 flex-1">
         {/* Name and handle on one line (like the post byline); the handle truncates first. */}
         <span className="flex min-w-0 items-baseline gap-x-2">
