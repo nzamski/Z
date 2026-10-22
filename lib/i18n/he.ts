@@ -121,6 +121,8 @@ export const he = {
   },
   profile: {
     service: "פרטי שירות",
+    serviceEdit: "עריכת פרטי שירות",
+    serviceEmpty: "עוד לא הוספת פרטי שירות.",
     rank: "דרגה",
     serviceType: "סוג שירות",
     serviceArm: "זרוע",
@@ -130,8 +132,6 @@ export const he = {
     serviceEnd: "סיום שירות",
     serviceEndHint: "לחישוב הימים שנותרו לשחרור.",
     daysLeft: (n: number) => `נותרו ${n.toLocaleString("he-IL")} ימים לשחרור`,
-    civicPhone: "טלפון אזרחי",
-    civicEmail: "מייל אזרחי",
     serviceVisible: "גלוי לכל המשתמשים ב-Z.",
     none: "—",
     avatar: "אווטאר",

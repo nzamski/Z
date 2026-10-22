@@ -1,6 +1,6 @@
 "use client";
-// The profile form's service details (lib/service-info.ts). Controlled, so a failed save keeps
-// what was typed. The browser checks the phone and email formats; the server checks again.
+// The service details' fields (lib/service-info.ts), in their own popup (ServiceEditor).
+// Controlled, so a failed save keeps what was picked; the server checks everything again.
 import { useState } from "react";
 import { DatePick } from "@/components/date-pick";
 import { Pick } from "@/components/pick";
@@ -19,18 +19,9 @@ import {
   type ServiceType,
 } from "@/lib/service-info";
 
-export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
+export function ServiceFields(p: { initial: ServiceInfo }) {
   const [v, setV] = useState(p.initial);
-  const set = (k: keyof ServiceInfo) => (e: { target: { value: string } }) =>
-    setV((cur) => ({ ...cur, [k]: e.target.value }));
   const year = new Date().getFullYear();
-  const label = (text: string, input: React.ReactNode, hint?: string) => (
-    <label className="block space-y-1">
-      <span className="text-sm font-medium">{text}</span>
-      {input}
-      {hint && <span className="block text-xs text-muted">{hint}</span>}
-    </label>
-  );
   // A div, not a label: a label around buttons would pass its clicks to the first dropdown.
   const dateField = (text: string, input: React.ReactNode, hint: string) => (
     <div className="space-y-1 sm:col-span-2">
@@ -40,8 +31,7 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
     </div>
   );
   return (
-    <fieldset className="space-y-3">
-      <legend className="text-sm font-bold">{he.profile.service}</legend>
+    <div className="space-y-3">
       <p className="text-xs text-muted">{he.profile.serviceVisible}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {/* Z's own dropdowns, like the poll's (the label sits inside the button); "" is none.
@@ -104,35 +94,7 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           />,
           he.profile.serviceEndHint,
         )}
-        {/* Phone and email share the last row. */}
-        {label(
-          he.profile.civicPhone,
-          <input
-            type="tel"
-            name="civicPhone"
-            value={v.civicPhone}
-            onChange={set("civicPhone")}
-            inputMode="tel"
-            autoComplete="tel"
-            pattern="\+?[0-9][0-9 \-]{5,18}[0-9]"
-            dir="ltr"
-            className={p.field}
-          />,
-        )}
-        {label(
-          he.profile.civicEmail,
-          <input
-            type="email"
-            name="civicEmail"
-            value={v.civicEmail}
-            onChange={set("civicEmail")}
-            autoComplete="email"
-            maxLength={254}
-            dir="ltr"
-            className={p.field}
-          />,
-        )}
       </div>
-    </fieldset>
+    </div>
   );
 }

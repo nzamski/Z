@@ -59,6 +59,8 @@ export const users = pgTable(
     // Unused since 2026-10-22 (location moved to each experience role); kept so the previous
     // version still works during a rollback. Drop in a later migration.
     location: text("location").notNull().default(""),
+    // civic_phone, civic_email: unused since 2026-10-23 (phone and email were dropped from
+    // profiles); kept so the previous version still works during a rollback. Drop later.
     civicPhone: text("civic_phone").notNull().default(""),
     civicEmail: text("civic_email").notNull().default(""),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can

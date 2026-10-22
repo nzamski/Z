@@ -1,14 +1,7 @@
-// Service details on profiles (lib/service-info.ts): the checks, and what updateProfile keeps.
+// Service details on profiles (lib/service-info.ts): the checks, and what updateServiceInfo keeps.
 import { afterAll, expect, test } from "vitest";
 import { sql } from "@/db/client";
-import {
-  daysUntil,
-  isEmail,
-  isPhone,
-  isServiceEnd,
-  isServiceStart,
-  serviceDays,
-} from "@/lib/service-info";
+import { daysUntil, isServiceEnd, isServiceStart, serviceDays } from "@/lib/service-info";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
 
@@ -33,42 +26,27 @@ test("days left to the release; end dates may be past or ahead, within limits", 
     expect(isServiceEnd(bad, today), bad).toBe(false);
 });
 
-test("civilian phone and email formats", () => {
-  for (const ok of ["050-1234567", "+972 50 123 4567", "0501234567"])
-    expect(isPhone(ok), ok).toBe(true);
-  for (const bad of ["123", "050-12a4567", "-0501234567", "+972 50 123 4567 8901 23"])
-    expect(isPhone(bad), bad).toBe(false);
-  expect(isEmail("dana@example.com")).toBe(true);
-  for (const bad of ["dana", "dana@x", "da na@x.com", "a@b@c.com"])
-    expect(isEmail(bad), bad).toBe(false);
-});
-
-test("the profile saves service details, clears them with blanks, and refuses bad values", async () => {
+test("service details save on their own, clear with blanks, and refuse bad values", async () => {
   const u = await makeUser();
-  const base = { handle: u.handle!, bio: "" };
-  const saved = await s.updateProfile(u.id, {
-    ...base,
-    profession: "team_lead",
+  const saved = await s.updateServiceInfo(u.id, {
     rank: "captain",
     serviceType: "career",
     serviceArm: "air",
     serviceStart: "2020-03-01",
     serviceEnd: "2030-03-01",
-    civicPhone: "050-1234567",
-    civicEmail: "Dana@Example.com",
   });
   expect(saved).toMatchObject({
-    profession: "team_lead",
     rank: "captain",
     serviceType: "career",
+    serviceArm: "air",
     serviceStart: "2020-03-01",
-    civicPhone: "050-1234567",
-    civicEmail: "dana@example.com",
+    serviceEnd: "2030-03-01",
   });
-  // The welcome form doesn't send them: left alone.
-  expect(await s.updateProfile(u.id, base)).toMatchObject({
-    rank: "captain",
-    civicPhone: "050-1234567",
+  // Edit profile (handle, bio...) leaves them alone, and so does a save that doesn't send one.
+  await s.updateProfile(u.id, { handle: u.handle!, bio: "x" });
+  expect(await s.updateServiceInfo(u.id, { rank: "major" })).toMatchObject({
+    rank: "major",
+    serviceArm: "air",
   });
   for (const bad of [
     { rank: "general" },
@@ -77,21 +55,14 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     { serviceStart: "2999-01-01" },
     { serviceStart: "2020-03-01", serviceEnd: "2020-03-01" }, // not after the start
     { serviceEnd: "2099-01-01" },
-    { civicPhone: "abc" },
-    { civicEmail: "nope" },
   ])
-    await expect(s.updateProfile(u.id, { ...base, ...bad }), JSON.stringify(bad)).rejects.toThrow(
-      "invalid",
-    );
-  const cleared = await s.updateProfile(u.id, {
-    ...base,
+    await expect(s.updateServiceInfo(u.id, bad), JSON.stringify(bad)).rejects.toThrow("invalid");
+  const cleared = await s.updateServiceInfo(u.id, {
     rank: "",
     serviceType: "",
     serviceArm: "",
     serviceStart: "",
     serviceEnd: "",
-    civicPhone: "",
-    civicEmail: "",
   });
   expect(cleared).toMatchObject({
     rank: null,
@@ -99,7 +70,5 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceArm: null,
     serviceStart: null,
     serviceEnd: null,
-    civicPhone: "",
-    civicEmail: "",
   });
 });

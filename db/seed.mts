@@ -299,8 +299,7 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     display_name: `${first} ${last}`,
     bio: pick(BIOS),
     avatar_seed: String(i),
-    // Service details (lib/service-info.ts) for about two thirds; fictional contact on reserved
-    // ranges (050-000xxxx, example.test).
+    // Service details (lib/service-info.ts) for about two thirds.
     ...(i % 3 !== 2
       ? {
           rank: RANKS[(i * 5) % RANKS.length],
@@ -314,8 +313,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
             SERVICE_TYPES[i % SERVICE_TYPES.length] === "regular"
               ? new Date(NOW + (((i * 131) % 900) - 150) * 24 * HOUR).toISOString().slice(0, 10)
               : null,
-          civic_phone: `050-000${String(1000 + i).slice(-4)}`,
-          civic_email: `${i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`}@example.test`,
         }
       : {
           rank: null,
@@ -323,8 +320,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
           service_arm: null,
           service_start: null,
           service_end: null,
-          civic_phone: "",
-          civic_email: "",
         }),
   };
 });

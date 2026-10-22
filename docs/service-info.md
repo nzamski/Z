@@ -1,18 +1,19 @@
 # Service details
 
-Optional profile fields, picked by each user in "edit profile" (not in the first-login welcome)
-and shown on their profile to every logged-in user. Code: `lib/service-info.ts` (lists, labels,
-checks), `components/service-fields.tsx` (form), `components/service-details.tsx` (profile).
+Optional profile fields with their own "פרטי שירות" section on the profile, between the profile
+header and the experience, and their own edit popup (not "edit profile", not the first-login
+welcome); visible to every logged-in user. The rank's insignia also sits beside the name in the
+header. Code: `lib/service-info.ts` (lists, labels, checks), `updateServiceInfo` in
+`lib/services.ts`, `components/service-section.tsx`, `service-editor.tsx` and
+`service-fields.tsx`.
 
-| Field          | Column          | Rule                                                              |
-| -------------- | --------------- | ----------------------------------------------------------------- |
-| Rank           | `rank`          | one of `RANKS` (DB check `users_rank_ck`), or none                |
-| Service type   | `service_type`  | one of `SERVICE_TYPES` (`users_service_type_ck`), or none         |
-| Arm            | `service_arm`   | ground / air / navy (`SERVICE_ARMS`); picks the rank insignia set |
-| Service start  | `service_start` | a date, not in the future, within 60 years                        |
-| Service end    | `service_end`   | a date after the start, up to 40 years ahead                      |
-| Civilian phone | `civic_phone`   | digits, optional leading `+`, spaces and dashes; 7-15 digits      |
-| Civilian email | `civic_email`   | `x@y.z`, lowercased, up to 254 characters                         |
+| Field         | Column          | Rule                                                              |
+| ------------- | --------------- | ----------------------------------------------------------------- |
+| Rank          | `rank`          | one of `RANKS` (DB check `users_rank_ck`), or none                |
+| Service type  | `service_type`  | one of `SERVICE_TYPES` (`users_service_type_ck`), or none         |
+| Arm           | `service_arm`   | ground / air / navy (`SERVICE_ARMS`); picks the rank insignia set |
+| Service start | `service_start` | a date, not in the future, within 60 years                        |
+| Service end   | `service_end`   | a date after the start, up to 40 years ahead                      |
 
 Days in service (פז״ם) are computed from the start date, and days left to the release from the
 end date (shown only while it is ahead), when the page renders; never stored.
@@ -33,5 +34,7 @@ Adding a rank or service type: list it in `lib/service-info.ts`, then `npm run d
 (the DB checks are built from the lists).
 
 Not done: admins can't edit these for someone else, and nothing is verified (a user can claim any
-rank). Phone and email are personal data visible to everyone logged in: see
-`docs/security-notes.md`.
+rank).
+
+Civilian phone and email were dropped on 2026-10-23: `users.civic_phone` and `users.civic_email`
+are no longer used and stay until a later migration, so a rollback still works.

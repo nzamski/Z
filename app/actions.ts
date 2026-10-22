@@ -40,15 +40,7 @@ async function run(
 }
 
 const field = (f: FormData, name: string) => f.get(name) ?? undefined;
-const SERVICE_FIELDS = [
-  "rank",
-  "serviceType",
-  "serviceArm",
-  "serviceStart",
-  "serviceEnd",
-  "civicPhone",
-  "civicEmail",
-] as const;
+const SERVICE_FIELDS = ["rank", "serviceType", "serviceArm", "serviceStart", "serviceEnd"] as const;
 
 export async function createPostAction(_: ActionResult, f: FormData) {
   // A poll: its option fields and duration (the composer sends them only with a poll open).
@@ -169,6 +161,16 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
 
 export type ProfileResult = ActionResult & { handle?: string };
 
+/** Service details, from their own popup on the profile (lib/service-info.ts). */
+export async function updateServiceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run((uid) =>
+    s.updateServiceInfo(
+      uid,
+      Object.fromEntries(SERVICE_FIELDS.filter((k) => f.has(k)).map((k) => [k, String(f.get(k))])),
+    ),
+  );
+}
+
 /** Handle, bio, profession and avatar (welcome screen and profile). Returns the saved handle. */
 export async function updateProfileAction(_: ProfileResult, f: FormData): Promise<ProfileResult> {
   let handle: string | undefined;
@@ -181,10 +183,6 @@ export async function updateProfileAction(_: ProfileResult, f: FormData): Promis
           // The profile form always sends it; "" is none.
           profession: f.has("profession") ? String(f.get("profession")) || null : undefined,
           avatarSeed: f.has("avatarSeed") ? String(f.get("avatarSeed")) : undefined, // the shuffled avatar, when the form sends one
-          // Service details: sent by the profile form only (the welcome leaves them alone).
-          ...Object.fromEntries(
-            SERVICE_FIELDS.filter((k) => f.has(k)).map((k) => [k, String(f.get(k))]),
-          ),
         })
       ).handle ?? undefined;
   }, "setup");

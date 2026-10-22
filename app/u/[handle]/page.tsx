@@ -8,7 +8,8 @@ import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
 import { ExperienceSection } from "@/components/experience-section";
-import { ServiceDetails } from "@/components/service-details";
+import { RankInsignia } from "@/components/rank-insignia";
+import { ServiceSection } from "@/components/service-section";
 import { UserAdminMenu } from "@/components/user-admin-menu";
 import { FeedList } from "@/components/feed-list";
 import { ItemList, LinkTabs } from "@/components/item-list";
@@ -17,6 +18,7 @@ import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
+import { isRank, isServiceArm } from "@/lib/service-info";
 import {
   feedPage,
   followInfo,
@@ -59,8 +61,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
     serviceArm: user.serviceArm,
     serviceStart: user.serviceStart,
     serviceEnd: user.serviceEnd,
-    civicPhone: user.civicPhone,
-    civicEmail: user.civicEmail,
   };
   const base = `/u/${encodeURIComponent(user.handle)}`;
   return (
@@ -81,6 +81,15 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               <span className="text-muted" dir="ltr">
                 @{user.handle}
               </span>
+              {/* The rank as its insignia, beside the name (its name on hover). */}
+              {isRank(user.rank) && (
+                <span className="self-center">
+                  <RankInsignia
+                    rank={user.rank}
+                    arm={isServiceArm(user.serviceArm) ? user.serviceArm : null}
+                  />
+                </span>
+              )}
               <ProfessionBadge profession={user.profession} />
             </div>
           </div>
@@ -91,7 +100,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               bio={user.bio}
               profession={user.profession}
               avatarSeed={user.avatarSeed}
-              service={service}
             />
           )}
           {viewerId !== user.id && (
@@ -132,7 +140,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           )}
         </div>
         {user.bio && <PlainText text={user.bio} className="mt-2" />}
-        <ServiceDetails info={service} />
         <p className="mt-2 flex items-center gap-1 text-sm text-muted">
           <svg
             viewBox="0 0 24 24"
@@ -157,6 +164,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </Link>
         </div>
       </section>
+      <ServiceSection info={service} isOwner={viewerId === user.id} />
       <ExperienceSection
         userId={user.id}
         isOwner={viewerId === user.id}
