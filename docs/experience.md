@@ -20,5 +20,4 @@ Order: current roles first, then by end and start, newest first. Length counts b
 (January to March is 3 months) and runs to this month for a current role. At most 30 roles a
 person (`experience_limit`). Deleting is a soft delete, like everything else.
 
-Not done: moderators can't remove a role (they can suspend the person or clear the bio); the
-month input is a native `<input type="month">`, which Firefox shows as a text field.
+Not done: moderators can't remove a role (they can suspend the person or clear the bio).

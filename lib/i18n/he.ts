@@ -101,6 +101,7 @@ export const he = {
     collapse: "הסתרת תשובות",
     expand: (n: number) => `הצגת ${n} תשובות`,
   },
+  date: { day: "יום", month: "חודש", year: "שנה" },
   experience: {
     title: "ניסיון",
     add: "הוספת תפקיד",

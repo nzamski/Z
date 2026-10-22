@@ -2,6 +2,7 @@
 // The profile form's service details (lib/service-info.ts). Controlled, so a failed save keeps
 // what was typed. The browser checks the phone and email formats; the server checks again.
 import { useState } from "react";
+import { DatePick } from "@/components/date-pick";
 import { Pick } from "@/components/pick";
 import { he } from "@/lib/i18n/he";
 import {
@@ -19,13 +20,21 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
   const [v, setV] = useState(p.initial);
   const set = (k: keyof ServiceInfo) => (e: { target: { value: string } }) =>
     setV((cur) => ({ ...cur, [k]: e.target.value }));
-  const today = new Date().toISOString().slice(0, 10);
+  const year = new Date().getFullYear();
   const label = (text: string, input: React.ReactNode, hint?: string) => (
     <label className="block space-y-1">
       <span className="text-sm font-medium">{text}</span>
       {input}
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
+  );
+  // A div, not a label: a label around buttons would pass its clicks to the first dropdown.
+  const dateField = (text: string, input: React.ReactNode, hint: string) => (
+    <div className="space-y-1 sm:col-span-2">
+      <span className="block text-sm font-medium">{text}</span>
+      {input}
+      <span className="block text-xs text-muted">{hint}</span>
+    </div>
   );
   return (
     <fieldset className="space-y-3">
@@ -49,27 +58,26 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           format={(t) => (t ? SERVICE_TYPE_LABEL[t] : he.profile.none)}
           onPick={(t) => setV((cur) => ({ ...cur, serviceType: t || null }))}
         />
-        {label(
+        {/* Dates take the whole row: day, month and year side by side (DatePick). */}
+        {dateField(
           he.profile.serviceStart,
-          <input
-            type="date"
+          <DatePick
             name="serviceStart"
             value={v.serviceStart ?? ""}
-            onChange={set("serviceStart")}
-            max={today}
-            className={p.field}
+            onChange={(d) => setV((cur) => ({ ...cur, serviceStart: d || null }))}
+            fromYear={year - 60}
+            toYear={year}
           />,
           he.profile.serviceStartHint,
         )}
-        {label(
+        {dateField(
           he.profile.serviceEnd,
-          <input
-            type="date"
+          <DatePick
             name="serviceEnd"
             value={v.serviceEnd ?? ""}
-            onChange={set("serviceEnd")}
-            min={v.serviceStart ?? undefined}
-            className={p.field}
+            onChange={(d) => setV((cur) => ({ ...cur, serviceEnd: d || null }))}
+            fromYear={year - 60}
+            toYear={year + 40}
           />,
           he.profile.serviceEndHint,
         )}

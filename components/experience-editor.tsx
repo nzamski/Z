@@ -3,6 +3,7 @@
 // native <dialog> (Esc closes, focus stays inside). The server checks everything again.
 import { useActionState, useRef, useState, useTransition } from "react";
 import { deleteExperienceAction, saveExperienceAction } from "@/app/actions";
+import { DatePick } from "@/components/date-pick";
 import { dayToMonth, ORGANIZATION_MAX, TITLE_MAX } from "@/lib/experience";
 import { he } from "@/lib/i18n/he";
 import type { Experience } from "@/lib/services";
@@ -84,7 +85,7 @@ function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => v
   });
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) =>
     setV((cur) => ({ ...cur, [k]: e.target.value }));
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const year = new Date().getFullYear();
   const [state, action, pending] = useActionState(
     async (prev: { ok?: true; error?: string }, f: FormData) => {
       const r = await saveExperienceAction(prev, f);
@@ -135,36 +136,35 @@ function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => v
         {he.experience.current}
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
-        {label(
-          he.experience.start,
-          <input
-            type="month"
+        {/* Month and year as Z's own dropdowns (DatePick); a div, not a label, around buttons. */}
+        <div className="space-y-1">
+          <span className="block text-sm font-medium">{he.experience.start}</span>
+          <DatePick
+            month
             name="start"
             value={v.start}
-            onChange={set("start")}
-            required
-            max={thisMonth}
-            className={field}
-          />,
-        )}
-        {!v.current &&
-          label(
-            he.experience.end,
-            <input
-              type="month"
+            onChange={(start) => setV((cur) => ({ ...cur, start }))}
+            fromYear={year - 60}
+            toYear={year}
+          />
+        </div>
+        {!v.current && (
+          <div className="space-y-1">
+            <span className="block text-sm font-medium">{he.experience.end}</span>
+            <DatePick
+              month
               name="end"
               value={v.end}
-              onChange={set("end")}
-              required
-              min={v.start || undefined}
-              max={thisMonth}
-              className={field}
-            />,
-          )}
+              onChange={(end) => setV((cur) => ({ ...cur, end }))}
+              fromYear={year - 60}
+              toYear={year}
+            />
+          </div>
+        )}
       </div>
       <div className="flex flex-row-reverse items-center justify-start gap-3 text-sm">
         <button
-          disabled={pending || deleting}
+          disabled={pending || deleting || !v.start || (!v.current && !v.end)}
           className="rounded-full bg-foreground px-5 py-2 font-medium text-background transition-opacity enabled:hover:opacity-85 disabled:opacity-40"
         >
           {he.composer.save}

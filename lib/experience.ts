@@ -5,7 +5,7 @@ export const TITLE_MAX = 60;
 export const ORGANIZATION_MAX = 60;
 export const EXPERIENCE_MAX = 30; // roles per person
 
-/** A month as the form sends it (`<input type="month">`): YYYY-MM, a real month. */
+/** A month as the form sends it (DatePick with `month`): YYYY-MM, a real month. */
 export const isMonth = (v: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
 
 /** Stored as the first day of the month (a `date` column), shown as the month. */
