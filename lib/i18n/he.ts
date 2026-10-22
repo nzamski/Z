@@ -120,6 +120,7 @@ export const he = {
     service: "פרטי שירות",
     rank: "דרגה",
     serviceType: "סוג שירות",
+    serviceArm: "זרוע",
     serviceStart: "תחילת שירות",
     serviceStartHint: "לחישוב הפז״ם (ימים בשירות).",
     serviceDays: (n: number) => `פז״ם: ${n.toLocaleString("he-IL")} ימים`,

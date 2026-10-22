@@ -8,6 +8,7 @@ import {
   age,
   daysUntil,
   isRank,
+  isServiceArm,
   SERVICE_TYPE_LABEL,
   serviceDays,
   type ServiceInfo,
@@ -16,7 +17,9 @@ import {
 export function ServiceDetails({ info }: { info: ServiceInfo }) {
   const type = SERVICE_TYPE_LABEL[info.serviceType as keyof typeof SERVICE_TYPE_LABEL];
   const items = [
-    isRank(info.rank) && <RankInsignia rank={info.rank} />,
+    isRank(info.rank) && (
+      <RankInsignia rank={info.rank} arm={isServiceArm(info.serviceArm) ? info.serviceArm : null} />
+    ),
     type,
     info.birthDate && he.profile.age(age(info.birthDate)),
     info.serviceStart && he.profile.serviceDays(serviceDays(info.serviceStart)),

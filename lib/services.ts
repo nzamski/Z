@@ -79,6 +79,7 @@ import {
   isRank,
   isServiceStart,
   isServiceEnd,
+  isServiceArm,
   isBirthDate,
   isServiceType,
 } from "@/lib/service-info";
@@ -1243,6 +1244,7 @@ export async function handleStatus(actorId: string, handle: string) {
 function serviceInfo(i: {
   rank?: string | null;
   serviceType?: string | null;
+  serviceArm?: string | null;
   serviceStart?: string | null;
   serviceEnd?: string | null;
   birthDate?: string | null;
@@ -1256,6 +1258,7 @@ function serviceInfo(i: {
   const opt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
   const [rank, serviceType, serviceStart] = [opt(i.rank), opt(i.serviceType), opt(i.serviceStart)];
   const serviceEnd = opt(i.serviceEnd);
+  const serviceArm = opt(i.serviceArm);
   const birthDate = opt(i.birthDate);
   // Both sent (the form sends both): the release comes after the start.
   if (serviceStart && serviceEnd && serviceEnd <= serviceStart) throw new ServiceError("invalid");
@@ -1265,6 +1268,9 @@ function serviceInfo(i: {
     ...(rank !== undefined && { rank: check(rank, rank === null || isRank(rank)) }),
     ...(serviceType !== undefined && {
       serviceType: check(serviceType, serviceType === null || isServiceType(serviceType)),
+    }),
+    ...(serviceArm !== undefined && {
+      serviceArm: check(serviceArm, serviceArm === null || isServiceArm(serviceArm)),
     }),
     ...(serviceStart !== undefined && {
       serviceStart: check(serviceStart, serviceStart === null || isServiceStart(serviceStart)),
@@ -1294,6 +1300,7 @@ export async function updateProfile(
     avatarSeed?: string;
     rank?: string | null;
     serviceType?: string | null;
+    serviceArm?: string | null;
     serviceStart?: string | null;
     serviceEnd?: string | null;
     birthDate?: string | null;

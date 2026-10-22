@@ -59,6 +59,16 @@ export const SERVICE_TYPE_LABEL: Record<ServiceType, string> = {
 export const isServiceType = (v: unknown): v is ServiceType =>
   SERVICE_TYPES.includes(v as ServiceType);
 
+/** The arm: rank insignia differ between them (public/ranks/<arm>/). */
+export const SERVICE_ARMS = ["ground", "air", "navy"] as const;
+export type ServiceArm = (typeof SERVICE_ARMS)[number];
+export const SERVICE_ARM_LABEL: Record<ServiceArm, string> = {
+  ground: "יבשה",
+  air: "אוויר",
+  navy: "ים",
+};
+export const isServiceArm = (v: unknown): v is ServiceArm => SERVICE_ARMS.includes(v as ServiceArm);
+
 /** YYYY-MM-DD and a real day (not 2026-02-30). */
 function isDay(v: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
@@ -117,6 +127,7 @@ export const isEmail = (v: string) => v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s
 export type ServiceInfo = {
   rank: string | null;
   serviceType: string | null;
+  serviceArm: string | null;
   serviceStart: string | null;
   serviceEnd: string | null;
   birthDate: string | null; // shown as the age only

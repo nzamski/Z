@@ -15,7 +15,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { PROFESSIONS } from "../lib/professions";
-import { RANKS, SERVICE_TYPES } from "../lib/service-info";
+import { RANKS, SERVICE_ARMS, SERVICE_TYPES } from "../lib/service-info";
 import { REPORT_REASONS, type ReportReason } from "../lib/reports";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -50,6 +50,7 @@ export const users = pgTable(
     // Service details (lib/service-info.ts): all optional, picked by the user.
     rank: text("rank"),
     serviceType: text("service_type"),
+    serviceArm: text("service_arm"), // ground / air / navy: which insignia the rank shows
     serviceStart: date("service_start", { mode: "string" }), // days in service count from it
     serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
     birthDate: date("birth_date", { mode: "string" }), // the profile shows the age, not the date
@@ -73,6 +74,10 @@ export const users = pgTable(
     check(
       "users_service_type_ck",
       sql.raw(`service_type in (${SERVICE_TYPES.map((v) => `'${v}'`).join(", ")})`),
+    ),
+    check(
+      "users_service_arm_ck",
+      sql.raw(`service_arm in (${SERVICE_ARMS.map((v) => `'${v}'`).join(", ")})`),
     ),
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
     uniqueIndex("users_handle_active_uq")

@@ -8,6 +8,7 @@ checks), `components/service-fields.tsx` (form), `components/service-details.tsx
 | -------------- | --------------- | ----------------------------------------------------------------- |
 | Rank           | `rank`          | one of `RANKS` (DB check `users_rank_ck`), or none                |
 | Service type   | `service_type`  | one of `SERVICE_TYPES` (`users_service_type_ck`), or none         |
+| Arm            | `service_arm`   | ground / air / navy (`SERVICE_ARMS`); picks the rank insignia set |
 | Service start  | `service_start` | a date, not in the future, within 60 years                        |
 | Service end    | `service_end`   | a date after the start, up to 40 years ahead                      |
 | Birth date     | `birth_date`    | a date giving an age of 14 to 100; the profile shows the age only |
@@ -21,6 +22,10 @@ service layer (`updateProfile`); the form's browser checks are a convenience.
 
 Base / location moved to each experience role (`docs/experience.md`) on 2026-10-22; `users.location`
 is no longer used and stays until a later migration, so a rollback still works.
+
+Ranks show as their official insignia (`components/rank-insignia.tsx`), one set per arm in
+`public/ranks/<arm>/` (sources and licenses: `public/ranks/ATTRIBUTION.md`; fetched by
+`scripts/fetch-rank-insignia.sh`). No arm set: the ground forces' insignia.
 
 Adding a rank or service type: list it in `lib/service-info.ts`, then `npm run db:generate`
 (the DB checks are built from the lists).

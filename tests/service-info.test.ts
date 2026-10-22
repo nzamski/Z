@@ -61,6 +61,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     profession: "team_lead",
     rank: "captain",
     serviceType: "career",
+    serviceArm: "air",
     serviceStart: "2020-03-01",
     serviceEnd: "2030-03-01",
     birthDate: "1995-06-15",
@@ -83,6 +84,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
   for (const bad of [
     { rank: "general" },
     { serviceType: "volunteer" },
+    { serviceArm: "space" },
     { serviceStart: "2999-01-01" },
     { serviceStart: "2020-03-01", serviceEnd: "2020-03-01" }, // not after the start
     { serviceEnd: "2099-01-01" },
@@ -97,6 +99,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     ...base,
     rank: "",
     serviceType: "",
+    serviceArm: "",
     serviceStart: "",
     serviceEnd: "",
     birthDate: "",
@@ -106,6 +109,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
   expect(cleared).toMatchObject({
     rank: null,
     serviceType: null,
+    serviceArm: null,
     serviceStart: null,
     serviceEnd: null,
     birthDate: null,

@@ -43,6 +43,7 @@ const field = (f: FormData, name: string) => f.get(name) ?? undefined;
 const SERVICE_FIELDS = [
   "rank",
   "serviceType",
+  "serviceArm",
   "serviceStart",
   "serviceEnd",
   "birthDate",

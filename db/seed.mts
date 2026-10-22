@@ -305,6 +305,7 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
       ? {
           rank: RANKS[(i * 5) % RANKS.length],
           service_type: SERVICE_TYPES[i % SERVICE_TYPES.length],
+          service_arm: ["ground", "ground", "air", "navy"][i % 4],
           service_start: new Date(NOW - (200 + ((i * 97) % 5000)) * 24 * HOUR)
             .toISOString()
             .slice(0, 10),
@@ -323,6 +324,7 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
       : {
           rank: null,
           service_type: null,
+          service_arm: null,
           service_start: null,
           service_end: null,
           birth_date: null,
