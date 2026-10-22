@@ -16,7 +16,7 @@ export function UserAdminMenu(p: { userId: string; suspended: boolean; hasBio: b
   const menu = useMenu();
   const done = () => menu.setOpen(false);
   return (
-    <MoreMenu menu={menu}>
+    <MoreMenu menu={menu} bordered>
       {p.suspended ? (
         <ModerateButton
           label={he.moderation.unsuspend}

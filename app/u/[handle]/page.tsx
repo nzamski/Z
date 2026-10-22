@@ -95,6 +95,13 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           )}
           {viewerId !== user.id && (
             <div className="flex items-center gap-2">
+              {admin && (
+                <UserAdminMenu
+                  userId={user.id}
+                  suspended={!!user.suspendedAt}
+                  hasBio={!!user.bio}
+                />
+              )}
               {chat && (
                 <a
                   href={chat}
@@ -120,13 +127,6 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
                 </a>
               )}
               <FollowButton userId={user.id} following={info.viewerFollows} />
-              {admin && (
-                <UserAdminMenu
-                  userId={user.id}
-                  suspended={!!user.suspendedAt}
-                  hasBio={!!user.bio}
-                />
-              )}
             </div>
           )}
         </div>
