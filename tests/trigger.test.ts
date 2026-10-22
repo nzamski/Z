@@ -23,6 +23,10 @@ test("set_updated_at() advances updated_at on every table", async () => {
   const [vote] = await sql`select id from poll_votes where post_id = ${poll.id}`;
   await s.setBookmark(b.id, { postId: p.id }, true);
   const [bm] = await sql`select id from bookmarks where post_id = ${p.id}`;
+  const [rep] = await sql`insert into reports (reporter_id, post_id, reason)
+    values (${b.id}, ${p.id}, 'spam') returning id`;
+  const [visit] = await sql`insert into daily_visits (user_id, day)
+    values (${a.id}, '2026-01-01') returning id`;
   const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
     values ('suspend_user', ${b.id}, 'test') returning id`;
 
@@ -36,6 +40,8 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["posts", p.id, "deleted_at = now()"],
     ["admins", adm.id, "deleted_at = now()"],
     ["moderation_actions", mod.id, "reason = 'x'"],
+    ["reports", rep.id, "note = 'x'"],
+    ["daily_visits", visit.id, "deleted_at = now()"],
     ["notifications", notif.id, "read_at = now()"],
     ["poll_votes", vote.id, "deleted_at = now()"],
     ["bookmarks", bm.id, "deleted_at = now()"],

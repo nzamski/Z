@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  date,
   index,
   integer,
   pgTable,
@@ -281,6 +282,7 @@ export const MODERATION_ACTIONS = [
   "reset_handle",
   "grant_admin",
   "revoke_admin",
+  "dismiss_reports", // closed a post's or comment's open reports without removing it
 ] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 
@@ -328,6 +330,7 @@ export const NOTIFICATION_TYPES = [
   "restored_post",
   "restored_comment",
   "poll_ended", // a poll you wrote or voted in (written when you next check: notifyEndedPolls)
+  "report", // to every admin: a post or comment got its first open report (actor: the reporter)
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -426,5 +429,76 @@ export const topicFollows = pgTable(
       .on(t.userId, t.tag)
       .where(sql`${t.deletedAt} is null`),
     index("topic_follows_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
+// Reports of posts and comments (docs/reports.md). One open report per reporter and item; closed
+// when an admin removes the item or dismisses its reports. Admins see who reported.
+export const REPORT_REASONS = ["spam", "abuse", "misleading", "other"] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+export const REPORT_RESOLUTIONS = ["removed", "dismissed"] as const;
+
+export const reports = pgTable(
+  "reports",
+  {
+    ...base,
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id),
+    // Exactly one target.
+    postId: uuid("post_id").references(() => posts.id),
+    commentId: uuid("comment_id").references(() => comments.id),
+    reason: text("reason").$type<ReportReason>().notNull(),
+    note: text("note").notNull().default(""),
+    resolvedAt: ts("resolved_at"),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+    resolution: text("resolution").$type<(typeof REPORT_RESOLUTIONS)[number]>(),
+    moderationActionId: uuid("moderation_action_id").references(() => moderationActions.id),
+  },
+  (t) => [
+    check("reports_one_target_ck", sql`num_nonnulls(${t.postId}, ${t.commentId}) = 1`),
+    check(
+      "reports_reason_ck",
+      sql.raw(`reason in (${REPORT_REASONS.map((a) => `'${a}'`).join(", ")})`),
+    ),
+    check(
+      "reports_resolution_ck",
+      sql.raw(
+        `resolution is null or resolution in (${REPORT_RESOLUTIONS.map((a) => `'${a}'`).join(", ")})`,
+      ),
+    ),
+    // One open report per person and item (reporting again does nothing new).
+    uniqueIndex("reports_open_post_uq")
+      .on(t.reporterId, t.postId)
+      .where(sql`${t.resolvedAt} is null and ${t.deletedAt} is null and ${t.postId} is not null`),
+    uniqueIndex("reports_open_comment_uq")
+      .on(t.reporterId, t.commentId)
+      .where(
+        sql`${t.resolvedAt} is null and ${t.deletedAt} is null and ${t.commentId} is not null`,
+      ),
+    // The admin queue: open reports, newest first.
+    index("reports_open_idx")
+      .on(t.createdAt.desc().nullsFirst())
+      .where(sql`${t.resolvedAt} is null and ${t.deletedAt} is null`),
+    index("reports_rate_idx").on(t.reporterId, t.createdAt),
+    index("reports_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
+// One row per user per day they open Z (docs/stats.md): the dashboard's active users. Days are
+// counted in STATS_TIMEZONE (lib/limits.ts). Nothing else about a visit is stored.
+export const dailyVisits = pgTable(
+  "daily_visits",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    day: date("day", { mode: "string" }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("daily_visits_user_day_uq").on(t.userId, t.day),
+    index("daily_visits_day_idx").on(t.day),
+    index("daily_visits_updated_at_idx").on(t.updatedAt),
   ],
 );

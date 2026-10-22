@@ -162,6 +162,13 @@
       "when": 1792638855968,
       "tag": "0022_poll_ended",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792644650213,
+      "tag": "0023_reports_and_visits",
+      "breakpoints": true
     }
   ]
 }
