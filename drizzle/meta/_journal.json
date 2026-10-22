@@ -176,6 +176,34 @@
       "when": 1792690044708,
       "tag": "0024_avatar_seed_default",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792690740626,
+      "tag": "0025_more_professions",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792691844459,
+      "tag": "0026_service_info",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792692405005,
+      "tag": "0027_service_end",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792692492942,
+      "tag": "0028_experiences",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,8 @@ import { Loading } from "@/components/loading";
 import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
+import { ExperienceSection } from "@/components/experience-section";
+import { ServiceDetails } from "@/components/service-details";
 import { UserAdminMenu } from "@/components/user-admin-menu";
 import { FeedList } from "@/components/feed-list";
 import { ItemList, LinkTabs } from "@/components/item-list";
@@ -51,6 +53,15 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   ]);
 
   const chat = chatLink(user.handle);
+  const service = {
+    rank: user.rank,
+    serviceType: user.serviceType,
+    serviceStart: user.serviceStart,
+    serviceEnd: user.serviceEnd,
+    location: user.location,
+    civicPhone: user.civicPhone,
+    civicEmail: user.civicEmail,
+  };
   const base = `/u/${encodeURIComponent(user.handle)}`;
   return (
     <>
@@ -80,6 +91,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               bio={user.bio}
               profession={user.profession}
               avatarSeed={user.avatarSeed}
+              service={service}
             />
           )}
           {viewerId !== user.id && (
@@ -120,6 +132,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           )}
         </div>
         {user.bio && <PlainText text={user.bio} className="mt-2" />}
+        <ServiceDetails info={service} />
         <p className="mt-2 flex items-center gap-1 text-sm text-muted">
           <svg
             viewBox="0 0 24 24"
@@ -144,6 +157,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </Link>
         </div>
       </section>
+      <ExperienceSection userId={user.id} isOwner={viewerId === user.id} />
       <LinkTabs
         tabs={[
           { href: base, label: he.profile.posts, current: !replies },

@@ -1,0 +1,3 @@
+-- Profession badges: ML Engineer, Architect, Product Manager, UX / UI and Cyber (lib/professions.ts).
+ALTER TABLE "users" DROP CONSTRAINT "users_profession_ck";--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_profession_ck" CHECK (profession in ('developer', 'devops', 'data_engineer', 'data_scientist', 'qa', 'data_analyst', 'ml_engineer', 'architect', 'product_manager', 'ux_ui', 'cyber'));

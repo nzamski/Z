@@ -27,6 +27,8 @@ test("set_updated_at() advances updated_at on every table", async () => {
     values (${b.id}, ${p.id}, 'spam') returning id`;
   const [visit] = await sql`insert into daily_visits (user_id, day)
     values (${a.id}, '2026-01-01') returning id`;
+  const [exp] = await sql`insert into experiences (user_id, title, start_month)
+    values (${a.id}, 'x', '2026-01-01') returning id`;
   const [mod] = await sql`insert into moderation_actions (action, user_id, reason)
     values ('suspend_user', ${b.id}, 'test') returning id`;
 
@@ -45,6 +47,7 @@ test("set_updated_at() advances updated_at on every table", async () => {
     ["notifications", notif.id, "read_at = now()"],
     ["poll_votes", vote.id, "deleted_at = now()"],
     ["bookmarks", bm.id, "deleted_at = now()"],
+    ["experiences", exp.id, "title = 'y'"],
   ];
   for (const [table, id, set] of rows) {
     const [before] = await sql`select updated_at::text as t from ${sql(table)} where id = ${id}`;

@@ -14,6 +14,8 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { PROFESSIONS } from "../lib/professions";
+import { RANKS, SERVICE_TYPES } from "../lib/service-info";
 import { REPORT_REASONS, type ReportReason } from "../lib/reports";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -45,6 +47,14 @@ export const users = pgTable(
       .default(sql`substr(md5(random()::text), 1, 8)`),
     // A profession badge the user picked (lib/professions.ts), or null.
     profession: text("profession"),
+    // Service details (lib/service-info.ts): all optional, picked by the user.
+    rank: text("rank"),
+    serviceType: text("service_type"),
+    serviceStart: date("service_start", { mode: "string" }), // days in service count from it
+    serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
+    location: text("location").notNull().default(""), // base or location, free text
+    civicPhone: text("civic_phone").notNull().default(""),
+    civicEmail: text("civic_email").notNull().default(""),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can
     // only reach /welcome.
     onboardedAt: ts("onboarded_at"),
@@ -54,7 +64,12 @@ export const users = pgTable(
   (t) => [
     check(
       "users_profession_ck",
-      sql`${t.profession} in ('developer', 'devops', 'data_engineer', 'data_scientist', 'qa', 'data_analyst')`,
+      sql.raw(`profession in (${PROFESSIONS.map((p) => `'${p}'`).join(", ")})`),
+    ),
+    check("users_rank_ck", sql.raw(`rank in (${RANKS.map((r) => `'${r}'`).join(", ")})`)),
+    check(
+      "users_service_type_ck",
+      sql.raw(`service_type in (${SERVICE_TYPES.map((v) => `'${v}'`).join(", ")})`),
     ),
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
     uniqueIndex("users_handle_active_uq")
@@ -503,5 +518,29 @@ export const dailyVisits = pgTable(
     uniqueIndex("daily_visits_user_day_uq").on(t.userId, t.day),
     index("daily_visits_day_idx").on(t.day),
     index("daily_visits_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
+// Experience on a profile (docs/experience.md): one row per role, the owner's to edit.
+export const experiences = pgTable(
+  "experiences",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    organization: text("organization").notNull().default(""),
+    // First day of the month (lib/experience.ts); no end: the current role.
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    endMonth: date("end_month", { mode: "string" }),
+    description: text("description").notNull().default(""),
+  },
+  (t) => [
+    check("experiences_months_ck", sql`${t.endMonth} is null or ${t.endMonth} >= ${t.startMonth}`),
+    index("experiences_user_idx")
+      .on(t.userId)
+      .where(sql`${t.deletedAt} is null`),
+    index("experiences_updated_at_idx").on(t.updatedAt),
   ],
 );

@@ -5,10 +5,12 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { checkHandleAction, updateProfileAction, type ProfileResult } from "@/app/actions";
 import { AvatarImage } from "@/components/avatar";
 import { LengthRing } from "@/components/composer";
+import { ServiceFields } from "@/components/service-fields";
 import { newAvatarSeed } from "@/lib/avatar";
 import { he } from "@/lib/i18n/he";
 import { BIO_MAX, HANDLE_MAX, HANDLE_RE } from "@/lib/limits";
 import { PROFESSION_COLOR, PROFESSION_LABEL, PROFESSIONS } from "@/lib/professions";
+import type { ServiceInfo } from "@/lib/service-info";
 
 type Profile = { handle: string; bio: string; profession?: string | null; avatarSeed: string };
 type Status = "ok" | "taken" | "invalid" | "checking" | "same" | "empty";
@@ -22,6 +24,7 @@ export function ProfileForm(p: {
   submitLabel: string;
   onSaved: (handle: string) => void;
   saveAtEnd?: boolean; // the button at the far (left) end: the edit-profile popup
+  service?: ServiceInfo; // edit profile only: rank, service and contact (not the welcome)
 }) {
   const [handle, setHandle] = useState(p.initial.handle);
   const [bio, setBio] = useState(p.initial.bio);
@@ -182,6 +185,7 @@ export function ProfileForm(p: {
           ))}
         </div>
       </div>
+      {p.service && <ServiceFields initial={p.service} field={field} />}
       <div
         className={`flex items-center gap-3 text-sm ${p.saveAtEnd ? "flex-row-reverse justify-start" : ""}`}
       >

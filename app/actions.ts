@@ -40,6 +40,15 @@ async function run(
 }
 
 const field = (f: FormData, name: string) => f.get(name) ?? undefined;
+const SERVICE_FIELDS = [
+  "rank",
+  "serviceType",
+  "serviceStart",
+  "serviceEnd",
+  "location",
+  "civicPhone",
+  "civicEmail",
+] as const;
 
 export async function createPostAction(_: ActionResult, f: FormData) {
   // A poll: its option fields and duration (the composer sends them only with a poll open).
@@ -172,6 +181,10 @@ export async function updateProfileAction(_: ProfileResult, f: FormData): Promis
           // The profile form always sends it; "" is none.
           profession: f.has("profession") ? String(f.get("profession")) || null : undefined,
           avatarSeed: f.has("avatarSeed") ? String(f.get("avatarSeed")) : undefined, // the shuffled avatar, when the form sends one
+          // Service details: sent by the profile form only (the welcome leaves them alone).
+          ...Object.fromEntries(
+            SERVICE_FIELDS.filter((k) => f.has(k)).map((k) => [k, String(f.get(k))]),
+          ),
         })
       ).handle ?? undefined;
   }, "setup");
@@ -314,4 +327,22 @@ export async function grantAdminAction(_: ActionResult, f: FormData) {
   return run((uid) =>
     s.grantAdmin(uid, Text.parse(field(f, "handle")), Text.parse(field(f, "reason"))),
   );
+}
+
+/** Add a role to your experience, or edit one (`id`); docs/experience.md. */
+export async function saveExperienceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run((uid) =>
+    s.saveExperience(uid, {
+      id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
+      title: String(f.get("title") ?? ""),
+      organization: String(f.get("organization") ?? ""),
+      start: String(f.get("start") ?? ""),
+      end: f.get("current") ? null : String(f.get("end") ?? ""),
+      description: String(f.get("description") ?? ""),
+    }),
+  );
+}
+
+export async function deleteExperienceAction(id: string) {
+  return run((uid) => s.deleteExperience(uid, Id.parse(id)));
 }

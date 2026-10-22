@@ -291,6 +291,7 @@ describe("profession badge", () => {
     expect((await save("devops")).profession).toBe("devops");
     expect((await save(undefined)).profession).toBe("devops"); // not sent: kept
     expect((await save("qa")).profession).toBe("qa");
+    expect((await save("cyber")).profession).toBe("cyber");
     expect((await save(null)).profession).toBeNull();
     expect(await code(save("ceo"))).toBe("invalid");
   });
