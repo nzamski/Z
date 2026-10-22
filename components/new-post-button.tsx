@@ -8,7 +8,7 @@ import { he } from "@/lib/i18n/he";
 import { POST_MAX } from "@/lib/limits";
 
 export function NewPostButton(p: {
-  viewer: { displayName: string; handle: string };
+  viewer: { displayName: string; handle: string; avatarSeed: string };
   icon: React.ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);

@@ -80,7 +80,7 @@ export function UserHoverCard({
         >
           <div className="flex items-start justify-between gap-3">
             <Link href={href} tabIndex={-1} aria-hidden className="hover:opacity-80">
-              <Avatar name={card.displayName} />
+              <Avatar seed={card.avatarSeed} />
             </Link>
             {!card.isSelf && (
               <FollowButton

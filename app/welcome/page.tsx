@@ -19,7 +19,7 @@ async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
   return (
     <Welcome
       displayName={user.displayName}
-      profile={{ handle: user.handle ?? "", bio: user.bio }}
+      profile={{ handle: user.handle ?? "", bio: user.bio, avatarSeed: user.avatarSeed }}
       suggestions={await suggestedUsers(user.id)}
       next={next}
     />

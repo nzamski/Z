@@ -16,6 +16,7 @@ export function UserRow(p: {
     displayName: string;
     bio: string;
     profession?: string | null;
+    avatarSeed: string;
   };
   viewerFollows: boolean;
   isSelf: boolean;
@@ -27,7 +28,7 @@ export function UserRow(p: {
       srLink={false}
       className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 py-2.5 text-start dark:border-neutral-800"
     >
-      <Avatar name={p.user.displayName} handle={p.user.handle} />
+      <Avatar seed={p.user.avatarSeed} handle={p.user.handle} />
       <div className="min-w-0 flex-1">
         {/* Name and handle on one line (like the post byline); the handle truncates first. No
             overflow-hidden on the hover card's wrapper: it would clip the card. */}

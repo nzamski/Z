@@ -1,26 +1,43 @@
-// A person's avatar: the first letter of their name in a circle (Z has no profile pictures).
-// Links to the profile and shows the same hover card as the name beside it; keyboards and screen
-// readers use that name link.
+// A person's avatar: their generated pattern (lib/avatar.ts) in a circle (Z has no profile
+// pictures). Links to the profile and shows the same hover card as the name beside it; keyboards
+// and screen readers use that name link.
 import Link from "next/link";
 import { UserHoverCard } from "@/components/user-hover-card";
+import { avatarPattern } from "@/lib/avatar";
 
-export const initial = (name: string, handle?: string | null) =>
-  ([...name.trim()][0] ?? handle?.[0] ?? "?").toUpperCase();
+export function AvatarImage(p: { seed: string; className: string }) {
+  const { hue, cells } = avatarPattern(p.seed);
+  return (
+    // viewBox -1.5..6.5: the 5×5 pattern fits inside the circle without its corners clipped.
+    <svg
+      aria-hidden
+      viewBox="-1.5 -1.5 8 8"
+      className={`shrink-0 rounded-full ${p.className}`}
+      style={{ background: `hsl(${hue} 60% 50% / 0.18)` }}
+    >
+      {cells.map(([x, y]) => (
+        <rect
+          key={`${x},${y}`}
+          x={x}
+          y={y}
+          width="1.02"
+          height="1.02"
+          fill={`hsl(${hue} 60% 48%)`}
+        />
+      ))}
+    </svg>
+  );
+}
 
 export function Avatar(p: {
-  name: string;
+  seed: string;
   handle?: string | null;
   small?: boolean;
   large?: boolean; // the profile page's
   noCard?: boolean; // no hover card (your own avatar beside the composer)
 }) {
   const circle = (
-    <span
-      aria-hidden
-      className={`grid shrink-0 place-items-center rounded-full bg-neutral-500/15 font-bold text-foreground ${p.small ? "size-8 text-sm" : p.large ? "size-20 text-3xl" : "size-10 text-base"}`}
-    >
-      {initial(p.name, p.handle)}
-    </span>
+    <AvatarImage seed={p.seed} className={p.small ? "size-8" : p.large ? "size-20" : "size-10"} />
   );
   if (!p.handle) return circle;
   const link = (

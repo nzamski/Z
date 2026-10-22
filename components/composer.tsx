@@ -67,7 +67,7 @@ type Props = {
   draft?: string; // autosave key (per browser): new posts, comments and replies, not edits
   focusOn?: string; // a URL hash ("reply"): arriving with it puts the caret here, ready to type
   autoFocus?: boolean; // the caret starts here (the comment popup)
-  author?: { displayName: string; handle: string | null }; // the viewer, shown as an avatar
+  author?: { displayName: string; handle: string | null; avatarSeed: string }; // the viewer, shown as an avatar
   compact?: boolean; // a small avatar, as in a comment thread (replies)
   poll?: boolean; // offers a poll (new posts)
 };
@@ -449,7 +449,7 @@ export function Composer(p: Props) {
   return (
     <form action={formAction} className="flex gap-3">
       {p.author && (
-        <Avatar name={p.author.displayName} handle={p.author.handle} small={p.compact} noCard />
+        <Avatar seed={p.author.avatarSeed} handle={p.author.handle} small={p.compact} noCard />
       )}
       <div className="min-w-0 flex-1">
         {Object.entries(p.hidden ?? {}).map(([k, v]) => (

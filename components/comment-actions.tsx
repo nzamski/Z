@@ -55,7 +55,7 @@ export function CommentActions(p: {
   canReply: boolean;
   like?: React.ReactNode; // the comment's like button, first in the row
   bookmark?: React.ReactNode; // its save button, at the row's far end
-  author?: { displayName: string; handle: string }; // the viewer, for the reply box
+  author?: { displayName: string; handle: string; avatarSeed: string }; // the viewer, for the reply box
 }) {
   const [mode, setMode] = useState<"idle" | "reply">("idle");
   const close = () => setMode("idle");

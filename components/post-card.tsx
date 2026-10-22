@@ -100,7 +100,7 @@ export function PostCard({
       href={`/p/${p.id}`}
       className="flex gap-3 border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Avatar name={p.author.displayName} handle={p.author.handle} />
+      <Avatar seed={p.author.avatarSeed} handle={p.author.handle} />
       <div className="min-w-0 flex-1">
         {pinned && (
           <p className="mb-1 flex items-center gap-1 text-xs font-medium text-muted">
@@ -160,5 +160,6 @@ export type Viewer = {
   id: string;
   displayName: string;
   handle: string;
+  avatarSeed: string;
   admin: boolean;
 };

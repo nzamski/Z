@@ -7,11 +7,11 @@ import { ProfileForm } from "@/components/profile-form";
 import { UserRow } from "@/components/user-row";
 import { he } from "@/lib/i18n/he";
 
-type Person = { id: string; handle: string; displayName: string; bio: string };
+type Person = { id: string; handle: string; displayName: string; bio: string; avatarSeed: string };
 
 export function Welcome(p: {
   displayName: string; // from Keycloak, not editable
-  profile: { handle: string; bio: string };
+  profile: { handle: string; bio: string; avatarSeed: string };
   suggestions: Person[];
   next: string;
 }) {

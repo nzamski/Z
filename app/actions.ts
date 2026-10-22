@@ -131,6 +131,7 @@ export type UserCard = {
   displayName: string;
   bio: string;
   profession: string | null;
+  avatarSeed: string;
   followers: number;
   following: number;
   viewerFollows: boolean;
@@ -149,6 +150,7 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     displayName: u.displayName,
     bio: u.bio,
     profession: u.profession,
+    avatarSeed: u.avatarSeed,
     followers: info.followers,
     following: info.following,
     viewerFollows: info.viewerFollows,
@@ -158,7 +160,7 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
 
 export type ProfileResult = ActionResult & { handle?: string };
 
-/** Handle and bio (welcome screen and profile). Returns the saved handle. */
+/** Handle, bio, profession and avatar (welcome screen and profile). Returns the saved handle. */
 export async function updateProfileAction(_: ProfileResult, f: FormData): Promise<ProfileResult> {
   let handle: string | undefined;
   const r = await run(async (uid) => {
@@ -169,6 +171,7 @@ export async function updateProfileAction(_: ProfileResult, f: FormData): Promis
           bio: Text.parse(field(f, "bio") ?? ""),
           // The profile form always sends it; "" is none.
           profession: f.has("profession") ? String(f.get("profession")) || null : undefined,
+          avatarSeed: f.has("avatarSeed") ? String(f.get("avatarSeed")) : undefined, // the shuffled avatar, when the form sends one
         })
       ).handle ?? undefined;
   }, "setup");

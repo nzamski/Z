@@ -1,7 +1,7 @@
 "use client";
-// Header account menu behind a round initial: profile, moderation (admins), theme.
+// Header account menu behind your avatar: profile, moderation (admins), theme.
 import Link from "next/link";
-import { initial } from "@/components/avatar";
+import { AvatarImage } from "@/components/avatar";
 import { menuClass, menuUpClass, ThemePicker, useMenu } from "@/components/theme-menu";
 import { he } from "@/lib/i18n/he";
 
@@ -21,6 +21,7 @@ const iconProps = {
 export function AccountMenu(p: {
   handle: string;
   displayName: string;
+  avatarSeed: string;
   admin: boolean;
   reports?: number; // open reports (admins): a dot on the button, the count on the admin item
   up?: boolean; // opens above the button (the rail's, at the bottom of the screen)
@@ -37,9 +38,9 @@ export function AccountMenu(p: {
           p.reports ? `${he.account.menu}: ${he.reports.badge(p.reports)}` : he.account.menu
         }
         data-tip={he.account.menu}
-        className="relative grid size-9 place-items-center rounded-full bg-neutral-500/15 text-base font-bold transition-colors hover:bg-neutral-500/25 aria-expanded:bg-neutral-500/25"
+        className="relative rounded-full transition-opacity hover:opacity-80 aria-expanded:opacity-80"
       >
-        <span aria-hidden>{initial(p.displayName, p.handle)}</span>
+        <AvatarImage seed={p.avatarSeed} className="size-9" />
         {!!p.reports && (
           <span
             aria-hidden

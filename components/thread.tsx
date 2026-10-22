@@ -12,7 +12,7 @@ import { REPLIES_PAGE, THREAD_DEPTH, type ThreadNode } from "@/lib/services";
 type Ctx = {
   postId: string;
   viewerId: string | null;
-  viewer?: { displayName: string; handle: string } | null; // the reply box's avatar
+  viewer?: { displayName: string; handle: string; avatarSeed: string } | null; // the reply box's avatar
   postLive: boolean;
   isAdmin: boolean;
 };
@@ -36,7 +36,7 @@ function Comment({ node: n, ctx }: { node: ThreadNode; ctx: Ctx }) {
         </div>
       ) : (
         <div className="flex gap-2">
-          <Avatar name={n.author!.displayName} handle={n.author!.handle} small />
+          <Avatar seed={n.author!.avatarSeed} handle={n.author!.handle} small />
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">

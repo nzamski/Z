@@ -1,5 +1,5 @@
 "use client";
-// "Edit profile" on your own profile, in a modal dialog: handle, bio and profession (the display name is
+// "Edit profile" on your own profile, in a modal dialog: handle, bio, profession and avatar (the display name is
 // shown read-only: it comes from Keycloak). A new handle moves the page to /u/<new>. Native <dialog>: Esc closes it,
 // focus stays inside, the page behind is inert.
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ export function ProfileEditor(p: {
   handle: string;
   bio: string;
   profession: string | null;
+  avatarSeed: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(0); // remount the form on each open: fresh fields
@@ -63,7 +64,12 @@ export function ProfileEditor(p: {
             <ProfileForm
               key={open}
               displayName={p.displayName}
-              initial={{ handle: p.handle, bio: p.bio, profession: p.profession }}
+              initial={{
+                handle: p.handle,
+                bio: p.bio,
+                profession: p.profession,
+                avatarSeed: p.avatarSeed,
+              }}
               submitLabel={he.composer.save}
               saveAtEnd
               onSaved={(handle) => {

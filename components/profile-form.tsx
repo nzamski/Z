@@ -1,14 +1,16 @@
 "use client";
-// Display name (read-only, from Keycloak), handle, bio and profession badge, used by the first-login welcome and by "edit profile".
+// Avatar (shuffled here, saved with the rest), display name (read-only, from Keycloak), handle, bio and profession badge, used by the first-login welcome and by "edit profile".
 // The handle is checked live (format here, availability on the server) as you type.
 import { useActionState, useEffect, useRef, useState } from "react";
 import { checkHandleAction, updateProfileAction, type ProfileResult } from "@/app/actions";
+import { AvatarImage } from "@/components/avatar";
 import { LengthRing } from "@/components/composer";
+import { newAvatarSeed } from "@/lib/avatar";
 import { he } from "@/lib/i18n/he";
 import { BIO_MAX, HANDLE_MAX, HANDLE_RE } from "@/lib/limits";
 import { PROFESSION_COLOR, PROFESSION_LABEL, PROFESSIONS } from "@/lib/professions";
 
-type Profile = { handle: string; bio: string; profession?: string | null };
+type Profile = { handle: string; bio: string; profession?: string | null; avatarSeed: string };
 type Status = "ok" | "taken" | "invalid" | "checking" | "same" | "empty";
 
 const field =
@@ -24,6 +26,7 @@ export function ProfileForm(p: {
   const [handle, setHandle] = useState(p.initial.handle);
   const [bio, setBio] = useState(p.initial.bio);
   const [profession, setProfession] = useState(p.initial.profession ?? "");
+  const [avatarSeed, setAvatarSeed] = useState(p.initial.avatarSeed);
   // Keep anything typed before hydration (slow loads), which React state would otherwise miss.
   const handleRef = useRef<HTMLInputElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
@@ -79,6 +82,31 @@ export function ProfileForm(p: {
 
   return (
     <form action={action} className="space-y-4 text-start">
+      <div className="flex items-center gap-4">
+        <AvatarImage seed={avatarSeed} className="size-16" />
+        <input type="hidden" name="avatarSeed" value={avatarSeed} />
+        <button
+          type="button"
+          onClick={() => setAvatarSeed(newAvatarSeed())}
+          aria-label={`${he.profile.shuffle}: ${he.profile.avatar}`}
+          className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1.5 text-sm transition-colors hover:bg-neutral-500/10 dark:border-neutral-700"
+        >
+          {/* Lucide-style "shuffle" arrows. */}
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6A4 4 0 0 1 16.03 6H22M2 6h1.97a4 4 0 0 1 3.3 1.7l.43.67M22 18h-5.97a4 4 0 0 1-3.3-1.7l-.43-.67" />
+          </svg>
+          {he.profile.shuffle}
+        </button>
+      </div>
       <label className="block space-y-1">
         <span className="text-sm font-medium">{he.profile.displayName}</span>
         <input
