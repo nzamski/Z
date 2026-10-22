@@ -104,7 +104,8 @@ describe("reporting", () => {
     expect(await reported(p.id)).toBeUndefined();
     expect((await reportsOn("postId", p.id))[0].resolution).toBe("dismissed");
     expect(await code(s.dismissReports(admin.id, { postId: p.id }, "שוב"))).toBe("not_found");
-    const [log] = await s.moderationLog(1);
+    // This post's entry: other test files write to the log in parallel, so the newest may be theirs.
+    const log = (await s.moderationLog()).find((l) => l.post?.id === p.id);
     expect(log).toMatchObject({ action: "dismiss_reports", reason: "תקין" });
 
     await s.reportContent(a.id, { postId: p.id }, { reason: "misleading" });
