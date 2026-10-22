@@ -157,7 +157,12 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </Link>
         </div>
       </section>
-      <ExperienceSection userId={user.id} isOwner={viewerId === user.id} />
+      <ExperienceSection
+        userId={user.id}
+        isOwner={viewerId === user.id}
+        serviceStart={user.serviceStart}
+        serviceEnd={user.serviceEnd}
+      />
       <LinkTabs
         tabs={[
           { href: base, label: he.profile.posts, current: !replies },
