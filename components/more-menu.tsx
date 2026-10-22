@@ -55,6 +55,7 @@ export function MoreMenu(p: {
   onOpen?: () => void; // e.g. read the clock for "can I still edit"
   busy?: boolean;
   className?: string; // the button's offsets in its row
+  bordered?: boolean; // a round outlined button, like the profile's chat button beside it
   children: React.ReactNode;
 }) {
   const { open, setOpen, root } = p.menu;
@@ -70,7 +71,11 @@ export function MoreMenu(p: {
         aria-expanded={open}
         aria-label={he.post.more}
         data-tip={he.post.more}
-        className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-sky-500/10 hover:text-sky-500 aria-expanded:bg-sky-500/10 aria-expanded:text-sky-500"
+        className={
+          p.bordered
+            ? "grid size-9 place-items-center rounded-full border border-neutral-400 transition-colors hover:bg-neutral-500/15 aria-expanded:bg-neutral-500/15"
+            : "grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-sky-500/10 hover:text-sky-500 aria-expanded:bg-sky-500/10 aria-expanded:text-sky-500"
+        }
       >
         <svg viewBox="0 0 24 24" aria-hidden className="size-[18px]" fill="currentColor">
           <circle cx="5" cy="12" r="1.8" />

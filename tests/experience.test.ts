@@ -23,9 +23,9 @@ test("role length counts both months; Hebrew durations", () => {
 const role = (o: Partial<Parameters<typeof s.saveExperience>[1]> = {}) => ({
   title: "מפתח/ת",
   organization: "צוות הדמיה",
+  location: "בסיס הדמיה",
   start: "2022-01",
   end: "2023-06" as string | null,
-  description: "",
   ...o,
 });
 
@@ -39,6 +39,7 @@ test("roles: current first, then newest; only the owner edits or deletes", async
   await s.saveExperience(a.id, { ...role({ title: "ישן יותר" }), id: old.id });
   expect((await s.experienceOf(a.id)).at(-1)).toMatchObject({
     title: "ישן יותר",
+    location: "בסיס הדמיה",
     startMonth: "2022-01-01",
     endMonth: "2023-06-01",
   });
@@ -57,7 +58,6 @@ test("roles need a title and a sane range; at most EXPERIENCE_MAX each", async (
     role({ start: "2999-01", end: null }), // starts in the future
     role({ start: "2023-05", end: "2023-04" }), // ends before it starts
     role({ start: "2023-13" }),
-    role({ description: "x".repeat(501) }),
   ])
     await expect(s.saveExperience(u.id, bad), JSON.stringify(bad)).rejects.toThrow("invalid");
 

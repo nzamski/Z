@@ -40,15 +40,6 @@ async function run(
 }
 
 const field = (f: FormData, name: string) => f.get(name) ?? undefined;
-const SERVICE_FIELDS = [
-  "rank",
-  "serviceType",
-  "serviceStart",
-  "serviceEnd",
-  "location",
-  "civicPhone",
-  "civicEmail",
-] as const;
 
 export async function createPostAction(_: ActionResult, f: FormData) {
   // A poll: its option fields and duration (the composer sends them only with a poll open).
@@ -181,10 +172,6 @@ export async function updateProfileAction(_: ProfileResult, f: FormData): Promis
           // The profile form always sends it; "" is none.
           profession: f.has("profession") ? String(f.get("profession")) || null : undefined,
           avatarSeed: f.has("avatarSeed") ? String(f.get("avatarSeed")) : undefined, // the shuffled avatar, when the form sends one
-          // Service details: sent by the profile form only (the welcome leaves them alone).
-          ...Object.fromEntries(
-            SERVICE_FIELDS.filter((k) => f.has(k)).map((k) => [k, String(f.get(k))]),
-          ),
         })
       ).handle ?? undefined;
   }, "setup");
@@ -210,11 +197,16 @@ export type MentionSuggestion = { id: string; handle: string; displayName: strin
 /** People to suggest while typing an @mention (the composer's autocomplete). */
 export async function mentionSuggestionsAction(q: string): Promise<MentionSuggestion[]> {
   const viewer = await requireViewer();
-  const query = String(q).slice(0, 15);
+  // A handle or a display name (with a space), so longer than a handle can be.
+  const query = String(q).trim().slice(0, 40);
   if (!query) return [];
   const found = await s.searchUsers(viewer.id, query, 8);
+  // With a space it can only be a display name ("דנה ל"), taken literally: fuzzy matching would
+  // keep suggesting the person just mentioned while the sentence goes on ("@dana hello").
+  const words = query.includes(" ") ? query.toLowerCase() : null;
   return found
     .filter((u) => mentionable(u.handle))
+    .filter((u) => !words || u.displayName.toLowerCase().includes(words))
     .slice(0, 5)
     .map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
 }
@@ -336,9 +328,9 @@ export async function saveExperienceAction(_: ActionResult, f: FormData): Promis
       id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
       title: String(f.get("title") ?? ""),
       organization: String(f.get("organization") ?? ""),
+      location: String(f.get("location") ?? ""),
       start: String(f.get("start") ?? ""),
       end: f.get("current") ? null : String(f.get("end") ?? ""),
-      description: String(f.get("description") ?? ""),
     }),
   );
 }

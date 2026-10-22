@@ -204,6 +204,34 @@
       "when": 1792692492942,
       "tag": "0028_experiences",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792693751612,
+      "tag": "0029_experience_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792694124874,
+      "tag": "0030_birth_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792694439758,
+      "tag": "0031_service_arm",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792706326157,
+      "tag": "0032_drop_rank",
+      "breakpoints": true
     }
   ]
 }

@@ -46,7 +46,8 @@ Added 2026-10-19 at the user's request. Code: writes and reads in `lib/services.
   There is no notification when no Z tab is open: real web push goes through the browser
   vendor's push service (Google's, for Chrome), which the air-gapped network can't reach.
 - **Autocomplete**: typing `@` and a letter in the composer suggests people (people search,
-  including fuzzy matches); ↑/↓, Enter or Tab, Esc.
+  including fuzzy matches), by handle or display name, in any script and with one space
+  (`@דנה ל`); picking one inserts the `@handle`. ↑/↓, Enter or Tab, Esc.
 
 ## Not done
 

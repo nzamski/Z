@@ -15,7 +15,6 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { PROFESSIONS } from "../lib/professions";
-import { RANKS, SERVICE_TYPES } from "../lib/service-info";
 import { REPORT_REASONS, type ReportReason } from "../lib/reports";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -47,12 +46,20 @@ export const users = pgTable(
       .default(sql`substr(md5(random()::text), 1, 8)`),
     // A profession badge the user picked (lib/professions.ts), or null.
     profession: text("profession"),
-    // Service details (lib/service-info.ts): all optional, picked by the user.
-    rank: text("rank"),
+    // service_type, service_start, service_end: unused since 2026-10-23 (the service details
+    // section was dropped; rank and arm went with their columns); kept so the previous version
+    // still works during a rollback. Drop in a later migration.
     serviceType: text("service_type"),
-    serviceStart: date("service_start", { mode: "string" }), // days in service count from it
-    serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
-    location: text("location").notNull().default(""), // base or location, free text
+    serviceStart: date("service_start", { mode: "string" }),
+    serviceEnd: date("service_end", { mode: "string" }),
+    // Unused since 2026-10-22 (birth date and age were dropped from profiles); kept so the
+    // previous version still works during a rollback. Drop in a later migration.
+    birthDate: date("birth_date", { mode: "string" }),
+    // Unused since 2026-10-22 (location moved to each experience role); kept so the previous
+    // version still works during a rollback. Drop in a later migration.
+    location: text("location").notNull().default(""),
+    // civic_phone, civic_email: unused since 2026-10-23 (phone and email were dropped from
+    // profiles); kept so the previous version still works during a rollback. Drop later.
     civicPhone: text("civic_phone").notNull().default(""),
     civicEmail: text("civic_email").notNull().default(""),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can
@@ -66,10 +73,9 @@ export const users = pgTable(
       "users_profession_ck",
       sql.raw(`profession in (${PROFESSIONS.map((p) => `'${p}'`).join(", ")})`),
     ),
-    check("users_rank_ck", sql.raw(`rank in (${RANKS.map((r) => `'${r}'`).join(", ")})`)),
     check(
       "users_service_type_ck",
-      sql.raw(`service_type in (${SERVICE_TYPES.map((v) => `'${v}'`).join(", ")})`),
+      sql`${t.serviceType} in ('regular', 'career', 'reserves', 'civilian')`,
     ),
     uniqueIndex("users_keycloak_sub_uq").on(t.keycloakSub),
     uniqueIndex("users_handle_active_uq")
@@ -531,9 +537,12 @@ export const experiences = pgTable(
       .references(() => users.id),
     title: text("title").notNull(),
     organization: text("organization").notNull().default(""),
+    location: text("location").notNull().default(""), // base or location of this role
     // First day of the month (lib/experience.ts); no end: the current role.
     startMonth: date("start_month", { mode: "string" }).notNull(),
     endMonth: date("end_month", { mode: "string" }),
+    // Unused since 2026-10-22 (descriptions were dropped from the form); kept so the previous
+    // version still works during a rollback. Drop in a later migration.
     description: text("description").notNull().default(""),
   },
   (t) => [

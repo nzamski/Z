@@ -1,6 +1,6 @@
 "use client";
-// Autocomplete for the composer: typing "@" and a few letters suggests people (docs/
-// notifications.md), "#" suggests existing topics, most used first (docs/topics.md). ↑/↓ choose,
+// Autocomplete for the composer: typing "@" and a few letters of a handle or a display name
+// suggests people (docs/notifications.md), "#" suggests existing topics, most used first (docs/topics.md). ↑/↓ choose,
 // Enter or Tab inserts "@handle " / "#topic ", Esc closes.
 import { useEffect, useId, useState, type RefObject } from "react";
 import type { EditorState } from "prosemirror-state";
@@ -9,8 +9,11 @@ import { mentionSuggestionsAction, topicSuggestionsAction } from "@/app/actions"
 import { he } from "@/lib/i18n/he";
 
 // The partial mention / tag right before the caret (lib/mentions.ts, lib/tags.ts, no minimum).
+// "@" takes a handle or a display name, in any script and with one space followed by a letter
+// ("@דנה ל"): the server matches either, and picking one always inserts the @handle. A finished
+// "@dana " (the pick's own trailing space) is not a partial, so the list doesn't reopen.
 const PARTIAL = {
-  "@": /(^|[^\p{L}\p{N}_@.])@([a-zA-Z][a-zA-Z0-9_]{0,14})$/u,
+  "@": /(^|[^\p{L}\p{N}_@.])@(\p{L}[\p{L}\p{M}\p{N}_]{0,29}(?: [\p{L}\p{M}\p{N}_]{1,29})?)$/u,
   "#": /(^|[^\p{L}\p{M}\p{N}_#&/])#(\p{L}[\p{L}\p{M}\p{N}_-]{0,29})$/u,
 } as const;
 type Kind = keyof typeof PARTIAL;
