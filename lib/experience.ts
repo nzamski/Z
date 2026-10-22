@@ -1,8 +1,9 @@
-// Experience on a profile (docs/experience.md), LinkedIn-style: roles with an organization, a
-// month range (no end: current). Pure: the editor form uses it too.
+// Experience on a profile (docs/experience.md), LinkedIn-style: roles with an organization and
+// location, a month range (no end: current). Pure: the editor form uses it too.
 
 export const TITLE_MAX = 60;
 export const ORGANIZATION_MAX = 60;
+export const LOCATION_MAX = 40; // base or location of a role
 export const EXPERIENCE_MAX = 30; // roles per person
 
 /** A month as the form sends it (DatePick with `month`): YYYY-MM, a real month. */

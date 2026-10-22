@@ -1,4 +1,4 @@
-// Service details on a profile (lib/service-info.ts): rank and service type, location, days in
+// Service details on a profile (lib/service-info.ts): rank and service type, days in
 // service and days left to the release, and civilian phone and email. Only what the person filled
 // in. Phone and email are plain text, not tel:/mailto: links: nothing on the air-gapped network
 // would open them.
@@ -16,7 +16,6 @@ export function ServiceDetails({ info }: { info: ServiceInfo }) {
   const type = SERVICE_TYPE_LABEL[info.serviceType as keyof typeof SERVICE_TYPE_LABEL];
   const items = [
     [rank, type].filter(Boolean).join(" · "),
-    info.location,
     info.serviceStart && he.profile.serviceDays(serviceDays(info.serviceStart)),
     // Only while it is ahead: after the release there is nothing left to count.
     info.serviceEnd &&

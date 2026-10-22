@@ -61,7 +61,14 @@ import {
   STATS_TIMEZONE,
 } from "@/lib/limits";
 import { AVATAR_SEED_RE } from "@/lib/avatar";
-import { EXPERIENCE_MAX, isMonth, monthToDay, ORGANIZATION_MAX, TITLE_MAX } from "@/lib/experience";
+import {
+  EXPERIENCE_MAX,
+  isMonth,
+  LOCATION_MAX,
+  monthToDay,
+  ORGANIZATION_MAX,
+  TITLE_MAX,
+} from "@/lib/experience";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
@@ -73,7 +80,6 @@ import {
   isServiceStart,
   isServiceEnd,
   isServiceType,
-  LOCATION_MAX,
 } from "@/lib/service-info";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
@@ -1238,7 +1244,6 @@ function serviceInfo(i: {
   serviceType?: string | null;
   serviceStart?: string | null;
   serviceEnd?: string | null;
-  location?: string;
   civicPhone?: string;
   civicEmail?: string;
 }) {
@@ -1251,7 +1256,6 @@ function serviceInfo(i: {
   const serviceEnd = opt(i.serviceEnd);
   // Both sent (the form sends both): the release comes after the start.
   if (serviceStart && serviceEnd && serviceEnd <= serviceStart) throw new ServiceError("invalid");
-  const location = i.location?.trim();
   const phone = i.civicPhone?.trim();
   const email = i.civicEmail?.trim().toLowerCase();
   return {
@@ -1264,9 +1268,6 @@ function serviceInfo(i: {
     }),
     ...(serviceEnd !== undefined && {
       serviceEnd: check(serviceEnd, serviceEnd === null || isServiceEnd(serviceEnd)),
-    }),
-    ...(location !== undefined && {
-      location: check(location, [...location].length <= LOCATION_MAX),
     }),
     ...(phone !== undefined && { civicPhone: check(phone, !phone || isPhone(phone)) }),
     ...(email !== undefined && { civicEmail: check(email, !email || isEmail(email)) }),
@@ -1289,7 +1290,6 @@ export async function updateProfile(
     serviceType?: string | null;
     serviceStart?: string | null;
     serviceEnd?: string | null;
-    location?: string;
     civicPhone?: string;
     civicEmail?: string;
   },
@@ -2283,6 +2283,7 @@ export async function experienceOf(userId: string) {
       id: experiences.id,
       title: experiences.title,
       organization: experiences.organization,
+      location: experiences.location,
       startMonth: experiences.startMonth,
       endMonth: experiences.endMonth,
     })
@@ -2301,6 +2302,7 @@ const ExperienceInput = (thisMonth: string) =>
     .object({
       title: z.string().trim().min(1).max(TITLE_MAX),
       organization: z.string().trim().max(ORGANIZATION_MAX),
+      location: z.string().trim().max(LOCATION_MAX),
       start: z.string().refine(isMonth),
       end: z.string().refine(isMonth).nullable(), // null: the current role
     })
@@ -2314,6 +2316,7 @@ export async function saveExperience(
     id?: string;
     title: string;
     organization: string;
+    location: string;
     start: string;
     end: string | null;
   },
@@ -2323,6 +2326,7 @@ export async function saveExperience(
   const values = {
     title: e.title,
     organization: e.organization,
+    location: e.location,
     startMonth: monthToDay(e.start),
     endMonth: e.end && monthToDay(e.end),
   };

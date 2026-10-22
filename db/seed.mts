@@ -313,7 +313,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
             SERVICE_TYPES[i % SERVICE_TYPES.length] === "regular"
               ? new Date(NOW + (((i * 131) % 900) - 150) * 24 * HOUR).toISOString().slice(0, 10)
               : null,
-          location: BASES[i % BASES.length],
           civic_phone: `050-000${String(1000 + i).slice(-4)}`,
           civic_email: `${i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`}@example.test`,
         }
@@ -322,7 +321,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
           service_type: null,
           service_start: null,
           service_end: null,
-          location: "",
           civic_phone: "",
           civic_email: "",
         }),
@@ -507,6 +505,7 @@ const experiences: Row[] = users.flatMap((u, i) => {
       user_id: u.id,
       title: ROLES[(i + k) % ROLES.length],
       organization: ORGS[(i * 3 + k) % ORGS.length],
+      location: BASES[(i + k) % BASES.length],
       start_month: ym(start),
       end_month: end === null ? null : ym(end),
     };

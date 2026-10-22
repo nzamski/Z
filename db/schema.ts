@@ -52,7 +52,9 @@ export const users = pgTable(
     serviceType: text("service_type"),
     serviceStart: date("service_start", { mode: "string" }), // days in service count from it
     serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
-    location: text("location").notNull().default(""), // base or location, free text
+    // Unused since 2026-10-22 (location moved to each experience role); kept so the previous
+    // version still works during a rollback. Drop in a later migration.
+    location: text("location").notNull().default(""),
     civicPhone: text("civic_phone").notNull().default(""),
     civicEmail: text("civic_email").notNull().default(""),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can
@@ -531,6 +533,7 @@ export const experiences = pgTable(
       .references(() => users.id),
     title: text("title").notNull(),
     organization: text("organization").notNull().default(""),
+    location: text("location").notNull().default(""), // base or location of this role
     // First day of the month (lib/experience.ts); no end: the current role.
     startMonth: date("start_month", { mode: "string" }).notNull(),
     endMonth: date("end_month", { mode: "string" }),

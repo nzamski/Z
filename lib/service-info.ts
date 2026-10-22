@@ -1,7 +1,8 @@
-// Service details on a profile (docs/service-info.md): rank, service type and start date (days in
-// service), base or location, and civilian contact. All optional and self-reported; visible to every
-// logged-in user. No DB imports: the profile form uses it too. The database checks the rank and
-// service type lists (db/schema.ts builds them from these), so a new value needs `npm run db:generate`.
+// Service details on a profile (docs/service-info.md): rank, service type, service start and end
+// (days in service, days to the release) and civilian contact. Base / location is per role
+// (lib/experience.ts). All optional and self-reported; visible to every logged-in user. No DB
+// imports: the profile form uses it too. The database checks the rank and service type lists
+// (db/schema.ts builds them from these), so a new value needs `npm run db:generate`.
 
 /** Ranks, lowest first (enlisted, NCOs, officers). */
 export const RANKS = [
@@ -89,8 +90,6 @@ export function serviceDays(start: string, today = new Date()) {
 /** Days from today until a date (release): negative once it has passed. */
 export const daysUntil = (day: string, today = new Date()) => -serviceDays(day, today);
 
-export const LOCATION_MAX = 40;
-
 /** Civilian phone as typed: digits with optional leading +, spaces and dashes (7-15 digits). */
 export const isPhone = (v: string) =>
   /^\+?[0-9][0-9 -]*[0-9]$/.test(v) &&
@@ -106,7 +105,6 @@ export type ServiceInfo = {
   serviceType: string | null;
   serviceStart: string | null;
   serviceEnd: string | null;
-  location: string;
   civicPhone: string;
   civicEmail: string;
 };

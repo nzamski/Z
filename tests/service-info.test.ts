@@ -53,7 +53,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceType: "career",
     serviceStart: "2020-03-01",
     serviceEnd: "2030-03-01",
-    location: "  בסיס הדמיה  ",
     civicPhone: "050-1234567",
     civicEmail: "Dana@Example.com",
   });
@@ -62,14 +61,13 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     rank: "captain",
     serviceType: "career",
     serviceStart: "2020-03-01",
-    location: "בסיס הדמיה",
     civicPhone: "050-1234567",
     civicEmail: "dana@example.com",
   });
   // The welcome form doesn't send them: left alone.
   expect(await s.updateProfile(u.id, base)).toMatchObject({
     rank: "captain",
-    location: "בסיס הדמיה",
+    civicPhone: "050-1234567",
   });
   for (const bad of [
     { rank: "general" },
@@ -77,7 +75,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     { serviceStart: "2999-01-01" },
     { serviceStart: "2020-03-01", serviceEnd: "2020-03-01" }, // not after the start
     { serviceEnd: "2099-01-01" },
-    { location: "x".repeat(41) },
     { civicPhone: "abc" },
     { civicEmail: "nope" },
   ])
@@ -90,7 +87,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceType: "",
     serviceStart: "",
     serviceEnd: "",
-    location: "",
     civicPhone: "",
     civicEmail: "",
   });
@@ -99,7 +95,6 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     serviceType: null,
     serviceStart: null,
     serviceEnd: null,
-    location: "",
     civicPhone: "",
     civicEmail: "",
   });

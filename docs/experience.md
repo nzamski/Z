@@ -10,6 +10,7 @@ math, Hebrew durations), `experienceOf` / `saveExperience` / `deleteExperience` 
 | ------------ | -------------- | ------------------------------------------------------ |
 | Role         | `title`        | required, up to 60 characters                          |
 | Organization | `organization` | optional (unit, team, company), up to 60               |
+| Location     | `location`     | optional (base or location of the role), up to 40      |
 | Start        | `start_month`  | a month, not in the future (stored as its first day)   |
 | End          | `end_month`    | a month from the start up to this month; none: current |
 

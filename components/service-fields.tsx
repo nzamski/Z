@@ -6,7 +6,6 @@ import { DatePick } from "@/components/date-pick";
 import { Pick } from "@/components/pick";
 import { he } from "@/lib/i18n/he";
 import {
-  LOCATION_MAX,
   RANK_LABEL,
   RANKS,
   SERVICE_TYPE_LABEL,
@@ -81,16 +80,7 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           />,
           he.profile.serviceEndHint,
         )}
-        {label(
-          he.profile.location,
-          <input
-            name="location"
-            value={v.location}
-            onChange={set("location")}
-            maxLength={LOCATION_MAX}
-            className={p.field}
-          />,
-        )}
+        {/* Phone and email share the last row. */}
         {label(
           he.profile.civicPhone,
           <input

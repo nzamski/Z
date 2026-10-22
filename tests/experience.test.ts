@@ -23,6 +23,7 @@ test("role length counts both months; Hebrew durations", () => {
 const role = (o: Partial<Parameters<typeof s.saveExperience>[1]> = {}) => ({
   title: "מפתח/ת",
   organization: "צוות הדמיה",
+  location: "בסיס הדמיה",
   start: "2022-01",
   end: "2023-06" as string | null,
   ...o,
@@ -38,6 +39,7 @@ test("roles: current first, then newest; only the owner edits or deletes", async
   await s.saveExperience(a.id, { ...role({ title: "ישן יותר" }), id: old.id });
   expect((await s.experienceOf(a.id)).at(-1)).toMatchObject({
     title: "ישן יותר",
+    location: "בסיס הדמיה",
     startMonth: "2022-01-01",
     endMonth: "2023-06-01",
   });

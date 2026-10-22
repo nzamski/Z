@@ -204,6 +204,13 @@
       "when": 1792692492942,
       "tag": "0028_experiences",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792693751612,
+      "tag": "0029_experience_location",
+      "breakpoints": true
     }
   ]
 }

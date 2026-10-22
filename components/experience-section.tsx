@@ -1,6 +1,6 @@
-// "ניסיון" on a profile (docs/experience.md), LinkedIn-style: each role with its organization,
-// month range and length. The owner adds and edits here; others only read, and see nothing
-// when there is nothing.
+// "ניסיון" on a profile (docs/experience.md), LinkedIn-style: each role with its organization
+// and location, month range and length. The owner adds and edits here; others only read, and
+// see nothing when there is nothing.
 import { ExperienceEditor } from "@/components/experience-editor";
 import { duration, months } from "@/lib/experience";
 import { monthYear } from "@/lib/format";
@@ -29,7 +29,11 @@ export async function ExperienceSection(p: { userId: string; isOwner: boolean })
             <li key={r.id} className="flex items-start justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="font-bold">{r.title}</p>
-                {r.organization && <p className="text-sm">{r.organization}</p>}
+                {(r.organization || r.location) && (
+                  <p className="text-sm">
+                    {[r.organization, r.location].filter(Boolean).join(" · ")}
+                  </p>
+                )}
                 <p className="text-sm text-muted">
                   {month(r.startMonth)} – {r.endMonth ? month(r.endMonth) : he.experience.present}
                   {" · "}
