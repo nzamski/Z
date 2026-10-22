@@ -2,6 +2,7 @@
 // The profile form's service details (lib/service-info.ts). Controlled, so a failed save keeps
 // what was typed. The browser checks the phone and email formats; the server checks again.
 import { useState } from "react";
+import { Pick } from "@/components/pick";
 import { he } from "@/lib/i18n/he";
 import {
   LOCATION_MAX,
@@ -9,7 +10,9 @@ import {
   RANKS,
   SERVICE_TYPE_LABEL,
   SERVICE_TYPES,
+  type Rank,
   type ServiceInfo,
+  type ServiceType,
 } from "@/lib/service-info";
 
 export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
@@ -29,33 +32,23 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
       <legend className="text-sm font-bold">{he.profile.service}</legend>
       <p className="text-xs text-muted">{he.profile.serviceVisible}</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        {label(
-          he.profile.rank,
-          <select name="rank" value={v.rank ?? ""} onChange={set("rank")} className={p.field}>
-            <option value="">{he.profile.none}</option>
-            {RANKS.map((r) => (
-              <option key={r} value={r}>
-                {RANK_LABEL[r]}
-              </option>
-            ))}
-          </select>,
-        )}
-        {label(
-          he.profile.serviceType,
-          <select
-            name="serviceType"
-            value={v.serviceType ?? ""}
-            onChange={set("serviceType")}
-            className={p.field}
-          >
-            <option value="">{he.profile.none}</option>
-            {SERVICE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {SERVICE_TYPE_LABEL[t]}
-              </option>
-            ))}
-          </select>,
-        )}
+        {/* Z's own dropdown, like the poll's (its label sits inside the button); "" is none. */}
+        <Pick
+          label={he.profile.rank}
+          name="rank"
+          value={(v.rank ?? "") as Rank | ""}
+          values={["", ...RANKS]}
+          format={(r) => (r ? RANK_LABEL[r] : he.profile.none)}
+          onPick={(r) => setV((cur) => ({ ...cur, rank: r || null }))}
+        />
+        <Pick
+          label={he.profile.serviceType}
+          name="serviceType"
+          value={(v.serviceType ?? "") as ServiceType | ""}
+          values={["", ...SERVICE_TYPES]}
+          format={(t) => (t ? SERVICE_TYPE_LABEL[t] : he.profile.none)}
+          onPick={(t) => setV((cur) => ({ ...cur, serviceType: t || null }))}
+        />
         {label(
           he.profile.serviceStart,
           <input
