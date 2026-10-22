@@ -29,7 +29,13 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { Fragment, Slice, type MarkType, type NodeType } from "prosemirror-model";
+import {
+  Fragment,
+  Slice,
+  type MarkType,
+  type Node as ProseMirrorNode,
+  type NodeType,
+} from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { EditorState, Plugin, type Command } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
@@ -37,7 +43,7 @@ import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { menuBox, useMenu } from "@/components/theme-menu";
-import { CODE_LANGUAGES } from "@/lib/highlight";
+import { CODE_LANGUAGES, highlightCode } from "@/lib/highlight";
 import { PollFields, PollIcon } from "@/components/poll";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
@@ -239,10 +245,49 @@ const entities = new Plugin({
   },
 });
 
+// Code blocks are highlighted as they will be in the post (lib/highlight.ts, same language rule):
+// highlight.js's spans become inline decorations, recomputed only when the text changes.
+function highlightDecos(doc: ProseMirrorNode) {
+  const decos: Decoration[] = [];
+  doc.descendants((node, pos) => {
+    if (node.type !== N.code_block) return;
+    const lang = String(node.attrs.params ?? "")
+      .trim()
+      .toLowerCase();
+    const html = highlightCode(node.textContent, lang);
+    if (!html) return false;
+    let at = pos + 1;
+    const walk = (el: Node, cls: string) => {
+      for (const child of Array.from(el.childNodes)) {
+        if (child instanceof HTMLElement) walk(child, `${cls} ${child.className}`.trim());
+        else {
+          const len = child.textContent?.length ?? 0;
+          if (cls && len) decos.push(Decoration.inline(at, at + len, { class: cls }));
+          at += len;
+        }
+      }
+    };
+    walk(new DOMParser().parseFromString(`<pre>${html}</pre>`, "text/html").body.firstChild!, "");
+    return false;
+  });
+  return DecorationSet.create(doc, decos);
+}
+const highlight: Plugin<DecorationSet> = new Plugin<DecorationSet>({
+  state: {
+    init: (_, state) => highlightDecos(state.doc),
+    apply: (tr, old) => (tr.docChanged ? highlightDecos(tr.doc) : old),
+  },
+  props: {
+    decorations(state) {
+      return highlight.getState(state);
+    },
+  },
+});
+
 const createState = (text: string) =>
   EditorState.create({
     doc: parser.parse(text),
-    plugins: [history(), rules, keys, keymap(baseKeymap), direction, entities],
+    plugins: [history(), rules, keys, keymap(baseKeymap), direction, entities, highlight],
   });
 
 // Pasted plain text is read as markdown (outside code), so pasting a draft keeps its formatting.

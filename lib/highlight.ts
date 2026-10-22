@@ -1,6 +1,6 @@
 // Syntax highlighting for code blocks (lib/markdown.ts's `highlight`): highlight.js core with
 // the languages people here write, bundled (air-gapped: nothing loads at runtime). A fence's
-// language wins (```python); the composer's code blocks have none, so the code is guessed among
+// language wins (```python); a block without one is guessed among
 // these, and left plain when no guess is confident. Colors: `.hljs-*` in globals.css.
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
