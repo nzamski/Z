@@ -6,9 +6,15 @@
 set -eu
 cd "$(dirname "$0")/../public/ranks"
 U=https://upload.wikimedia.org/wikipedia/commons
+# Skips files already here; pauses and retries, since Commons throttles bursts of downloads and
+# anonymous clients (its User-Agent policy wants a URL or contact).
 while read -r key path; do
-  curl -sfL -A "Z-dev/1.0 (rank insignia)" -o "$key" "$U/$path"
+  [ -s "$key" ] && continue
+  curl -sSfL --retry 3 --retry-delay 30 --retry-all-errors \
+    -A "Z-rank-insignia/1.0 (https://github.com/nzamski/Z)" \
+    -o "$key" "$U/$path" || { echo "failed: $key (run again later)" >&2; rm -f "$key"; exit 1; }
   echo "$key"
+  sleep 2
 done <<'EOF'
 corporal.svg 7/71/IDF_Ranks_Rav_turai.svg
 sergeant.svg 8/85/IDF_Ranks_Samal.svg

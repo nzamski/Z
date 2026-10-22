@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="245" height="107">
+<g transform="skewX(25)">
+<path fill="#5E6847" d="m0,0h195v107H0"/>
+<path stroke="#FFF" stroke-width="24.4"
+d="m8.3,21.2h178.4m0,32.3H8.3m0,32.3h178.4"/>
+<path stroke="#0024E8" stroke-width="20" stroke-dasharray="1,2.44"
+d="m11,21.2h173m0,32.3H11m0,32.3h173"/>
+</g></svg>
