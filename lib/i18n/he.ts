@@ -137,7 +137,7 @@ export const he = {
     handleChecking: "בודק…",
     noFollowers: "עדיין אין עוקבים.",
     noFollowing: "עדיין לא עוקבים אחרי אף אחד.",
-    joined: (monthYear: string) => `מאז ${monthYear}`,
+    joined: (monthYear: string) => `ב-Z מאז ${monthYear}`, // joined Z, not the service start
   },
   moderation: {
     title: "ניהול",

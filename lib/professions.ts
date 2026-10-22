@@ -47,7 +47,5 @@ export const PROFESSION_COLOR: Record<Profession, string> = {
   product_manager: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
   ux_ui: "bg-cyan-500/15 text-cyan-800 dark:text-cyan-300",
   cyber: "bg-lime-500/15 text-lime-800 dark:text-lime-300",
-  // The one gradient: leads stand out from the single-color specialties.
-  team_lead:
-    "bg-linear-to-r from-indigo-500/20 to-pink-500/20 text-indigo-700 dark:from-indigo-400/25 dark:to-pink-400/25 dark:text-pink-200",
+  team_lead: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
 };
