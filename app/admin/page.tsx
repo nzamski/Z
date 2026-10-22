@@ -106,7 +106,12 @@ async function Admin() {
   ]);
   return (
     <>
-      <h1 className="sr-only">{he.moderation.title}</h1>
+      <div className="flex items-baseline justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <h1 className="text-lg font-bold">{he.moderation.title}</h1>
+        <Link href="/admin/stats" className="text-sm text-link hover:underline">
+          {he.stats.link} ←
+        </Link>
+      </div>
       <section id="reports" aria-labelledby="reports-title" className="scroll-mt-24">
         <h2 id="reports-title" className={heading}>
           {R.queue}
