@@ -29,6 +29,8 @@ import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { menuUpClass, useMenu } from "@/components/theme-menu";
+import { CODE_LANGUAGES } from "@/lib/highlight";
 import { PollFields, PollIcon } from "@/components/poll";
 import { useMentionSuggest } from "@/components/mention-suggest";
 import { DIR_MARK, markedDir, textDir } from "@/lib/direction";
@@ -483,6 +485,20 @@ export function Composer(p: Props) {
                 <PollIcon />
               </button>
             )}
+            {editor?.selection.$from.parent.type === N.code_block && (
+              <CodeLanguage
+                value={editor.selection.$from.parent.attrs.params as string}
+                onPick={(params) =>
+                  run((st, d) => {
+                    const $f = st.selection.$from;
+                    d?.(
+                      st.tr.setNodeMarkup($f.before(), undefined, { ...$f.parent.attrs, params }),
+                    );
+                    return true;
+                  })
+                }
+              />
+            )}
             <EmojiPicker
               onPick={(emoji) =>
                 run((st, d) => {
@@ -632,6 +648,59 @@ const ICONS = {
     </Svg>
   ),
 };
+
+/** While the caret is in a code block: its language, for highlighting (lib/highlight.ts). Saved
+ * in the fence (```python); "Auto" leaves it to a guess. Opens upward, like the toolbar's tips. */
+function CodeLanguage(p: { value: string; onPick: (lang: string) => void }) {
+  const { open, setOpen, root } = useMenu();
+  const current = CODE_LANGUAGES.find(([v]) => v === p.value)?.[1] ?? he.composer.codeAuto;
+  return (
+    <div ref={root} className="relative">
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()} // keep the caret in the block
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${he.composer.codeLanguage}: ${current}`}
+        dir="ltr"
+        className="flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-expanded:bg-neutral-500/15"
+      >
+        {current}
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="m6 15 6-6 6 6" />
+        </svg>
+      </button>
+      {open && (
+        <div role="menu" className={`${menuUpClass} max-h-64 w-44 overflow-y-auto`} dir="ltr">
+          {[["", he.composer.codeAuto] as [string, string], ...CODE_LANGUAGES].map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              role="menuitemradio"
+              aria-checked={v === (p.value || "")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                p.onPick(v);
+                setOpen(false);
+              }}
+              className="block w-full px-3 py-1.5 text-start text-sm transition-colors hover:bg-neutral-500/10 aria-checked:font-bold aria-checked:text-link"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** X-style counter, only near the limit: a filling ring from 80%, the numbers from 90%. */
 export function LengthRing(p: { length: number; max: number; alwaysCount?: boolean }) {

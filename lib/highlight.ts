@@ -30,6 +30,22 @@ const LANGS = {
   xml,
   yaml,
 };
+/** The composer's language picker for a code block: [fence name, label]. */
+export const CODE_LANGUAGES: [string, string][] = [
+  ["python", "Python"],
+  ["javascript", "JavaScript"],
+  ["typescript", "TypeScript"],
+  ["sql", "SQL"],
+  ["bash", "Bash"],
+  ["yaml", "YAML"],
+  ["json", "JSON"],
+  ["go", "Go"],
+  ["java", "Java"],
+  ["dockerfile", "Dockerfile"],
+  ["xml", "HTML / XML"],
+  ["css", "CSS"],
+];
+
 for (const [name, lang] of Object.entries(LANGS)) hljs.registerLanguage(name, lang);
 
 // A guess counts when it scores at least this (highlight.js relevance; short snippets score 3-6)
