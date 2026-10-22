@@ -51,6 +51,10 @@ integrity of posts and identities, the availability of the service, and the sess
 - **Moderation**: users can report posts and comments (`docs/reports.md`); admins see who
   reported. Affected users are notified of removals and restores, with the reason but not the
   admin's name.
+- **Service details** (`docs/service-info.md`): rank, service type, service start, location and
+  a civilian phone and email are optional, self-reported and visible to every logged-in user.
+  Phone and email are personal contact data: decide whether that is acceptable, or limit who
+  sees them. Nothing is verified (anyone can claim any rank).
 - **Usage tracking**: Z records one row per user per day they open it (`daily_visits`), and
   admins see a top-contributors list by name (`docs/stats.md`). Tell pilot users.
 - **Notifications reveal activity to the recipient** (who liked, followed, mentioned): all of it is

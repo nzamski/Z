@@ -183,6 +183,13 @@
       "when": 1792690740626,
       "tag": "0025_more_professions",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792691844459,
+      "tag": "0026_service_info",
+      "breakpoints": true
     }
   ]
 }

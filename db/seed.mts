@@ -5,6 +5,7 @@
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { computePreview } from "../lib/preview";
+import { RANKS, SERVICE_TYPES } from "../lib/service-info";
 
 if (process.env.NODE_ENV === "production") throw new Error("seed is dev-only");
 const large = process.argv.includes("--large");
@@ -274,6 +275,7 @@ const KEYCLOAK_IDS = [
 ];
 
 type Row = Record<string, string | number | boolean | Date | null>;
+const BASES = ["בסיס הדמיה צפון", "בסיס הדמיה מרכז", "בסיס הדמיה דרום", "עבודה מהבית"];
 const N_USERS = large ? 200 : 12;
 const N_POSTS = large ? 10_000 : 60;
 const DAYS = large ? 60 : 40;
@@ -297,6 +299,27 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     display_name: `${first} ${last}`,
     bio: pick(BIOS),
     avatar_seed: String(i),
+    // Service details (lib/service-info.ts) for about two thirds; fictional contact on reserved
+    // ranges (050-000xxxx, example.test).
+    ...(i % 3 !== 2
+      ? {
+          rank: RANKS[(i * 5) % RANKS.length],
+          service_type: SERVICE_TYPES[i % SERVICE_TYPES.length],
+          service_start: new Date(NOW - (200 + ((i * 97) % 5000)) * 24 * HOUR)
+            .toISOString()
+            .slice(0, 10),
+          location: BASES[i % BASES.length],
+          civic_phone: `050-000${String(1000 + i).slice(-4)}`,
+          civic_email: `${i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`}@example.test`,
+        }
+      : {
+          rank: null,
+          service_type: null,
+          service_start: null,
+          location: "",
+          civic_phone: "",
+          civic_email: "",
+        }),
   };
 });
 const uid = (i: number) => users[i].id as string;

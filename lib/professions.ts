@@ -13,6 +13,7 @@ export const PROFESSIONS = [
   "product_manager",
   "ux_ui",
   "cyber",
+  "team_lead",
 ] as const;
 export type Profession = (typeof PROFESSIONS)[number];
 
@@ -30,6 +31,7 @@ export const PROFESSION_LABEL: Record<Profession, string> = {
   product_manager: "Product Manager",
   ux_ui: "UX / UI",
   cyber: "Cyber",
+  team_lead: "Team Lead",
 };
 
 // One color each, so badges tell apart at a glance (light and dark).
@@ -45,4 +47,5 @@ export const PROFESSION_COLOR: Record<Profession, string> = {
   product_manager: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
   ux_ui: "bg-cyan-500/15 text-cyan-800 dark:text-cyan-300",
   cyber: "bg-lime-500/15 text-lime-800 dark:text-lime-300",
+  team_lead: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
 };

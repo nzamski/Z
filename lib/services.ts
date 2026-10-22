@@ -64,6 +64,14 @@ import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
 import { isProfession, type Profession } from "@/lib/professions";
+import {
+  isEmail,
+  isPhone,
+  isRank,
+  isServiceStart,
+  isServiceType,
+  LOCATION_MAX,
+} from "@/lib/service-info";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
@@ -1220,13 +1228,59 @@ export async function handleStatus(actorId: string, handle: string) {
   return !other || other.id === actorId ? ("ok" as const) : ("taken" as const);
 }
 
+/** The service details a profile save sets: only the fields sent, each checked; "" or null clears. */
+function serviceInfo(i: {
+  rank?: string | null;
+  serviceType?: string | null;
+  serviceStart?: string | null;
+  location?: string;
+  civicPhone?: string;
+  civicEmail?: string;
+}) {
+  const check = <T>(v: T, ok: boolean) => {
+    if (!ok) throw new ServiceError("invalid");
+    return v;
+  };
+  const opt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
+  const [rank, serviceType, serviceStart] = [opt(i.rank), opt(i.serviceType), opt(i.serviceStart)];
+  const location = i.location?.trim();
+  const phone = i.civicPhone?.trim();
+  const email = i.civicEmail?.trim().toLowerCase();
+  return {
+    ...(rank !== undefined && { rank: check(rank, rank === null || isRank(rank)) }),
+    ...(serviceType !== undefined && {
+      serviceType: check(serviceType, serviceType === null || isServiceType(serviceType)),
+    }),
+    ...(serviceStart !== undefined && {
+      serviceStart: check(serviceStart, serviceStart === null || isServiceStart(serviceStart)),
+    }),
+    ...(location !== undefined && {
+      location: check(location, [...location].length <= LOCATION_MAX),
+    }),
+    ...(phone !== undefined && { civicPhone: check(phone, !phone || isPhone(phone)) }),
+    ...(email !== undefined && { civicEmail: check(email, !email || isEmail(email)) }),
+  };
+}
+
 /** Handle (unique among active users) and bio, from the welcome screen or the profile.
  * The display name is not editable: it always comes from Keycloak. */
 /** `profession`: a badge from PROFESSIONS, or null for none; left alone when undefined.
- * `avatarSeed`: the generated avatar (lib/avatar.ts); left alone when undefined. */
+ * `avatarSeed`: the generated avatar (lib/avatar.ts); left alone when undefined.
+ * Service details (lib/service-info.ts): each left alone when undefined; null or "" clears it. */
 export async function updateProfile(
   actorId: string,
-  input: { handle: string; bio: string; profession?: string | null; avatarSeed?: string },
+  input: {
+    handle: string;
+    bio: string;
+    profession?: string | null;
+    avatarSeed?: string;
+    rank?: string | null;
+    serviceType?: string | null;
+    serviceStart?: string | null;
+    location?: string;
+    civicPhone?: string;
+    civicEmail?: string;
+  },
 ) {
   if (input.profession != null && !isProfession(input.profession))
     throw new ServiceError("invalid");
@@ -1237,6 +1291,7 @@ export async function updateProfile(
     bio: parse(Bio, input.bio),
     ...(input.profession !== undefined && { profession: input.profession }),
     ...(input.avatarSeed !== undefined && { avatarSeed: input.avatarSeed }),
+    ...serviceInfo(input),
   };
   await assertCanWrite(actorId);
   if ((await handleStatus(actorId, data.handle)) === "taken") throw new ServiceError("taken");

@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ProfileForm } from "@/components/profile-form";
+import type { ServiceInfo } from "@/lib/service-info";
 import { he } from "@/lib/i18n/he";
 
 export function ProfileEditor(p: {
@@ -13,6 +14,7 @@ export function ProfileEditor(p: {
   bio: string;
   profession: string | null;
   avatarSeed: string;
+  service: ServiceInfo;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(0); // remount the form on each open: fresh fields
@@ -70,6 +72,7 @@ export function ProfileEditor(p: {
                 profession: p.profession,
                 avatarSeed: p.avatarSeed,
               }}
+              service={p.service}
               submitLabel={he.composer.save}
               saveAtEnd
               onSaved={(handle) => {
