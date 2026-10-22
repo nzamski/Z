@@ -3,7 +3,14 @@
 // (lib/editor-markdown.ts), so what you see is what gets posted. Formatting comes from the toolbar,
 // the usual shortcuts (Ctrl/⌘+B, I, E) or typing markdown (**bold**, "- " for a list, ``` for code).
 import "prosemirror-view/style/prosemirror.css";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment as ReactFragment,
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   baseKeymap,
   chainCommands,
@@ -29,7 +36,7 @@ import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { EmojiPicker } from "@/components/emoji-picker";
-import { menuUpClass, useMenu } from "@/components/theme-menu";
+import { menuBox, useMenu } from "@/components/theme-menu";
 import { CODE_LANGUAGES } from "@/lib/highlight";
 import { PollFields, PollIcon } from "@/components/poll";
 import { useMentionSuggest } from "@/components/mention-suggest";
@@ -458,19 +465,38 @@ export function Composer(p: Props) {
             className="flex flex-wrap items-center gap-0.5"
           >
             {tools.map((t) => (
-              <button
-                key={t.label}
-                type="button"
-                data-tip={t.label}
-                aria-label={t.label}
-                aria-pressed={t.active}
-                onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
-                // No command: the link button, which opens (or closes) the link field.
-                onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
-                className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
-              >
-                {t.icon}
-              </button>
+              <ReactFragment key={t.label}>
+                <button
+                  type="button"
+                  data-tip={t.label}
+                  aria-label={t.label}
+                  aria-pressed={t.active}
+                  onMouseDown={(e) => e.preventDefault()} // keep the editor's selection
+                  // No command: the link button, which opens (or closes) the link field.
+                  onClick={() => (t.cmd ? run(t.cmd) : setLink((l) => (l === null ? "" : null)))}
+                  className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-neutral-500/10 hover:text-foreground aria-pressed:bg-neutral-500/15 aria-pressed:text-foreground"
+                >
+                  {t.icon}
+                </button>
+                {/* In a code block: its language, right beside the code block button. */}
+                {t.label === T.codeBlock && t.active && (
+                  <CodeLanguage
+                    value={(editor?.selection.$from.parent.attrs.params as string) ?? ""}
+                    onPick={(params) =>
+                      run((st, d) => {
+                        const $f = st.selection.$from;
+                        d?.(
+                          st.tr.setNodeMarkup($f.before(), undefined, {
+                            ...$f.parent.attrs,
+                            params,
+                          }),
+                        );
+                        return true;
+                      })
+                    }
+                  />
+                )}
+              </ReactFragment>
             ))}
             {p.poll && (
               <button
@@ -484,20 +510,6 @@ export function Composer(p: Props) {
               >
                 <PollIcon />
               </button>
-            )}
-            {editor?.selection.$from.parent.type === N.code_block && (
-              <CodeLanguage
-                value={editor.selection.$from.parent.attrs.params as string}
-                onPick={(params) =>
-                  run((st, d) => {
-                    const $f = st.selection.$from;
-                    d?.(
-                      st.tr.setNodeMarkup($f.before(), undefined, { ...$f.parent.attrs, params }),
-                    );
-                    return true;
-                  })
-                }
-              />
             )}
             <EmojiPicker
               onPick={(emoji) =>
@@ -650,16 +662,27 @@ const ICONS = {
 };
 
 /** While the caret is in a code block: its language, for highlighting (lib/highlight.ts). Saved
- * in the fence (```python); "Auto" leaves it to a guess. Opens upward, like the toolbar's tips. */
+ * in the fence (```python); "Auto" leaves it to a guess. Fixed to the screen (like the emoji
+ * picker): below the button when there's room, else above, never cut off by a popup's edge. */
+const LANG_H = 264; // px: the list's max-h-64 and a margin
+
 function CodeLanguage(p: { value: string; onPick: (lang: string) => void }) {
   const { open, setOpen, root } = useMenu();
+  const [at, setAt] = useState({ top: 0, left: 0 });
   const current = CODE_LANGUAGES.find(([v]) => v === p.value)?.[1] ?? he.composer.codeAuto;
   return (
     <div ref={root} className="relative">
       <button
         type="button"
         onMouseDown={(e) => e.preventDefault()} // keep the caret in the block
-        onClick={() => setOpen((o) => !o)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setAt({
+            top: innerHeight - r.bottom >= LANG_H ? r.bottom + 4 : Math.max(8, r.top - LANG_H),
+            left: Math.max(8, r.left),
+          });
+          setOpen((o) => !o);
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${he.composer.codeLanguage}: ${current}`}
@@ -679,7 +702,12 @@ function CodeLanguage(p: { value: string; onPick: (lang: string) => void }) {
         </svg>
       </button>
       {open && (
-        <div role="menu" className={`${menuUpClass} max-h-64 w-44 overflow-y-auto`} dir="ltr">
+        <div
+          role="menu"
+          style={at}
+          className={`fixed ${menuBox} max-h-64 w-44 overflow-y-auto`}
+          dir="ltr"
+        >
           {[["", he.composer.codeAuto] as [string, string], ...CODE_LANGUAGES].map(([v, label]) => (
             <button
               key={v}
