@@ -26,14 +26,16 @@ export function RankInsignia({ rank, arm }: { rank: Rank; arm?: ServiceArm | nul
   if (rank === "private") return <span>{label}</span>;
   const a = arm ?? "ground";
   return (
-    // Small static files from public/: next/image's optimizer would add nothing here.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/ranks/${a}/${rank}.${ext(a, rank)}`}
-      alt={label}
-      data-tip={label}
-      loading="lazy"
-      className={`inline-block w-auto ${ENLISTED.has(rank) ? "h-5" : "h-10"}`}
-    />
+    // The tooltip sits on a wrapper: data-tip draws with ::after, which an <img> can't show.
+    <span data-tip={label} className="inline-flex">
+      {/* Small static files from public/: next/image's optimizer would add nothing here. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/ranks/${a}/${rank}.${ext(a, rank)}`}
+        alt={label}
+        loading="lazy"
+        className={`inline-block w-auto ${ENLISTED.has(rank) ? "h-5" : "h-10"}`}
+      />
+    </span>
   );
 }
