@@ -22,6 +22,7 @@ import {
   commentLikes,
   comments,
   dailyVisits,
+  experiences,
   follows,
   likes,
   moderationActions,
@@ -60,6 +61,14 @@ import {
   STATS_TIMEZONE,
 } from "@/lib/limits";
 import { AVATAR_SEED_RE } from "@/lib/avatar";
+import {
+  DESCRIPTION_MAX,
+  EXPERIENCE_MAX,
+  isMonth,
+  monthToDay,
+  ORGANIZATION_MAX,
+  TITLE_MAX,
+} from "@/lib/experience";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
@@ -80,6 +89,7 @@ export class ServiceError extends Error {
     public code:
       | "invalid"
       | "pin_limit"
+      | "experience_limit"
       | "empty"
       | "not_found"
       | "forbidden"
@@ -2269,4 +2279,94 @@ export async function recordVisit(userId: string, at = new Date()) {
   await db.insert(dailyVisits).values({ userId, day }).onConflictDoNothing();
   recorded.set(userId, day);
   if (recorded.size > 50_000) recorded.clear(); // a new day makes old entries useless anyway
+}
+
+// ---- experience (docs/experience.md) ----
+
+/** A person's roles: current ones first, then by end and start, newest first. */
+export async function experienceOf(userId: string) {
+  return db
+    .select({
+      id: experiences.id,
+      title: experiences.title,
+      organization: experiences.organization,
+      startMonth: experiences.startMonth,
+      endMonth: experiences.endMonth,
+      description: experiences.description,
+    })
+    .from(experiences)
+    .where(and(eq(experiences.userId, userId), active(experiences)))
+    .orderBy(
+      sql`${experiences.endMonth} desc nulls first`,
+      desc(experiences.startMonth),
+      desc(experiences.id),
+    );
+}
+export type Experience = Awaited<ReturnType<typeof experienceOf>>[number];
+
+const ExperienceInput = (thisMonth: string) =>
+  z
+    .object({
+      title: z.string().trim().min(1).max(TITLE_MAX),
+      organization: z.string().trim().max(ORGANIZATION_MAX),
+      start: z.string().refine(isMonth),
+      end: z.string().refine(isMonth).nullable(), // null: the current role
+      description: z.string().trim().max(DESCRIPTION_MAX),
+    })
+    // No future roles; an end no earlier than the start (YYYY-MM compares as text).
+    .refine((e) => e.start <= thisMonth && (!e.end || (e.end >= e.start && e.end <= thisMonth)));
+
+/** Adds a role, or edits one of your own (`id`). At most EXPERIENCE_MAX roles each. */
+export async function saveExperience(
+  actorId: string,
+  input: {
+    id?: string;
+    title: string;
+    organization: string;
+    start: string;
+    end: string | null;
+    description: string;
+  },
+) {
+  const e = parse(ExperienceInput(new Date().toISOString().slice(0, 7)), input);
+  await assertCanWrite(actorId);
+  const values = {
+    title: e.title,
+    organization: e.organization,
+    startMonth: monthToDay(e.start),
+    endMonth: e.end && monthToDay(e.end),
+    description: e.description,
+  };
+  if (input.id) {
+    const [row] = await db
+      .update(experiences)
+      .set({ ...values, updatedAt: now })
+      .where(
+        and(eq(experiences.id, input.id), eq(experiences.userId, actorId), active(experiences)),
+      )
+      .returning({ id: experiences.id });
+    if (!row) throw new ServiceError("not_found");
+    return row;
+  }
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(experiences)
+    .where(and(eq(experiences.userId, actorId), active(experiences)));
+  if (n >= EXPERIENCE_MAX) throw new ServiceError("experience_limit");
+  const [row] = await db
+    .insert(experiences)
+    .values({ ...values, userId: actorId })
+    .returning({ id: experiences.id });
+  return row;
+}
+
+/** Removes one of your own roles (soft delete, like everything else). */
+export async function deleteExperience(actorId: string, id: string) {
+  await assertCanWrite(actorId);
+  const [row] = await db
+    .update(experiences)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(and(eq(experiences.id, id), eq(experiences.userId, actorId), active(experiences)))
+    .returning({ id: experiences.id });
+  if (!row) throw new ServiceError("not_found");
 }

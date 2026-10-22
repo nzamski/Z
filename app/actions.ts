@@ -328,3 +328,21 @@ export async function grantAdminAction(_: ActionResult, f: FormData) {
     s.grantAdmin(uid, Text.parse(field(f, "handle")), Text.parse(field(f, "reason"))),
   );
 }
+
+/** Add a role to your experience, or edit one (`id`); docs/experience.md. */
+export async function saveExperienceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run((uid) =>
+    s.saveExperience(uid, {
+      id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
+      title: String(f.get("title") ?? ""),
+      organization: String(f.get("organization") ?? ""),
+      start: String(f.get("start") ?? ""),
+      end: f.get("current") ? null : String(f.get("end") ?? ""),
+      description: String(f.get("description") ?? ""),
+    }),
+  );
+}
+
+export async function deleteExperienceAction(id: string) {
+  return run((uid) => s.deleteExperience(uid, Id.parse(id)));
+}

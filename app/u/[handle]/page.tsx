@@ -7,6 +7,7 @@ import { Loading } from "@/components/loading";
 import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
+import { ExperienceSection } from "@/components/experience-section";
 import { ServiceDetails } from "@/components/service-details";
 import { UserAdminMenu } from "@/components/user-admin-menu";
 import { FeedList } from "@/components/feed-list";
@@ -156,6 +157,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </Link>
         </div>
       </section>
+      <ExperienceSection userId={user.id} isOwner={viewerId === user.id} />
       <LinkTabs
         tabs={[
           { href: base, label: he.profile.posts, current: !replies },

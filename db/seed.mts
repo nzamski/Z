@@ -481,6 +481,42 @@ for (const [postId, tops] of byPost) {
   answer.author_liked_at = new Date(likeComment(answer, authorIndex));
 }
 
+// Experience (docs/experience.md): a current role and one or two earlier ones for most people.
+const ROLES = [
+  "מפתח/ת Backend",
+  "ראש צוות",
+  "מהנדס/ת DevOps",
+  "אנליסט/ית נתונים",
+  "ארכיטקט/ית",
+  "מנהל/ת מוצר",
+];
+const ORGS = ["צוות הדמיה א", "מדור פיתוח הדמיה", "ענף תשתיות הדמיה", "צוות נתונים הדמיה"];
+const ym = (monthsAgo: number) => {
+  const d = new Date(NOW);
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() - monthsAgo);
+  return d.toISOString().slice(0, 10);
+};
+const experiences: Row[] = users.flatMap((u, i) => {
+  if (i % 4 === 3) return [];
+  const n = 1 + (i % 3);
+  let end: number | null = null;
+  let start = 4 + ((i * 7) % 20);
+  return Array.from({ length: n }, (_, k) => {
+    const row = {
+      user_id: u.id,
+      title: ROLES[(i + k) % ROLES.length],
+      organization: ORGS[(i * 3 + k) % ORGS.length],
+      start_month: ym(start),
+      end_month: end === null ? null : ym(end),
+      description: k === 0 ? pick(BIOS) : "",
+    };
+    end = start + 1;
+    start = end + 6 + ((i + k) % 18);
+    return row;
+  });
+});
+
 // ---------- write ----------
 
 async function insert(table: string, rows: Row[]) {
@@ -502,6 +538,7 @@ await insert("comments", comments);
 await insert("likes", likes);
 await insert("comment_likes", commentLikes);
 await insert("follows", follows);
+await insert("experiences", experiences);
 // dana moderates in dev (docs/moderation.md), so /admin can be tried right after seeding.
 await sql`insert into admins (user_id) values (${uid(0)})`;
 await sql`

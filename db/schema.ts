@@ -520,3 +520,27 @@ export const dailyVisits = pgTable(
     index("daily_visits_updated_at_idx").on(t.updatedAt),
   ],
 );
+
+// Experience on a profile (docs/experience.md): one row per role, the owner's to edit.
+export const experiences = pgTable(
+  "experiences",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    organization: text("organization").notNull().default(""),
+    // First day of the month (lib/experience.ts); no end: the current role.
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    endMonth: date("end_month", { mode: "string" }),
+    description: text("description").notNull().default(""),
+  },
+  (t) => [
+    check("experiences_months_ck", sql`${t.endMonth} is null or ${t.endMonth} >= ${t.startMonth}`),
+    index("experiences_user_idx")
+      .on(t.userId)
+      .where(sql`${t.deletedAt} is null`),
+    index("experiences_updated_at_idx").on(t.updatedAt),
+  ],
+);
