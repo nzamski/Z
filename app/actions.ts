@@ -201,8 +201,12 @@ export async function mentionSuggestionsAction(q: string): Promise<MentionSugges
   const query = String(q).trim().slice(0, 40);
   if (!query) return [];
   const found = await s.searchUsers(viewer.id, query, 8);
+  // With a space it can only be a display name ("דנה ל"), taken literally: fuzzy matching would
+  // keep suggesting the person just mentioned while the sentence goes on ("@dana hello").
+  const words = query.includes(" ") ? query.toLowerCase() : null;
   return found
     .filter((u) => mentionable(u.handle))
+    .filter((u) => !words || u.displayName.toLowerCase().includes(words))
     .slice(0, 5)
     .map((u) => ({ id: u.id, handle: u.handle, displayName: u.displayName }));
 }
