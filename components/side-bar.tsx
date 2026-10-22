@@ -68,6 +68,9 @@ export async function SideBar() {
         ) : (
           <p className="text-sm text-muted">{he.side.noOne}</p>
         )}
+        <Link href="/search" className="mt-3 inline-block text-sm text-link hover:underline">
+          {he.side.byProfession}
+        </Link>
       </section>
     </div>
   );

@@ -36,6 +36,9 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Colours: use the contrast-checked tokens `text-muted` / `text-link` / `text-danger` / `text-like` (app/globals.css), not raw `neutral-500` / `sky-*` / `red-*` for text.
 - Delivery: `Dockerfile`, `scripts/build-images.sh`, `scripts/migrate.mjs` (advisory-locked; hook Job or init container; locally `MIGRATIONS_DIR=drizzle`), `scripts/admin.mjs`, `deploy/values.yaml` (example for the libchart), `docs/deploy.md`, `docs/keycloak.md`, `docs/security-notes.md`. Health probes: `/api/health?live`, `/api/health`.
 - Profession badges: `users.profession` (one of `PROFESSIONS` in `lib/professions.ts`, or null; `users_profession_ck` repeats the list, so a new one needs a migration). Picked in the profile form, shown by `ProfessionBadge` on the profile and the hover card.
+- Saved / liked / replies (`docs/bookmarks.md`): `bookmarks` (post or comment, private), `/saved` tabs, profile `?tab=replies`; mixed lists via `mixedPage` + `ItemList`/`CommentCard`.
+- Code highlighting: `lib/highlight.ts` (highlight.js core, registered languages only, bundled); the composer's code blocks have a language picker (saved in the fence); without one, a guess only when sure.
+- Profession badges link to `/search?profession=<p>` (`peopleByProfession`), chips on the search page.
 - Polls (`docs/polls.md`): `posts.poll_options`/`poll_ends_at` + `poll_votes` (one active vote per person); `createPost(..., poll)`, `votePoll`; `postCols.poll` is JSON with counts and the viewer's vote; UI `components/poll.tsx`.
 - Topics (`docs/topics.md`): `#tags` in posts (`lib/tags.ts`) are filed in `post_tags` by `setPostTags` on create and edit; `/t/<tag>` (newest / most liked), `/topics`, topic follows boost For You. Only posts, not comments.
 - Pinned post: `users.pinned_post_id` (one per profile; `pinPost`/`unpinPost`, own live posts only), shown first on the profile with a label; reads ignore a deleted one.

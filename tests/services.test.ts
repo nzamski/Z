@@ -335,3 +335,27 @@ describe("bookmarks, liked and replies lists", () => {
     expect(replies[0]).toMatchObject({ kind: "comment", comment: { id: r.id, replyTo: a.handle } });
   });
 });
+
+describe("people by profession", () => {
+  test("only that badge, with the viewer's follow state", async () => {
+    const [v, de, other] = [await makeUser(), await makeUser(), await makeUser()];
+    await s.updateProfile(de.id, { handle: de.handle!, bio: "", profession: "data_engineer" });
+    await s.updateProfile(other.id, { handle: other.handle!, bio: "", profession: "qa" });
+    await s.follow(v.id, de.id);
+    const got = await s.peopleByProfession(v.id, "data_engineer");
+    expect(got.find((u) => u.id === de.id)).toMatchObject({ viewerFollows: true });
+    expect(got.some((u) => u.id === other.id)).toBe(false);
+  });
+});
+
+describe("people lists know whom you follow", () => {
+  // These columns sat in subqueries as a bare "id", which matched the subquery's own table.
+  test("search shows the follow state; suggestions skip people you follow", async () => {
+    const [v, t] = [await makeUser("זזזבדיקה"), await makeUser("זזזבדיקה")];
+    await s.follow(v.id, t.id);
+    expect((await s.searchUsers(v.id, t.handle!)).find((u) => u.id === t.id)?.viewerFollows).toBe(
+      true,
+    );
+    expect((await s.suggestedUsers(v.id, 1000)).some((u) => u.id === t.id)).toBe(false);
+  });
+});

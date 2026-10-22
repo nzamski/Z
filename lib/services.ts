@@ -57,7 +57,7 @@ import {
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
-import { isProfession } from "@/lib/professions";
+import { isProfession, type Profession } from "@/lib/professions";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
@@ -1140,7 +1140,7 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
       .select({
         ...userCard,
         viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
-          and v.followee_id = ${users.id} and v.deleted_at is null)`,
+          and v.followee_id = users.id and v.deleted_at is null)`,
       })
       .from(users)
       .where(
@@ -1155,7 +1155,7 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
         desc(sql`${users.handle} = lower(${q})`),
         desc(sql`${users.handle} ilike ${like + "%"}`),
         desc(closeness),
-        desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+        desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
           and f.deleted_at is null)`),
         users.handle,
       )
@@ -1253,7 +1253,24 @@ const userCard = {
   handle: sql<string>`${users.handle}`,
   displayName: users.displayName,
   bio: users.bio,
+  profession: users.profession,
 };
+
+/** People with a profession badge (the badge's link, and search's chips), most followed first. */
+export async function peopleByProfession(viewerId: string, profession: Profession, limit = 100) {
+  const followers = sql`(select count(*) from ${follows} f where f.followee_id = users.id
+    and f.deleted_at is null)`;
+  return db
+    .select({
+      ...userCard,
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = users.id and v.deleted_at is null)`,
+    })
+    .from(users)
+    .where(and(active(users), hasHandle, eq(users.profession, profession)))
+    .orderBy(desc(followers), users.handle)
+    .limit(limit);
+}
 
 /** Who to follow on the welcome screen: the most-followed people the viewer doesn't follow yet. */
 export async function suggestedUsers(viewerId: string, limit = 5) {
@@ -1266,11 +1283,11 @@ export async function suggestedUsers(viewerId: string, limit = 5) {
         hasHandle,
         ne(users.id, viewerId),
         sql`not exists (select 1 from ${follows} f where f.follower_id = ${viewerId}
-          and f.followee_id = ${users.id} and f.deleted_at is null)`,
+          and f.followee_id = users.id and f.deleted_at is null)`,
       ),
     )
     .orderBy(
-      desc(sql`(select count(*) from ${follows} f where f.followee_id = ${users.id}
+      desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
         and f.deleted_at is null)`),
       users.createdAt,
     )
@@ -1295,7 +1312,7 @@ export async function followList(
       ...userCard,
       followId: f.id,
       viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
-        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+        and v.followee_id = users.id and v.deleted_at is null)`,
     })
     .from(f)
     .innerJoin(users, eq(users.id, them))
@@ -1341,7 +1358,7 @@ export async function likers(
       ...userCard,
       likeId: l.id,
       viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
-        and v.followee_id = ${users.id} and v.deleted_at is null)`,
+        and v.followee_id = users.id and v.deleted_at is null)`,
     })
     .from(l)
     .innerJoin(users, eq(users.id, l.userId))

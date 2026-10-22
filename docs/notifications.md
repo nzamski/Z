@@ -18,7 +18,12 @@ Added 2026-10-19 at the user's request. Code: writes and reads in `lib/services.
 | Follow                                      | the followed user    | `follow`                                                            |
 | `@handle` in a post / comment               | the mentioned user   | `mention_post` / `mention_comment`                                  |
 | A moderator removes / restores your content | its author           | `removed_*` / `restored_*` (with the reason; the admin isn't named) |
+| A poll you wrote or voted in ends           | its author, voters   | `poll_ended` (no actor on your own poll)                            |
 
+- `poll_ended` is the exception to "written with its action": nothing happens when a poll ends, so
+  `notifyEndedPolls` writes it on the recipient's next unread check (every page and the bell's
+  poll), once per person and poll (`notifications_poll_ended_uq`), for polls ended in the last 30
+  days.
 - Never for your own actions. A comment that both answers your post and mentions you notifies once.
 - Each notification is written in the same transaction as its action. Undoing the action
   (unlike, unfollow) soft-deletes it; deleting a post or comment hides its notifications, and
