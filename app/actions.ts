@@ -208,7 +208,8 @@ export type MentionSuggestion = { id: string; handle: string; displayName: strin
 /** People to suggest while typing an @mention (the composer's autocomplete). */
 export async function mentionSuggestionsAction(q: string): Promise<MentionSuggestion[]> {
   const viewer = await requireViewer();
-  const query = String(q).slice(0, 15);
+  // A handle or a display name (with a space), so longer than a handle can be.
+  const query = String(q).trim().slice(0, 40);
   if (!query) return [];
   const found = await s.searchUsers(viewer.id, query, 8);
   return found
