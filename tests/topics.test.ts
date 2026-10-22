@@ -101,7 +101,16 @@ describe("topics", () => {
     const plain = await s.createPost(author.id, "פוסט רגיל");
     const tagged = await s.createPost(author.id, `פוסט על #${tag}`);
     await s.followTopic(viewer.id, tag);
-    const ids = (await s.feedPage(viewer.id, { view: "forYou" })).items.map((x) => x.id);
+    // Other test files post at the same time (some with likes), so either post can land past the
+    // first page: page through until both are found.
+    const ids: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const page = await s.feedPage(viewer.id, { view: "forYou", cursor });
+      ids.push(...page.items.map((x) => x.id));
+      cursor = page.next;
+    } while (cursor && !(ids.includes(tagged.id) && ids.includes(plain.id)));
+    expect(ids).toContain(plain.id);
     expect(ids.indexOf(tagged.id)).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf(tagged.id)).toBeLessThan(ids.indexOf(plain.id));
   });

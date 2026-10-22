@@ -4,15 +4,16 @@ import { createCommentAction, deleteCommentAction, removeCommentAction } from "@
 import { DeleteButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { ModerateButton } from "@/components/moderate-button";
-import { MENU_ICON, MenuIcon, menuDanger, MoreMenu } from "@/components/more-menu";
+import { MENU_ICON, MenuIcon, menuDanger, menuItem, MoreMenu } from "@/components/more-menu";
+import { ReportButton } from "@/components/report-button";
 import { useMenu } from "@/components/theme-menu";
 import { he } from "@/lib/i18n/he";
 import { COMMENT_MAX } from "@/lib/limits";
 
-/** A comment's "⋯" menu, at the end of its byline: delete (yours) or remove (admins). */
+/** A comment's "⋯" menu, at the end of its byline. Yours: delete. Someone else's: report, and
+ * remove (admins). */
 export function CommentMenu(p: { commentId: string; isOwner: boolean; isAdmin: boolean }) {
   const menu = useMenu();
-  if (!p.isOwner && !p.isAdmin) return null;
   return (
     <MoreMenu menu={menu} className="-my-1.5 -me-2">
       {p.isOwner ? (
@@ -24,6 +25,15 @@ export function CommentMenu(p: { commentId: string; isOwner: boolean; isAdmin: b
           icon={<MenuIcon d={MENU_ICON.delete} />}
         />
       ) : (
+        <ReportButton
+          kind="comment"
+          id={p.commentId}
+          triggerClass={menuItem}
+          icon={<MenuIcon d={MENU_ICON.report} />}
+          onDone={() => menu.setOpen(false)}
+        />
+      )}
+      {!p.isOwner && p.isAdmin && (
         <ModerateButton
           label={he.moderation.remove}
           danger

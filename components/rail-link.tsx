@@ -9,6 +9,7 @@ export function RailLink(p: {
   label: string;
   icon: React.ReactNode;
   exact?: boolean; // only this path (home), not everything under it
+  badge?: { count: number; label: string }; // e.g. open reports on the admin link
 }) {
   const pathname = usePathname();
   const current = p.exact ? pathname === p.href : pathname.startsWith(p.href);
@@ -16,10 +17,20 @@ export function RailLink(p: {
     <Link
       href={p.href}
       aria-current={current ? "page" : undefined}
-      aria-label={p.label}
+      aria-label={p.badge?.count ? `${p.label}: ${p.badge.label}` : p.label}
       className={railItem}
     >
-      {p.icon}
+      <span className="relative">
+        {p.icon}
+        {!!p.badge?.count && (
+          <span
+            aria-hidden
+            className="absolute -top-2 -end-2 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white tabular-nums"
+          >
+            {p.badge.count > 99 ? "99+" : p.badge.count}
+          </span>
+        )}
+      </span>
       <span className="hidden xl:inline">{p.label}</span>
     </Link>
   );

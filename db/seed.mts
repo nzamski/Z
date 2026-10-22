@@ -463,8 +463,9 @@ async function insert(table: string, rows: Row[]) {
 }
 
 const started = Date.now();
-await sql`truncate users, posts, comments, likes, comment_likes, follows, admins, moderation_actions,
-  notifications`;
+// Every table (a new one needs no change here): the seed replaces the whole dev database.
+const tables = await sql`select tablename from pg_tables where schemaname = 'public'`;
+await sql`truncate ${sql(tables.map((t) => t.tablename as string))}`;
 await insert("users", users);
 await insert("posts", posts);
 // Parents must exist before replies: comments were generated parent-first, insert in that order.
@@ -507,6 +508,14 @@ await sql`
   from follows f`;
 await sql`update notifications set read_at = created_at + interval '1 hour'
   where created_at < now() - interval '1 day'`;
+// Visits for the usage dashboard: each person on some of the last 30 days, the busier ones on more
+// (deterministic: a hash of who and when).
+await sql`
+  insert into daily_visits (user_id, day)
+  select u.id, d::date
+  from (select id, row_number() over (order by created_at) as rank from users) u
+    cross join generate_series(current_date - 29, current_date, interval '1 day') d
+  where abs(hashtext(u.id::text || d::text)) % 100 < 85 - u.rank % 60`;
 await sql`analyze`; // fresh planner stats, so EXPLAIN on seed data reflects real plans
 await sql.end();
 

@@ -40,6 +40,8 @@ export function notificationText(n: NotificationItem): string {
       return T.restoredPost;
     case "restored_comment":
       return T.restoredComment;
+    case "report":
+      return n.commentId ? T.reportComment(who(n)) : T.reportPost(who(n));
     case "poll_ended":
       return n.actors.length ? T.pollEnded(who(n)) : T.yourPollEnded; // no actor: your own
   }
@@ -53,6 +55,7 @@ export function notificationSnippet(n: NotificationItem) {
 
 export function notificationHref(n: NotificationItem) {
   if (n.type === "follow") return n.actors[0] ? `/u/${n.actors[0].handle}` : "/";
+  if (n.type === "report") return "/admin#reports";
   if (n.commentId && n.postId) return `/p/${n.postId}#c-${n.commentId}`;
   return n.postId ? `/p/${n.postId}` : "/notifications";
 }

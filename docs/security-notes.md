@@ -48,8 +48,11 @@ integrity of posts and identities, the availability of the service, and the sess
   Z until their session ends (4 h by default, `SESSION_MAX_AGE_HOURS`). To cut someone off at
   once, suspend them (`docs/moderation.md`): that locks them out of Z on their next request. Rotating
   `SESSION_SECRET` logs everyone out.
-- **Moderation is reactive**: no user reports (`docs/moderation.md`). Affected users are
-  notified of removals and restores, with the reason but not the admin's name.
+- **Moderation**: users can report posts and comments (`docs/reports.md`); admins see who
+  reported. Affected users are notified of removals and restores, with the reason but not the
+  admin's name.
+- **Usage tracking**: Z records one row per user per day they open it (`daily_visits`), and
+  admins see a top-contributors list by name (`docs/stats.md`). Tell pilot users.
 - **Notifications reveal activity to the recipient** (who liked, followed, mentioned): all of it is
   already visible on the site. Desktop notifications show a snippet of the text on the user's
   screen while Z is open; they are opt-in per browser.

@@ -6,7 +6,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-menu";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
-import { getUser, isAdmin, unreadNotifications } from "@/lib/services";
+import { getUser, isAdmin, unreadNotifications, openReportCount } from "@/lib/services";
 
 async function AuthStatus() {
   const session = await getSession();
@@ -18,6 +18,7 @@ async function AuthStatus() {
   if (!user?.handle || !user.onboardedAt || user.suspendedAt) return <ThemeToggle />;
   // No logout button by request; POST /auth/logout still ends the app and Keycloak sessions.
   const [admin, unread] = await Promise.all([isAdmin(user.id), unreadNotifications(user.id)]);
+  const reports = admin ? await openReportCount() : 0;
   // DOM order runs right to left (RTL): search nearest the logo, the account menu at the edge.
   // From lg up the navigation rail has these (components/nav-rail.tsx).
   return (
@@ -42,7 +43,12 @@ async function AuthStatus() {
         </svg>
       </Link>
       <NotificationBell initial={unread} />
-      <AccountMenu handle={user.handle} displayName={user.displayName} admin={admin} />
+      <AccountMenu
+        handle={user.handle}
+        displayName={user.displayName}
+        admin={admin}
+        reports={reports}
+      />
     </div>
   );
 }

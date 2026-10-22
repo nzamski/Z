@@ -21,6 +21,7 @@ import {
   bookmarks,
   commentLikes,
   comments,
+  dailyVisits,
   follows,
   likes,
   moderationActions,
@@ -28,6 +29,8 @@ import {
   pollVotes,
   posts,
   postTags,
+  REPORT_REASONS,
+  reports,
   topicFollows,
   users,
   type ModerationAction,
@@ -53,6 +56,8 @@ import {
   POST_MAX,
   RATE,
   REASON_MAX,
+  REPORT_NOTE_MAX,
+  STATS_TIMEZONE,
 } from "@/lib/limits";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
@@ -133,13 +138,14 @@ async function ownActive<T extends typeof posts | typeof comments>(
   if (row.authorId !== actorId) throw new ServiceError("forbidden");
 }
 
-type WriteKind = "posts" | "comments" | "likes" | "commentLikes" | "follows";
+type WriteKind = "posts" | "comments" | "likes" | "commentLikes" | "follows" | "reports";
 const RATE_ROWS = {
   posts: [posts, posts.authorId],
   comments: [comments, comments.authorId],
   likes: [likes, likes.userId],
   commentLikes: [commentLikes, commentLikes.userId],
   follows: [follows, follows.followerId],
+  reports: [reports, reports.reporterId],
 } as const;
 
 /**
@@ -1493,6 +1499,7 @@ export async function removePost(actorId: string, postId: string, reason: string
       .returning({ authorId: posts.authorId });
     if (!rows.length) throw await missing(tx, posts, postId);
     const moderationActionId = await log({ action: "remove_post", postId });
+    await resolveReports(tx, { postId }, actorId, "removed", moderationActionId);
     await notify(tx, {
       recipientId: rows[0].authorId,
       actorId,
@@ -1537,6 +1544,7 @@ export async function removeComment(actorId: string, commentId: string, reason: 
       .set({ commentCount: sql`${posts.commentCount} - 1`, updatedAt: now })
       .where(eq(posts.id, row.postId));
     const moderationActionId = await log({ action: "remove_comment", commentId });
+    await resolveReports(tx, { commentId }, actorId, "removed", moderationActionId);
     await notify(tx, {
       recipientId: row.authorId,
       actorId,
@@ -1985,4 +1993,195 @@ export async function whoToFollow(viewerId: string, limit = 3) {
       users.id,
     )
     .limit(limit);
+}
+
+// ---- reports (docs/reports.md) ----
+
+type ReportTarget =
+  { postId: string; commentId?: undefined } | { commentId: string; postId?: undefined };
+const reportOn = (t: ReportTarget) =>
+  t.postId ? eq(reports.postId, t.postId) : eq(reports.commentId, t.commentId!);
+const openReport = and(isNull(reports.resolvedAt), active(reports));
+const ReportInput = z.object({
+  reason: z.enum(REPORT_REASONS),
+  note: z.string().trim().max(REPORT_NOTE_MAX),
+});
+
+/**
+ * Report a live post or comment that isn't yours. Reporting it again while your report is open
+ * does nothing. The item's first open report notifies every admin (they see who reported).
+ */
+export async function reportContent(
+  actorId: string,
+  target: ReportTarget,
+  input: { reason: string; note?: string },
+) {
+  const { reason, note } = parse(ReportInput, { note: "", ...input });
+  await assertCanWrite(actorId, "reports");
+  await db.transaction(async (tx) => {
+    const [item] = target.postId
+      ? await tx
+          .select({ authorId: posts.authorId, deletedAt: posts.deletedAt, postId: posts.id })
+          .from(posts)
+          .where(eq(posts.id, target.postId))
+      : await tx
+          .select({
+            authorId: comments.authorId,
+            deletedAt: comments.deletedAt,
+            postId: comments.postId,
+          })
+          .from(comments)
+          .where(eq(comments.id, target.commentId!));
+    if (!item) throw new ServiceError("not_found");
+    if (item.deletedAt) throw new ServiceError("gone");
+    if (item.authorId === actorId) throw new ServiceError("invalid"); // not your own
+    const inserted = await tx
+      .insert(reports)
+      .values({ reporterId: actorId, ...target, reason, note })
+      .onConflictDoNothing() // already reported by you, still open (reports_open_*_uq)
+      .returning({ id: reports.id });
+    if (!inserted.length) return;
+    const [{ n }] = await tx
+      .select({ n: count() })
+      .from(reports)
+      .where(and(reportOn(target), openReport));
+    if (n !== 1) return; // admins were told when the first report came in
+    const admin = await tx
+      .select({ id: admins.userId })
+      .from(admins)
+      .innerJoin(users, eq(users.id, admins.userId))
+      .where(and(active(admins), active(users)));
+    for (const a of admin)
+      await notify(tx, {
+        recipientId: a.id,
+        actorId,
+        type: "report",
+        postId: item.postId,
+        commentId: target.commentId,
+      });
+  });
+}
+
+async function resolveReports(
+  tx: Tx,
+  target: ReportTarget,
+  actorId: string,
+  resolution: "removed" | "dismissed",
+  moderationActionId: string,
+) {
+  return tx
+    .update(reports)
+    .set({ resolvedAt: now, resolvedBy: actorId, resolution, moderationActionId, updatedAt: now })
+    .where(and(reportOn(target), openReport))
+    .returning({ id: reports.id });
+}
+
+/** Close an item's open reports without removing it (an admin, with a reason, in the log). */
+export async function dismissReports(actorId: string, target: ReportTarget, reason: string) {
+  await moderate(actorId, reason, async (tx, log) => {
+    const [open] = await tx
+      .select({ n: count() })
+      .from(reports)
+      .where(and(reportOn(target), openReport));
+    if (!open.n) throw new ServiceError("not_found");
+    const moderationActionId = await log({ action: "dismiss_reports", ...target });
+    await resolveReports(tx, target, actorId, "dismissed", moderationActionId);
+  });
+}
+
+// Open reports on items that are still live (a deleted or removed item's reports aren't waiting
+// for anyone). A comment also counts as gone when its post is.
+const LIVE_REPORT_TARGET = sql`r.resolved_at is null and r.deleted_at is null
+  and (r.post_id is null or p.deleted_at is null)
+  and (r.comment_id is null or (c.deleted_at is null and cp.deleted_at is null))`;
+
+export async function openReportCount() {
+  const [r] = await db.execute<{ n: number }>(sql`
+    select count(distinct coalesce(r.post_id, r.comment_id))::int as n
+    from reports r
+      left join posts p on p.id = r.post_id
+      left join comments c on c.id = r.comment_id
+      left join posts cp on cp.id = c.post_id
+    where ${LIVE_REPORT_TARGET}`);
+  return r.n;
+}
+
+export type ReportedItem = {
+  postId: string; // the post, or the comment's post (for the link)
+  commentId: string | null;
+  text: string; // the post's preview or the comment's body
+  author: { handle: string; displayName: string };
+  count: number;
+  lastAt: Date;
+  reports: {
+    reason: (typeof REPORT_REASONS)[number];
+    note: string;
+    at: Date;
+    by: { handle: string; displayName: string };
+  }[];
+};
+
+/** The admin queue: reported live items, most recently reported first (at most 100). */
+export async function openReports(): Promise<ReportedItem[]> {
+  const rows = await db.execute<{
+    post_id: string;
+    comment_id: string | null;
+    text: string;
+    author_handle: string;
+    author_name: string;
+    n: number;
+    last_at: string;
+    items: {
+      reason: ReportedItem["reports"][number]["reason"];
+      note: string;
+      at: string;
+      handle: string;
+      name: string;
+    }[];
+  }>(sql`
+    select coalesce(r.post_id, c.post_id) as post_id, r.comment_id,
+      coalesce(p.preview, c.body) as text, a.handle as author_handle, a.display_name as author_name,
+      count(*)::int as n, max(r.created_at) as last_at,
+      json_agg(json_build_object('reason', r.reason, 'note', r.note, 'at', r.created_at,
+        'handle', u.handle, 'name', u.display_name) order by r.created_at desc) as items
+    from reports r
+      join users u on u.id = r.reporter_id
+      left join posts p on p.id = r.post_id
+      left join comments c on c.id = r.comment_id
+      left join posts cp on cp.id = c.post_id
+      join users a on a.id = coalesce(p.author_id, c.author_id)
+    where ${LIVE_REPORT_TARGET}
+    group by r.post_id, r.comment_id, c.post_id, p.preview, c.body, a.handle, a.display_name
+    order by max(r.created_at) desc
+    limit 100`);
+  return rows.map((r) => ({
+    postId: r.post_id,
+    commentId: r.comment_id,
+    text: r.text,
+    author: { handle: r.author_handle, displayName: r.author_name },
+    count: r.n,
+    lastAt: new Date(r.last_at),
+    reports: r.items.map((i) => ({
+      reason: i.reason,
+      note: i.note,
+      at: new Date(i.at),
+      by: { handle: i.handle, displayName: i.name },
+    })),
+  }));
+}
+
+// ---- visits (docs/stats.md) ----
+
+// The day in STATS_TIMEZONE, e.g. "2026-10-22".
+const dayIn = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: STATS_TIMEZONE });
+// Per server process: who was already recorded today, so a visit costs one insert a day.
+const recorded = new Map<string, string>();
+
+/** Records that the user opened Z today (one row per user per day; nothing else is stored). */
+export async function recordVisit(userId: string, at = new Date()) {
+  const day = dayIn(at);
+  if (recorded.get(userId) === day) return;
+  await db.insert(dailyVisits).values({ userId, day }).onConflictDoNothing();
+  recorded.set(userId, day);
+  if (recorded.size > 50_000) recorded.clear(); // a new day makes old entries useless anyway
 }

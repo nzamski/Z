@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { getUser, isAdmin } from "@/lib/services";
+import { getUser, isAdmin, recordVisit } from "@/lib/services";
 
 /**
  * Logged in, setup possibly unfinished: only the welcome screen and its actions use this.
@@ -16,10 +16,13 @@ export async function requireLogin() {
   return user;
 }
 
-/** Logged in AND through the welcome (so they have a handle). Everything else uses this. */
+/** Logged in AND through the welcome (so they have a handle). Everything else uses this.
+ * Also records today's visit for the usage dashboard (once a day per user and server process). */
 export async function requireViewer() {
   const user = await requireLogin();
   if (!user.onboardedAt || !user.handle) redirect("/welcome");
+  // Counting is never worth failing a page over.
+  await recordVisit(user.id).catch((e) => console.warn("recordVisit failed:", e));
   return { ...user, handle: user.handle };
 }
 

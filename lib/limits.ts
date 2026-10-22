@@ -3,6 +3,9 @@ export const POST_MAX = 20_000; // PLAN.md §7 (was 500 from 2026-10-17 to 2026-
 export const COMMENT_MAX = 10_000;
 // Posts can be edited this long after they're published; comments can't be edited at all.
 export const EDIT_WINDOW_MINUTES = 60;
+export const REPORT_NOTE_MAX = 300; // the optional note on a report (docs/reports.md)
+// The usage dashboard counts days in this time zone (docs/stats.md).
+export const STATS_TIMEZONE = "Asia/Jerusalem";
 export const BIO_MAX = 70;
 // Handles: 3-15 chars, starting with a letter; then lowercase latin letters, digits and _.
 // (Minimum 3 since 2026-10-20 at the user's request; it was 4.)
@@ -24,5 +27,6 @@ export const RATE = {
   likes: { max: 120, minutes: 10 }, // likes rows: each re-like after an unlike counts
   commentLikes: { max: 120, minutes: 10 },
   follows: { max: 50, minutes: 10 },
+  reports: { max: 10, minutes: 60 },
   search: { max: 30, minutes: 1 },
 };
