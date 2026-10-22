@@ -5,7 +5,6 @@
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { computePreview } from "../lib/preview";
-import { RANKS, SERVICE_TYPES } from "../lib/service-info";
 
 if (process.env.NODE_ENV === "production") throw new Error("seed is dev-only");
 const large = process.argv.includes("--large");
@@ -299,28 +298,6 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
     display_name: `${first} ${last}`,
     bio: pick(BIOS),
     avatar_seed: String(i),
-    // Service details (lib/service-info.ts) for about two thirds.
-    ...(i % 3 !== 2
-      ? {
-          rank: RANKS[(i * 5) % RANKS.length],
-          service_type: SERVICE_TYPES[i % SERVICE_TYPES.length],
-          service_arm: ["ground", "ground", "air", "navy"][i % 4],
-          service_start: new Date(NOW - (200 + ((i * 97) % 5000)) * 24 * HOUR)
-            .toISOString()
-            .slice(0, 10),
-          // Regular service ends: some still ahead (days left), some past.
-          service_end:
-            SERVICE_TYPES[i % SERVICE_TYPES.length] === "regular"
-              ? new Date(NOW + (((i * 131) % 900) - 150) * 24 * HOUR).toISOString().slice(0, 10)
-              : null,
-        }
-      : {
-          rank: null,
-          service_type: null,
-          service_arm: null,
-          service_start: null,
-          service_end: null,
-        }),
   };
 });
 const uid = (i: number) => users[i].id as string;

@@ -51,10 +51,10 @@ integrity of posts and identities, the availability of the service, and the sess
 - **Moderation**: users can report posts and comments (`docs/reports.md`); admins see who
   reported. Affected users are notified of removals and restores, with the reason but not the
   admin's name.
-- **Service details** (`docs/service-info.md`): arm, rank, service type, service start and end are
-  optional, self-reported and visible to every logged-in user. Nothing is verified (anyone can
-  claim any rank). No contact details are kept (the dropped phone and email columns are empty
-  for new data, but may still hold values saved before 2026-10-23).
+- **Dropped profile fields**: rank and arm were removed (columns dropped). Phone, email, birth
+  date, a profile location and the service type and dates are no longer collected or shown, but
+  their columns stay (for rollback) and may still hold values saved before 2026-10-23: clear or
+  drop them before a real deployment.
 - **Usage tracking**: Z records one row per user per day they open it (`daily_visits`), and
   admins see a top-contributors list by name (`docs/stats.md`). Tell pilot users.
 - **Notifications reveal activity to the recipient** (who liked, followed, mentioned): all of it is

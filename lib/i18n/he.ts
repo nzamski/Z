@@ -117,19 +117,6 @@ export const he = {
     empty: "עוד לא הוספת ניסיון.",
   },
   profile: {
-    service: "פרטי שירות",
-    serviceEdit: "עריכת פרטי שירות",
-    serviceEmpty: "עוד לא הוספת פרטי שירות.",
-    rank: "דרגה",
-    serviceType: "סוג שירות",
-    serviceArm: "זרוע",
-    serviceStart: "תחילת שירות",
-    serviceStartHint: "לחישוב הפז״ם (ימים בשירות).",
-    serviceDays: (n: number) => `פז״ם: ${n.toLocaleString("he-IL")} ימים`,
-    serviceEnd: "סיום שירות",
-    serviceEndHint: "לחישוב הימים שנותרו לשחרור.",
-    daysLeft: (n: number) => `נותרו ${n.toLocaleString("he-IL")} ימים לשחרור`,
-    serviceVisible: "גלוי לכל המשתמשים ב-Z.",
     none: "—",
     avatar: "אווטאר",
     shuffle: "ערבוב",
@@ -155,7 +142,7 @@ export const he = {
     handleChecking: "בודק…",
     noFollowers: "עדיין אין עוקבים.",
     noFollowing: "עדיין לא עוקבים אחרי אף אחד.",
-    joined: (monthYear: string) => `ב-Z מאז ${monthYear}`, // joined Z, not the service start
+    joined: (monthYear: string) => `ב-Z מאז ${monthYear}`, // when they joined Z
   },
   moderation: {
     title: "ניהול",

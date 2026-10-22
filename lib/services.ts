@@ -73,13 +73,6 @@ import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
 import { isProfession, type Profession } from "@/lib/professions";
-import {
-  isRank,
-  isServiceStart,
-  isServiceEnd,
-  isServiceArm,
-  isServiceType,
-} from "@/lib/service-info";
 import { FUZZY, fuzzyText, toTsQuery } from "@/lib/search";
 
 export class ServiceError extends Error {
@@ -1235,55 +1228,6 @@ export async function handleStatus(actorId: string, handle: string) {
     .from(users)
     .where(and(eq(users.handle, h.data), active(users)));
   return !other || other.id === actorId ? ("ok" as const) : ("taken" as const);
-}
-
-/** The service details a save sets: only the fields sent, each checked; "" or null clears. */
-function serviceInfo(i: {
-  rank?: string | null;
-  serviceType?: string | null;
-  serviceArm?: string | null;
-  serviceStart?: string | null;
-  serviceEnd?: string | null;
-}) {
-  const check = <T>(v: T, ok: boolean) => {
-    if (!ok) throw new ServiceError("invalid");
-    return v;
-  };
-  const opt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
-  const [rank, serviceType, serviceStart] = [opt(i.rank), opt(i.serviceType), opt(i.serviceStart)];
-  const serviceEnd = opt(i.serviceEnd);
-  const serviceArm = opt(i.serviceArm);
-  // Both sent (the form sends both): the release comes after the start.
-  if (serviceStart && serviceEnd && serviceEnd <= serviceStart) throw new ServiceError("invalid");
-  return {
-    ...(rank !== undefined && { rank: check(rank, rank === null || isRank(rank)) }),
-    ...(serviceType !== undefined && {
-      serviceType: check(serviceType, serviceType === null || isServiceType(serviceType)),
-    }),
-    ...(serviceArm !== undefined && {
-      serviceArm: check(serviceArm, serviceArm === null || isServiceArm(serviceArm)),
-    }),
-    ...(serviceStart !== undefined && {
-      serviceStart: check(serviceStart, serviceStart === null || isServiceStart(serviceStart)),
-    }),
-    ...(serviceEnd !== undefined && {
-      serviceEnd: check(serviceEnd, serviceEnd === null || isServiceEnd(serviceEnd)),
-    }),
-  };
-}
-
-/** Service details (lib/service-info.ts), from their own edit popup on the profile: each field
- * left alone when undefined; null or "" clears it. */
-export async function updateServiceInfo(actorId: string, input: Parameters<typeof serviceInfo>[0]) {
-  const data = serviceInfo(input);
-  await assertCanWrite(actorId);
-  const [row] = await db
-    .update(users)
-    .set({ ...data, updatedAt: now })
-    .where(and(eq(users.id, actorId), active(users)))
-    .returning();
-  if (!row) throw new ServiceError("not_found");
-  return row;
 }
 
 /** Handle (unique among active users) and bio, from the welcome screen or the profile.

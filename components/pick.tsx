@@ -1,6 +1,6 @@
 "use client";
-// Z's own dropdown (not the browser's <select>): the poll's duration parts and the profile's rank
-// and service type use it, so they look alike.
+// Z's own dropdown (not the browser's <select>): the poll's duration parts and the date picker's
+// day, month and year (DatePick) use it, so they look alike.
 import { useEffect, useState } from "react";
 import { useMenu } from "@/components/theme-menu";
 
