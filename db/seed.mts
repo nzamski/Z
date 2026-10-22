@@ -509,7 +509,6 @@ const experiences: Row[] = users.flatMap((u, i) => {
       organization: ORGS[(i * 3 + k) % ORGS.length],
       start_month: ym(start),
       end_month: end === null ? null : ym(end),
-      description: k === 0 ? pick(BIOS) : "",
     };
     end = start + 1;
     start = end + 6 + ((i + k) % 18);

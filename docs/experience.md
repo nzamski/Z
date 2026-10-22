@@ -12,7 +12,9 @@ math, Hebrew durations), `experienceOf` / `saveExperience` / `deleteExperience` 
 | Organization | `organization` | optional (unit, team, company), up to 60               |
 | Start        | `start_month`  | a month, not in the future (stored as its first day)   |
 | End          | `end_month`    | a month from the start up to this month; none: current |
-| Description  | `description`  | plain text, up to 500                                  |
+
+`description` is no longer used (dropped from the form 2026-10-22); the column stays until a later
+migration, so a rollback to the previous version still works.
 
 Order: current roles first, then by end and start, newest first. Length counts both months
 (January to March is 3 months) and runs to this month for a current role. At most 30 roles a

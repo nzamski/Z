@@ -25,7 +25,6 @@ const role = (o: Partial<Parameters<typeof s.saveExperience>[1]> = {}) => ({
   organization: "צוות הדמיה",
   start: "2022-01",
   end: "2023-06" as string | null,
-  description: "",
   ...o,
 });
 
@@ -57,7 +56,6 @@ test("roles need a title and a sane range; at most EXPERIENCE_MAX each", async (
     role({ start: "2999-01", end: null }), // starts in the future
     role({ start: "2023-05", end: "2023-04" }), // ends before it starts
     role({ start: "2023-13" }),
-    role({ description: "x".repeat(501) }),
   ])
     await expect(s.saveExperience(u.id, bad), JSON.stringify(bad)).rejects.toThrow("invalid");
 

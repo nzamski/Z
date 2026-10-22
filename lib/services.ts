@@ -61,14 +61,7 @@ import {
   STATS_TIMEZONE,
 } from "@/lib/limits";
 import { AVATAR_SEED_RE } from "@/lib/avatar";
-import {
-  DESCRIPTION_MAX,
-  EXPERIENCE_MAX,
-  isMonth,
-  monthToDay,
-  ORGANIZATION_MAX,
-  TITLE_MAX,
-} from "@/lib/experience";
+import { EXPERIENCE_MAX, isMonth, monthToDay, ORGANIZATION_MAX, TITLE_MAX } from "@/lib/experience";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
@@ -2292,7 +2285,6 @@ export async function experienceOf(userId: string) {
       organization: experiences.organization,
       startMonth: experiences.startMonth,
       endMonth: experiences.endMonth,
-      description: experiences.description,
     })
     .from(experiences)
     .where(and(eq(experiences.userId, userId), active(experiences)))
@@ -2311,7 +2303,6 @@ const ExperienceInput = (thisMonth: string) =>
       organization: z.string().trim().max(ORGANIZATION_MAX),
       start: z.string().refine(isMonth),
       end: z.string().refine(isMonth).nullable(), // null: the current role
-      description: z.string().trim().max(DESCRIPTION_MAX),
     })
     // No future roles; an end no earlier than the start (YYYY-MM compares as text).
     .refine((e) => e.start <= thisMonth && (!e.end || (e.end >= e.start && e.end <= thisMonth)));
@@ -2325,7 +2316,6 @@ export async function saveExperience(
     organization: string;
     start: string;
     end: string | null;
-    description: string;
   },
 ) {
   const e = parse(ExperienceInput(new Date().toISOString().slice(0, 7)), input);
@@ -2335,7 +2325,6 @@ export async function saveExperience(
     organization: e.organization,
     startMonth: monthToDay(e.start),
     endMonth: e.end && monthToDay(e.end),
-    description: e.description,
   };
   if (input.id) {
     const [row] = await db

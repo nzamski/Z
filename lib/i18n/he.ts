@@ -110,7 +110,6 @@ export const he = {
     start: "התחלה",
     end: "סיום",
     current: "אני בתפקיד הזה עכשיו",
-    description: "תיאור",
     present: "היום",
     delete: "מחיקה",
     empty: "עוד לא הוספת ניסיון.",

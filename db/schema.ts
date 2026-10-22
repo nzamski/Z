@@ -534,6 +534,8 @@ export const experiences = pgTable(
     // First day of the month (lib/experience.ts); no end: the current role.
     startMonth: date("start_month", { mode: "string" }).notNull(),
     endMonth: date("end_month", { mode: "string" }),
+    // Unused since 2026-10-22 (descriptions were dropped from the form); kept so the previous
+    // version still works during a rollback. Drop in a later migration.
     description: text("description").notNull().default(""),
   },
   (t) => [

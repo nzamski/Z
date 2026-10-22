@@ -1,8 +1,7 @@
 // "ניסיון" on a profile (docs/experience.md), LinkedIn-style: each role with its organization,
-// month range and length, and description. The owner adds and edits here; others only read, and
-// see nothing when there is nothing.
+// month range and length. The owner adds and edits here; others only read, and see nothing
+// when there is nothing.
 import { ExperienceEditor } from "@/components/experience-editor";
-import { PlainText } from "@/components/post-card";
 import { duration, months } from "@/lib/experience";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
@@ -36,7 +35,6 @@ export async function ExperienceSection(p: { userId: string; isOwner: boolean })
                   {" · "}
                   {duration(months(r.startMonth.slice(0, 7), r.endMonth?.slice(0, 7) ?? null))}
                 </p>
-                {r.description && <PlainText text={r.description} className="mt-1 text-sm" />}
               </div>
               {p.isOwner && <ExperienceEditor entry={r} />}
             </li>

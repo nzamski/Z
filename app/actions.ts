@@ -338,7 +338,6 @@ export async function saveExperienceAction(_: ActionResult, f: FormData): Promis
       organization: String(f.get("organization") ?? ""),
       start: String(f.get("start") ?? ""),
       end: f.get("current") ? null : String(f.get("end") ?? ""),
-      description: String(f.get("description") ?? ""),
     }),
   );
 }
