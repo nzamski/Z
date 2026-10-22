@@ -1,5 +1,5 @@
 "use client";
-// Feed preview with inline "show more" (PLAN.md §6.3): the full body is fetched only on demand.
+// Feed preview with inline "show more": the full body is fetched only on demand.
 // Without JS (or with ctrl/cmd-click) the link opens the post page instead.
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";

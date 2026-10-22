@@ -1,6 +1,6 @@
 # Z
 
-Internal professional social network for developers, infra, data people, tech leads and commanders. Hebrew, RTL. See `PLAN.md` for the full spec.
+Internal professional social network for developers, infra, data people, tech leads and commanders. Hebrew, RTL.
 
 > Not production-ready. A security review is required before any real deployment.
 
@@ -22,5 +22,5 @@ Dev Keycloak: admin console at http://localhost:8180 (`admin`/`admin`). Realm `z
 
 - No runtime calls to external hosts: no CDN, no Google Fonts, no analytics. The Heebo font (OFL, `app/fonts/`) is committed and served by `next/font/local`.
 - `NEXT_TELEMETRY_DISABLED=1` must be set in every environment (see `.env.example`).
-- The app ships as OCI images built on a connected machine and transferred in. The target network never runs `npm install` (M5, PLAN.md §9).
+- The app ships as OCI images built on a connected machine and transferred in. The target network never runs `npm install`.
 - `output: "standalone"` keeps the runtime image free of dev dependencies.

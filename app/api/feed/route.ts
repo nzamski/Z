@@ -1,4 +1,4 @@
-// Next page of a feed for infinite scroll (PLAN.md §6.1). Previews only, never full bodies.
+// Next page of a feed for infinite scroll. Previews only, never full bodies.
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireViewer } from "@/lib/auth/viewer";

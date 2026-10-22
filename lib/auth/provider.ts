@@ -1,4 +1,4 @@
-// PLAN.md §3: Keycloak in every real environment; the dev switcher only outside production.
+// Keycloak in every real environment; the dev switcher only outside production.
 import { devProvider } from "./dev";
 import { keycloakProvider } from "./keycloak";
 

@@ -1,4 +1,4 @@
-// Dev seed (PLAN.md §7.9). All people and content are fictional.
+// Dev seed. All people and content are fictional.
 //   npm run seed        ~12 users, ~60 posts
 //   npm run seed:large  ~200 users, ~10k posts, deep and huge threads (perf checks only)
 // Wipes the dev database first; refuses to run in production.

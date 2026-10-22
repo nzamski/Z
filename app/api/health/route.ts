@@ -1,4 +1,4 @@
-// Probes (PLAN.md §9). `/api/health?live`: the process answers (liveness).
+// Probes. `/api/health?live`: the process answers (liveness).
 // `/api/health`: and the database answers within 2 s (readiness). No auth, no data in the body.
 import { NextResponse, type NextRequest } from "next/server";
 import { sql } from "@/db/client";

@@ -1,5 +1,5 @@
 // Apply pending migrations (drizzle/), then exit. Shipped in the image as `node migrate.mjs`
-// (PLAN.md §9): run it from a Helm pre-install/pre-upgrade hook Job, or from an init container.
+// Run it from a Helm pre-install/pre-upgrade hook Job, or from an init container.
 //
 // A Postgres advisory lock serializes concurrent runs (several replicas' init containers): the
 // first applies, the rest wait and then find nothing to do. Same bookkeeping table as

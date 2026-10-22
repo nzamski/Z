@@ -1,4 +1,4 @@
-// Service layer: every write goes through here (PLAN.md §3, §5). All deletes are soft.
+// Service layer: every write goes through here. All deletes are soft.
 import { randomBytes } from "node:crypto";
 import {
   and,
@@ -791,7 +791,7 @@ export async function postSummaries(viewerId: string, ids: string[]): Promise<Po
 }
 
 const PAGE = RANKING.pageSize;
-// Ops can widen/narrow the For You window without a rebuild (PLAN.md §9).
+// Ops can widen/narrow the For You window without a rebuild.
 const WINDOW_DAYS = Number(process.env.FEED_WINDOW_DAYS) || RANKING.windowDays;
 
 // The post is filed under a topic the viewer follows (the For You topic boost).

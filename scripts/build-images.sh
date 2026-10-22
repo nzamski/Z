@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build the z-app image for OpenShift (linux/amd64) and package it for offline transfer
-# (PLAN.md §9, docs/deploy.md). Run on a connected machine with docker (or podman) and skopeo.
+# (docs/deploy.md). Run on a connected machine with docker (or podman) and skopeo.
 #
 # Output in dist/:
 #   z-app-<tag>.oci.tar          OCI archive (skopeo copy oci-archive:... to the internal registry)

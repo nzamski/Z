@@ -1,4 +1,4 @@
-// Search query builder (PLAN.md §7.7, docs/search.md). Pure: turns user input into a
+// Search query builder (docs/search.md). Pure: turns user input into a
 // `to_tsquery('simple', ...)` string. The index side is `z_search_vector()` (migration 0005).
 //
 // Hebrew glues one-letter prefixes (ו ה ב ל מ ש כ) onto words. Both sides strip a single prefix

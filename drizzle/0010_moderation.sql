@@ -1,4 +1,4 @@
--- Moderation (PLAN.md §12): admins, an append-only audit log, moderator removals (removed_at, set
+-- Moderation: admins, an append-only audit log, moderator removals (removed_at, set
 -- with deleted_at) and user suspension. docs/moderation.md.
 CREATE TABLE "admins" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v7() NOT NULL,

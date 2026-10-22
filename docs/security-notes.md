@@ -1,7 +1,7 @@
 # Security notes
 
 **Status: not reviewed. Z is a pilot and is not production-ready.** A security review by the
-responsible team is required before any real deployment (PLAN.md §3). This page lists what
+responsible team is required before any real deployment. This page lists what
 the code does, what it does not do, and where to look, so the review starts from facts.
 
 ## Context
@@ -28,7 +28,7 @@ integrity of posts and identities, the availability of the service, and the sess
 | CSRF           | SameSite=Lax session cookie; Next.js Server Actions check Origin against Host; logout is POST-only                                                                                |                                              |
 | Open redirect  | `next` after login is accepted only as a same-origin path                                                                                                                         | `safeNext` in `lib/auth/provider.ts`         |
 | Chat deep link | Template from config; `javascript:`/`data:`/`vbscript:` refused; handle URL-encoded                                                                                               | `lib/chat.ts`                                |
-| Data           | Soft delete only; nothing is purged (tombstones for future sync)                                                                                                                  | PLAN.md §3                                   |
+| Data           | Soft delete only; nothing is purged (tombstones for future sync)                                                                                                                  | CLAUDE.md                                    |
 | Container      | No package managers or build tools in the image; non-root, arbitrary UID; read-only root FS supported; base pinned by digest                                                      | `Dockerfile`                                 |
 | Supply chain   | Lockfile committed, `npm ci --ignore-scripts`; `npm audit --omit=dev`: 0 known vulnerabilities (2026-10-19); SBOM via syft                                                        | `scripts/build-images.sh`                    |
 | Egress         | No calls to external hosts at runtime: only Postgres and Keycloak. No CDN, fonts are local, telemetry off                                                                         |                                              |
@@ -63,7 +63,7 @@ integrity of posts and identities, the availability of the service, and the sess
 - **Audit logging**: moderation actions are logged (`moderation_actions`). Logins, posts and
   edits are not, beyond server logs (which include handles in a few warnings).
 - **Image scanning**: the base (`node:22-slim`, Debian) must be scanned by the organization's
-  scanner, or replaced with the approved base (PLAN.md Q3).
+  scanner, or replaced with the approved base.
 - **Backups / DR**: delegated to the platform Postgres.
 - **Load**: For You scans the 30-day window per page (`docs/ranking.md`); fine at pilot scale,
   not load-tested.

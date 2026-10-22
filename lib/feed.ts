@@ -1,4 +1,4 @@
-// Feed ranking config and pure helpers (PLAN.md §6). No DB access: the client imports this too.
+// Feed ranking config and pure helpers. No DB access: the client imports this too.
 // The constants are untested starting guesses; see docs/ranking.md.
 import { z } from "zod";
 

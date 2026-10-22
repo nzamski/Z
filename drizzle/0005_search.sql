@@ -1,4 +1,4 @@
--- Full-text search over posts (PLAN.md §7.7, docs/search.md). Core `simple` config only; no
+-- Full-text search over posts (docs/search.md). Core `simple` config only; no
 -- pg_trgm (open question Q4). Hebrew glues one-letter prefixes (ו ה ב ל מ ש כ) onto words, so the
 -- vector holds every word as written, plus each Hebrew word with one and with two leading prefix
 -- letters stripped (at least 3 letters must remain: "ובמערכת" -> "במערכת", "מערכת").

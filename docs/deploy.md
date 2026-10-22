@@ -1,6 +1,6 @@
 # Deploying Z (air-gapped OpenShift)
 
-Spec: PLAN.md §9. **Security review is required before any real deployment**
+**Security review is required before any real deployment**
 (`docs/security-notes.md`). Nothing here makes Z production-ready on its own.
 
 ## 1. Build and package (connected machine)
@@ -10,7 +10,7 @@ Needs docker (or podman: `ENGINE=podman`) and `skopeo`; `syft` optional (SBOM).
 ```sh
 npm run build:images              # TAG defaults to the git short SHA (+ -dirty)
 TAG=1.0.0 npm run build:images    # explicit tag
-NODE_IMAGE=<approved-base>@sha256:... npm run build:images   # organization base (PLAN Q3)
+NODE_IMAGE=<approved-base>@sha256:... npm run build:images   # organization base
 ```
 
 Output in `dist/`:
@@ -41,7 +41,7 @@ skopeo copy oci-archive:z-app-<tag>.oci.tar docker://<internal-registry>/z/z-app
 **Postgres** (platform-managed, Postgres 16, core features only): ask the DBA for a dedicated
 database and a role that owns its `public` schema (migrations create tables, functions,
 triggers and indexes), or a separate migration role plus a runtime role with DML only.
-One extension: `pg_trgm` (PLAN Q4: available). Migration 0009 runs `CREATE EXTENSION IF NOT
+One extension: `pg_trgm` (available). Migration 0009 runs `CREATE EXTENSION IF NOT
 EXISTS pg_trgm`; it is a trusted extension, so the database owner may create it, or the DBA can
 create it beforehand. Ask the DBA which `LC_CTYPE` the database has: it must be UTF-8 aware
 (`C.UTF-8`, `he_IL.UTF-8`, `en_US.UTF-8`) for fuzzy search to see Hebrew (`docs/search.md`).
@@ -67,7 +67,7 @@ renders as intended before installing:
 helm template z <libchart-or-wrapper> -f deploy/values.yaml -f deploy/values-<env>.yaml | less
 ```
 
-### Migrations (PLAN Q1)
+### Migrations
 
 Same command either way: `node migrate.mjs` with `DATABASE_URL` (and `DATABASE_CA_FILE`).
 

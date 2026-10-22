@@ -1,4 +1,4 @@
-// Encrypted cookie session (PLAN.md §3): holds only the Z user id, expiry, and the ID token for logout.
+// Encrypted cookie session: holds only the Z user id, expiry, and the ID token for logout.
 import { createHash } from "node:crypto";
 import { EncryptJWT, jwtDecrypt, type JWTPayload } from "jose";
 import { cookies } from "next/headers";

@@ -1,4 +1,4 @@
-# Z: EXAMPLE values for the organization's Helm library chart (PLAN.md §9).
+# Z: EXAMPLE values for the organization's Helm library chart.
 #
 # Z ships no templates of its own. This file shows WHAT the deployment needs; the key names are
 # guesses at a typical libchart. Rename them to your libchart's schema inside the network
@@ -90,7 +90,7 @@ secretEnv:
     key: secret
 
 # ---------------------------------------------------------------------------------------------
-# Migrations: pick ONE of the two, depending on what the libchart supports (PLAN.md Q1).
+# Migrations: pick ONE of the two, depending on what the libchart supports.
 # Both run the same command from the same image: `node migrate.mjs` (advisory-locked, so
 # concurrent runs are safe; forward-only; each release stays compatible with the previous one).
 # ---------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 // Text limits shared by the service layer (validation) and the composers (counter). No DB imports.
-export const POST_MAX = 20_000; // PLAN.md §7 (was 500 from 2026-10-17 to 2026-10-19)
+export const POST_MAX = 20_000; // (was 500 from 2026-10-17 to 2026-10-19)
 export const COMMENT_MAX = 10_000;
 // Posts can be edited this long after they're published; comments can't be edited at all.
 export const EDIT_WINDOW_MINUTES = 60;

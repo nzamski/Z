@@ -1,10 +1,10 @@
 # Z
 
-Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
+Internal professional social network (Hebrew, RTL).
 
 @AGENTS.md
 
-## Constraints (PLAN.md §3, non-negotiable)
+## Constraints (non-negotiable)
 
 - **Air-gapped**: no CDN assets, no Google Fonts (fonts are local via `next/font/local`), no analytics, `NEXT_TELEMETRY_DISABLED=1`, no runtime calls to external hosts, nothing Vercel-specific.
 - **Offline delivery**: ships as OCI images; the target network never runs `npm install`.
@@ -24,10 +24,10 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 - Server Actions (`app/actions.ts`) only check the session and input shape, call a service, then `refresh()`. Anything that reads cookies or the DB sits under `<Suspense>` after `await connection()`; route handlers that call out at request time also `await connection()` so `next build` never contacts the DB or Keycloak.
 - Don't run `next build` while `next dev` is running; it overwrites `.next` and dev serves stale CSS. Edits to `app/globals.css` sometimes don't hot-reload either: check the served CSS, and restart `next dev` if the rule is missing. If pages keep reloading themselves in dev (HMR "rebuilding" loop), stop `next dev`, `rm -rf .next`, and start it again.
 - Drizzle's postgres-js driver returns raw-SQL timestamps as strings; compare them in SQL.
-- Deviations from PLAN.md at the user's request (2026-10-17): posts max 500 chars (back to 20,000 on 2026-10-19; comments 10,000; `lib/limits.ts`); users have no `unit`/`role_title` (dropped in migration 0004); bio max 70; Keycloak provides only `sub` and the display name (not editable). Handles are 3-15 characters (`HANDLE_RE`; minimum 3 since 2026-10-20). The handle is chosen by the user in the mandatory first-login welcome (`/welcome`, `users.onboarded_at`); until then `requireViewer` sends them there (`requireLogin` is for the welcome's own page/actions).
+- Changes at the user's request (2026-10-17): posts max 500 chars (back to 20,000 on 2026-10-19; comments 10,000; `lib/limits.ts`); users have no `unit`/`role_title` (dropped in migration 0004); bio max 70; Keycloak provides only `sub` and the display name (not editable). Handles are 3-15 characters (`HANDLE_RE`; minimum 3 since 2026-10-20). The handle is chosen by the user in the mandatory first-login welcome (`/welcome`, `users.onboarded_at`); until then `requireViewer` sends them there (`requireLogin` is for the welcome's own page/actions).
 - Posts and comments are markdown (off 2026-10-17, back 2026-10-19 at the user's request): render them with `Markdown` (`components/markdown.tsx`, renderer `lib/markdown.ts`: html off, images off, `breaks: true`), the only place HTML is injected. Bios stay plain text (`PlainText`). Previews (`lib/preview.ts`) keep whole markdown blocks, 500 chars / 10 lines.
 - Comment likes (`comment_likes`, `comments.like_count`). The post author's like on someone else's comment sets `comments.author_liked_at` (the "liked by the author" mark, the Q&A-style "this answered it"): it sorts first among top-level comments, then likes, then oldest; replies stay chronological. Post cards show `answered`. Like counts link to "Liked by" lists (`/p/[id]/likes`, `/c/[id]/likes`, `likers()`).
-- Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. `pg_trgm` is available (PLAN Q4, 2026-10-19): substring/fuzzy people search and a typo-tolerant post fallback; Hebrew needs a UTF-8 aware `LC_CTYPE`.
+- Search: `posts.search` is a generated tsvector (`z_search_vector`, Hebrew prefix stripping); query builder `lib/search.ts`; see `docs/search.md`. `pg_trgm` is available (2026-10-19): substring/fuzzy people search and a typo-tolerant post fallback; Hebrew needs a UTF-8 aware `LC_CTYPE`.
 - Moderation (`docs/moderation.md`, added 2026-10-19): admins in `admins` (checked in the DB on every action, never from the cookie); moderation services require a reason and write `moderation_actions` in the same transaction. `removed_at` (posts, comments) marks a moderator removal next to `deleted_at`; `users.suspended_at` = locked out (`requireLogin` redirects to `/suspended`; `generateMetadata` uses `canSeeContent()`). First admin: `node admin.mjs grant <handle> "<reason>"` (`scripts/admin.mjs`, raw SQL: keep it in step with `grantAdmin`/`revokeAdmin`). The seed makes `dana` an admin.
 - Reports (`docs/reports.md`): "Report" in others' `⋯` menus (`reportContent`; reasons in `lib/reports.ts`, shared with the schema); the item's first open report notifies every admin; `/admin` starts with the queue (remove closes the reports, or `dismissReports`). Admin links show the open count.
 - Usage dashboard (`docs/stats.md`): `/admin/stats`, read-only queries in `lib/stats.ts`; `daily_visits` (one row per user per day, written by `requireViewer`) is the only data kept for it. Days in `STATS_TIMEZONE`.
@@ -63,7 +63,7 @@ Internal professional social network (Hebrew, RTL). Full spec: `PLAN.md`.
 | `npm run build:images`                                                                   | Build the amd64 image + OCI archive in `dist/` (docs/deploy.md)                           |
 | `node --env-file=.env scripts/admin.mjs list` / `grant <handle> "<reason>"` / `revoke …` | Manage admins (docs/moderation.md)                                                        |
 
-## Working agreements (PLAN.md §11)
+## Working agreements
 
 - Per milestone: post a short plan (files, risks), implement after approval.
 - Small commits per sub-step, no unrelated refactors.

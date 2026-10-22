@@ -1,5 +1,5 @@
 "use client";
-// Infinite scroll (PLAN.md §6.1): an IntersectionObserver on a sentinel fetches /api/feed pages and
+// Infinite scroll: an IntersectionObserver on a sentinel fetches /api/feed pages and
 // dedupes them by id. The "load more" link is a plain server-rendered page when JS is off.
 // List + scroll position are saved per view in sessionStorage and restored on return.
 // For You / Following poll for newer posts by others and offer a "show new posts" pill.
