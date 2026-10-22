@@ -9,6 +9,7 @@ import { ProfessionBadge } from "@/components/profession-badge";
 import { ProfileEditor } from "@/components/profile-editor";
 import { UserAdminMenu } from "@/components/user-admin-menu";
 import { FeedList } from "@/components/feed-list";
+import { ItemList, LinkTabs } from "@/components/item-list";
 import { PostCard } from "@/components/post-card";
 import { canSeeContent, requireViewer, viewerCard } from "@/lib/auth/viewer";
 import { chatLink } from "@/lib/chat";
@@ -20,6 +21,7 @@ import {
   getUserByHandle,
   isAdmin,
   pinnedPosts,
+  repliesPage,
   ServiceError,
 } from "@/lib/services";
 import type { Metadata } from "next";
@@ -31,18 +33,21 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
   if (!user) return <p className="p-8 text-center text-muted">{he.profile.notFound}</p>;
   const viewer = await viewerCard(await requireViewer());
   const viewerId = viewer.id;
-  const { cursor } = await searchParams;
+  const { cursor, tab } = await searchParams;
+  const replies = tab === "replies"; // the replies tab, else posts
+  const at = typeof cursor === "string" ? cursor : null;
   const byAuthor = { view: "latest" as const, authorId: user.id };
-  const [info, page, admin, pins] = await Promise.all([
+  const [info, page, admin, pins, replyPage] = await Promise.all([
     followInfo(user.id, viewerId),
-    feedPage(viewerId, { ...byAuthor, cursor: typeof cursor === "string" ? cursor : null }).catch(
-      (e) => {
-        if (e instanceof ServiceError) return feedPage(viewerId, byAuthor);
-        throw e;
-      },
-    ),
+    replies
+      ? null
+      : feedPage(viewerId, { ...byAuthor, cursor: at }).catch((e) => {
+          if (e instanceof ServiceError) return feedPage(viewerId, byAuthor);
+          throw e;
+        }),
     isAdmin(viewerId),
-    pinnedPosts(viewerId, user.id),
+    replies ? [] : pinnedPosts(viewerId, user.id),
+    replies ? repliesPage(viewerId, user.id, at) : null,
   ]);
 
   const chat = chatLink(user.handle);
@@ -138,6 +143,21 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           </Link>
         </div>
       </section>
+      <LinkTabs
+        tabs={[
+          { href: base, label: he.profile.posts, current: !replies },
+          { href: `${base}?tab=replies`, label: he.profile.replies, current: replies },
+        ]}
+      />
+      {replyPage && (
+        <ItemList
+          items={replyPage.items}
+          next={replyPage.next}
+          viewer={viewer}
+          empty={he.profile.noReplies}
+          href={(c) => `${base}?tab=replies&cursor=${encodeURIComponent(c)}`}
+        />
+      )}
       {/* Pinned to the top of the profile, and not again below. */}
       {pins.length > 0 && !cursor && (
         <ul>
@@ -146,16 +166,18 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
           ))}
         </ul>
       )}
-      <FeedList
-        key={user.id}
-        view="latest"
-        author={user.id}
-        hide={cursor ? undefined : pins.map((x) => x.id)}
-        viewer={viewer}
-        first={page.items}
-        next={page.next}
-        asOf={page.asOf}
-      />
+      {page && (
+        <FeedList
+          key={user.id}
+          view="latest"
+          author={user.id}
+          hide={cursor ? undefined : pins.map((x) => x.id)}
+          viewer={viewer}
+          first={page.items}
+          next={page.next}
+          asOf={page.asOf}
+        />
+      )}
     </>
   );
 }

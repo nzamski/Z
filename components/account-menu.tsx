@@ -70,6 +70,13 @@ export function AccountMenu(p: {
             </svg>
             {he.topics.title}
           </Link>
+          <Link role="menuitem" href="/saved" onClick={close} className={itemClass}>
+            {/* Bookmark: saved */}
+            <svg {...iconProps}>
+              <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z" />
+            </svg>
+            {he.bookmarks.title}
+          </Link>
           {p.admin && (
             <Link role="menuitem" href="/admin" onClick={close} className={itemClass}>
               {/* Shield: moderation */}

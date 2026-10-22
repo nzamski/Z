@@ -172,6 +172,33 @@ export const likes = pgTable(
   ],
 );
 
+// Saved posts and comments (bookmarks): private to their user. Exactly one of post / comment.
+export const bookmarks = pgTable(
+  "bookmarks",
+  {
+    ...base,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    postId: uuid("post_id").references(() => posts.id),
+    commentId: uuid("comment_id").references(() => comments.id),
+  },
+  (t) => [
+    check("bookmarks_one_ck", sql`(${t.postId} is null) <> (${t.commentId} is null)`),
+    uniqueIndex("bookmarks_post_active_uq")
+      .on(t.userId, t.postId)
+      .where(sql`${t.deletedAt} is null and ${t.postId} is not null`),
+    uniqueIndex("bookmarks_comment_active_uq")
+      .on(t.userId, t.commentId)
+      .where(sql`${t.deletedAt} is null and ${t.commentId} is not null`),
+    // The saved page: yours, newest first.
+    index("bookmarks_user_idx")
+      .on(t.userId, t.createdAt.desc())
+      .where(sql`${t.deletedAt} is null`),
+    index("bookmarks_updated_at_idx").on(t.updatedAt),
+  ],
+);
+
 export const commentLikes = pgTable(
   "comment_likes",
   {

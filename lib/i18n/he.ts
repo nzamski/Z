@@ -68,6 +68,8 @@ export const he = {
     codeBlock: "בלוק קוד",
     direction: "החלפת כיוון הפסקה (ימין ↔ שמאל)",
     poll: "סקר",
+    codeLanguage: "שפת הקוד",
+    codeAuto: "Auto",
   },
   poll: {
     option: (n: number) => `אפשרות ${n}`,
@@ -100,6 +102,8 @@ export const he = {
   },
   profile: {
     profession: "מקצוע",
+    replies: "תגובות",
+    noReplies: "עוד אין תגובות.",
     follow: "מעקב",
     unfollow: "הפסקת מעקב",
     followers: "עוקבים",
@@ -278,6 +282,16 @@ export const he = {
     recent: "חיפושים אחרונים",
     clearRecent: "ניקוי הכל",
     forget: (q: string) => `הסרת "${q}" מהחיפושים האחרונים`,
+  },
+  bookmarks: {
+    title: "שמורים",
+    save: "שמירה",
+    unsave: "הסרה מהשמורים",
+    saved: "שמורים",
+    liked: "אהבתי",
+    noSaved: "עוד לא שמרת כלום. הסימנייה בפוסט או בתגובה שומרת אותם כאן, רק בשבילך.",
+    noLiked: "עוד לא אהבת פוסטים או תגובות.",
+    replyTo: "בתגובה ל־", // then the @handle, left to right
   },
   feed: {
     loading: "טוען…",

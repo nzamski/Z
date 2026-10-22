@@ -1,5 +1,5 @@
 // The start-side navigation rail on wide screens (the header keeps these on phones): home,
-// search, notifications, topics, profile, admin, a new-post button, and the account menu.
+// search, notifications, topics, saved, profile, admin, a new-post button, and the account menu.
 import { Avatar } from "@/components/avatar";
 import { NewPostButton } from "@/components/new-post-button";
 import { NotificationBell } from "@/components/notification-bell";
@@ -29,6 +29,7 @@ const ICONS = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.5Z",
   search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-3.5-3.5",
   topics: "M5 9h14M5 15h14M10 3 8 21M16 3l-2 18",
+  saved: "M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z",
   profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0",
   admin: "M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6L12 3Z",
   pen: "M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4",
@@ -50,6 +51,7 @@ export async function NavRail() {
         label={<span className="hidden xl:inline">{he.notifications.title}</span>}
       />
       <RailLink href="/topics" label={he.topics.title} icon={<Icon d={ICONS.topics} />} />
+      <RailLink href="/saved" label={he.bookmarks.title} icon={<Icon d={ICONS.saved} />} />
       <RailLink
         href={`/u/${encodeURIComponent(user.handle)}`}
         label={he.account.profile}

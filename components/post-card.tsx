@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LikeButton } from "@/components/buttons";
+import { BookmarkButton, LikeButton } from "@/components/buttons";
 import { Avatar } from "@/components/avatar";
 import { ClickableCard } from "@/components/clickable-card";
 import { CommentButton } from "@/components/comment-dialog";
@@ -66,7 +66,7 @@ function AnsweredMark() {
   return (
     <span
       data-tip={he.post.answeredHint}
-      className="ms-auto flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
+      className="flex items-center gap-1 self-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-like"
     >
       <AuthorHeart />
       {he.post.answered}
@@ -144,7 +144,11 @@ export function PostCard({
             preview={p.preview}
             viewer={viewer}
           />
-          {p.answered && <AnsweredMark />}
+          {/* The far end: the answered mark, then save (as on X). */}
+          <div className="ms-auto flex items-center gap-4">
+            {p.answered && <AnsweredMark />}
+            <BookmarkButton id={p.id} kind="post" saved={p.bookmarked} />
+          </div>
         </div>
       </div>
     </ClickableCard>

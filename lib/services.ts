@@ -18,6 +18,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import {
   admins,
+  bookmarks,
   commentLikes,
   comments,
   follows,
@@ -409,6 +410,147 @@ export async function votePoll(actorId: string, postId: string, option: number) 
     });
 }
 
+// ---- bookmarks (saved posts and comments; docs/bookmarks.md) ----
+
+export type BookmarkTarget = { postId: string } | { commentId: string };
+
+/** Save or unsave a post or comment, for yourself only. Saving needs it to still be there. */
+export async function setBookmark(actorId: string, target: BookmarkTarget, saved: boolean) {
+  await assertCanWrite(actorId);
+  const isPost = "postId" in target;
+  const col = isPost ? bookmarks.postId : bookmarks.commentId;
+  const id = isPost ? target.postId : target.commentId;
+  if (!saved) {
+    await db
+      .update(bookmarks)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(bookmarks.userId, actorId), eq(col, id), active(bookmarks)));
+    return;
+  }
+  const table = isPost ? posts : comments;
+  const [row] = await db
+    .select({ d: table.deletedAt })
+    .from(table as typeof posts)
+    .where(eq(table.id, id));
+  if (!row) throw new ServiceError("not_found");
+  if (row.d) throw new ServiceError("gone");
+  await db
+    .insert(bookmarks)
+    .values({ userId: actorId, ...(isPost ? { postId: id } : { commentId: id }) })
+    .onConflictDoNothing({
+      target: [bookmarks.userId, col],
+      where: sql`${bookmarks.deletedAt} is null and ${col} is not null`,
+    });
+}
+
+/** A comment shown on its own (saved, liked, a profile's replies): what its card needs, and
+ * whom it answers (the parent comment's author, else the post's). */
+const commentCols = (viewerId: string) => ({
+  id: comments.id,
+  postId: comments.postId,
+  body: comments.body,
+  likeCount: comments.likeCount,
+  createdAt: comments.createdAt,
+  editedAt: comments.editedAt,
+  liked: sql<boolean>`exists (select 1 from ${commentLikes} cl where cl.comment_id = ${comments.id}
+    and cl.user_id = ${viewerId} and cl.deleted_at is null)`,
+  bookmarked: sql<boolean>`exists (select 1 from ${bookmarks} bm where bm.comment_id = ${comments.id}
+    and bm.user_id = ${viewerId} and bm.deleted_at is null)`,
+  replyTo: sql<string>`coalesce(
+    (select pu.handle from ${comments} pc join ${users} pu on pu.id = pc.author_id
+      where pc.id = ${comments.parentCommentId}),
+    (select ou.handle from ${posts} op join ${users} ou on ou.id = op.author_id
+      where op.id = ${comments.postId}))`,
+  author: {
+    id: users.id,
+    displayName: users.displayName,
+    handle: sql<string>`${users.handle}`,
+    profession: users.profession,
+  },
+});
+export type CommentSummary = Awaited<ReturnType<typeof commentSummaries>>[number];
+
+/** Live comments (and live posts under them) by id, in no particular order. */
+async function commentSummaries(viewerId: string, ids: string[]) {
+  if (!ids.length) return [];
+  return db
+    .select(commentCols(viewerId))
+    .from(comments)
+    .innerJoin(users, eq(users.id, comments.authorId))
+    .innerJoin(posts, eq(posts.id, comments.postId))
+    .where(and(inArray(comments.id, ids), active(comments), active(posts)));
+}
+
+export type SavedItem =
+  | { kind: "post"; at: Date; post: PostSummary }
+  | { kind: "comment"; at: Date; comment: CommentSummary };
+export const SAVED_PAGE = 30;
+
+/** Rows of (kind, id, at) newest first → the live posts and comments behind them, same order.
+ * `next`: the cursor (the last row's time) when there may be more. */
+async function mixedPage(
+  viewerId: string,
+  rows: { kind: "post" | "comment"; id: string; at: string }[],
+): Promise<{ items: SavedItem[]; next: string | null }> {
+  const ids = (k: string) => rows.filter((r) => r.kind === k).map((r) => r.id);
+  const [ps, cs] = await Promise.all([
+    postSummaries(viewerId, ids("post")),
+    commentSummaries(viewerId, ids("comment")),
+  ]);
+  const P = new Map(ps.map((x) => [x.id, x]));
+  const C = new Map(cs.map((x) => [x.id, x]));
+  const items: SavedItem[] = [];
+  for (const r of rows) {
+    const at = new Date(r.at);
+    if (r.kind === "post" && P.has(r.id)) items.push({ kind: "post", at, post: P.get(r.id)! });
+    if (r.kind === "comment" && C.has(r.id))
+      items.push({ kind: "comment", at, comment: C.get(r.id)! });
+  }
+  return { items, next: rows.length === SAVED_PAGE ? rows[rows.length - 1].at : null };
+}
+
+// ponytail: rows saved/liked in the same microsecond can be skipped at a page edge; add the id
+// to the cursor if that ever matters.
+const before = (cursor: string | null, col: SQL) =>
+  cursor && !Number.isNaN(Date.parse(cursor)) ? sql`and ${col} < ${cursor}::timestamptz` : sql``;
+
+/** Your saved posts and comments, most recently saved first. */
+export async function savedPage(viewerId: string, cursor: string | null) {
+  const rows = await db.execute<{ kind: "post" | "comment"; id: string; at: string }>(sql`
+    select case when b.post_id is null then 'comment' else 'post' end as kind,
+      coalesce(b.post_id, b.comment_id) as id, to_json(b.created_at) #>> '{}' as at
+    from ${bookmarks} b
+    where b.user_id = ${viewerId} and b.deleted_at is null ${before(cursor, sql`b.created_at`)}
+    order by b.created_at desc limit ${SAVED_PAGE}`);
+  return mixedPage(viewerId, [...rows]);
+}
+
+/** Posts and comments you liked, most recently liked first (likes_rate_idx, comment_likes_rate_idx). */
+export async function likedPage(viewerId: string, cursor: string | null) {
+  const rows = await db.execute<{ kind: "post" | "comment"; id: string; at: string }>(sql`
+    select * from (
+      (select 'post' as kind, l.post_id as id, to_json(l.created_at) #>> '{}' as at, l.created_at as t
+        from ${likes} l where l.user_id = ${viewerId} and l.deleted_at is null
+          ${before(cursor, sql`l.created_at`)}
+        order by l.created_at desc limit ${SAVED_PAGE})
+      union all
+      (select 'comment', cl.comment_id, to_json(cl.created_at) #>> '{}', cl.created_at
+        from ${commentLikes} cl where cl.user_id = ${viewerId} and cl.deleted_at is null
+          ${before(cursor, sql`cl.created_at`)}
+        order by cl.created_at desc limit ${SAVED_PAGE})
+    ) x order by t desc limit ${SAVED_PAGE}`);
+  return mixedPage(viewerId, [...rows]);
+}
+
+/** A profile's replies tab: the user's live comments on live posts, newest first. */
+export async function repliesPage(viewerId: string, userId: string, cursor: string | null) {
+  const rows = await db.execute<{ kind: "comment"; id: string; at: string }>(sql`
+    select 'comment' as kind, c.id, to_json(c.created_at) #>> '{}' as at from ${comments} c
+    where c.author_id = ${userId} and c.deleted_at is null ${before(cursor, sql`c.created_at`)}
+    order by c.created_at desc limit ${SAVED_PAGE}`);
+  return mixedPage(viewerId, [...rows]);
+}
+
 // ---- likes ----
 
 export async function likePost(actorId: string, postId: string) {
@@ -593,6 +735,10 @@ const postCols = (viewerId: string | null) => ({
   createdAt: posts.createdAt,
   editedAt: posts.editedAt,
   liked: likedBy(viewerId),
+  bookmarked: viewerId
+    ? sql<boolean>`exists (select 1 from ${bookmarks} bm where bm.post_id = ${posts.id}
+        and bm.user_id = ${viewerId} and bm.deleted_at is null)`
+    : sql<boolean>`false`,
   pinned: sql<boolean>`${posts.pinnedAt} is not null`, // on the author's profile
   // For the "⋯" menu's follow / unfollow.
   followsAuthor: viewerId
@@ -860,6 +1006,7 @@ export type ThreadNode = {
   author: { id: string; handle: string; displayName: string; profession: string | null } | null;
   likeCount: number;
   liked: boolean; // by the viewer
+  bookmarked: boolean; // by the viewer
   authorLiked: boolean; // by the post's author: shown with a mark, sorted first among top-level
   createdAt: Date;
   editedAt: Date | null;
@@ -896,6 +1043,7 @@ export async function getThread(
     like_count: number;
     author_liked: boolean;
     liked: boolean;
+    bookmarked: boolean;
     body: string;
     author_id: string;
     handle: string;
@@ -926,6 +1074,8 @@ export async function getThread(
       t.edited_at, u.handle, u.display_name, u.profession, t.like_count, ${authorLiked("t")} as author_liked,
       exists (select 1 from comment_likes cl where cl.comment_id = t.id
         and cl.user_id = ${viewerId} and cl.deleted_at is null) as liked,
+      exists (select 1 from bookmarks bm where bm.comment_id = t.id
+        and bm.user_id = ${viewerId} and bm.deleted_at is null) as bookmarked,
       (select count(*)::int from comments x
         where x.post_id = t.post_id and x.parent_comment_id = t.id and ${visible}) as child_count
     from t join users u on u.id = t.author_id
@@ -954,6 +1104,7 @@ export async function getThread(
           },
       likeCount: r.like_count,
       liked: r.liked,
+      bookmarked: r.bookmarked,
       authorLiked: r.author_liked,
       createdAt: new Date(r.created_at),
       editedAt: r.edited_at ? new Date(r.edited_at) : null,

@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { z } from "zod";
 import { createCommentAction, restorePostAction } from "@/app/actions";
-import { LikeButton } from "@/components/buttons";
+import { BookmarkButton, LikeButton } from "@/components/buttons";
 import { Composer } from "@/components/composer";
 import { Loading } from "@/components/loading";
 import { ModerateButton } from "@/components/moderate-button";
@@ -72,6 +72,9 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
               preview={post.body}
               viewer={viewer}
             />
+            <div className="ms-auto">
+              <BookmarkButton id={post.id} kind="post" saved={post.bookmarked} />
+            </div>
           </div>
         </div>
       </article>
