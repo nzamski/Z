@@ -45,6 +45,7 @@ const SERVICE_FIELDS = [
   "serviceType",
   "serviceStart",
   "serviceEnd",
+  "birthDate",
   "civicPhone",
   "civicEmail",
 ] as const;

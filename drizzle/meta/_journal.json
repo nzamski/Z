@@ -211,6 +211,13 @@
       "when": 1792693751612,
       "tag": "0029_experience_location",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792694124874,
+      "tag": "0030_birth_date",
+      "breakpoints": true
     }
   ]
 }

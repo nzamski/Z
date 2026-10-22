@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { DatePick } from "@/components/date-pick";
 import { Pick } from "@/components/pick";
+import { RankInsignia } from "@/components/rank-insignia";
 import { he } from "@/lib/i18n/he";
 import {
   RANK_LABEL,
@@ -46,7 +47,16 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           name="rank"
           value={(v.rank ?? "") as Rank | ""}
           values={["", ...RANKS]}
-          format={(r) => (r ? RANK_LABEL[r] : he.profile.none)}
+          format={(r) =>
+            r ? (
+              <span className="inline-flex items-center gap-2">
+                <RankInsignia rank={r} />
+                {r !== "private" && RANK_LABEL[r]}
+              </span>
+            ) : (
+              he.profile.none
+            )
+          }
           onPick={(r) => setV((cur) => ({ ...cur, rank: r || null }))}
         />
         <Pick
@@ -58,6 +68,17 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           onPick={(t) => setV((cur) => ({ ...cur, serviceType: t || null }))}
         />
         {/* Dates take the whole row: day, month and year side by side (DatePick). */}
+        {dateField(
+          he.profile.birthDate,
+          <DatePick
+            name="birthDate"
+            value={v.birthDate ?? ""}
+            onChange={(d) => setV((cur) => ({ ...cur, birthDate: d || null }))}
+            fromYear={year - 100}
+            toYear={year - 14}
+          />,
+          he.profile.birthDateHint,
+        )}
         {dateField(
           he.profile.serviceStart,
           <DatePick
