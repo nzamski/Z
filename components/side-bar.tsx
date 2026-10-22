@@ -51,7 +51,7 @@ export async function SideBar() {
           <ul className="space-y-3">
             {people.map((u) => (
               <li key={u.id} className="flex items-center gap-3">
-                <Avatar name={u.displayName} handle={u.handle} small />
+                <Avatar seed={u.avatarSeed} handle={u.handle} small />
                 <Link href={`/u/${encodeURIComponent(u.handle)}`} className="group min-w-0 flex-1">
                   <span className="block truncate font-bold group-hover:underline">
                     {u.displayName}

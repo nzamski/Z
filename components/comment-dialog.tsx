@@ -14,7 +14,7 @@ export function CommentButton(p: {
   count: number;
   author: { displayName: string; handle: string };
   preview: string;
-  viewer?: { displayName: string; handle: string };
+  viewer?: { displayName: string; handle: string; avatarSeed: string };
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(0); // remount the editor on each open: it takes the caret

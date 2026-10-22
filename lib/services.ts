@@ -59,6 +59,7 @@ import {
   REPORT_NOTE_MAX,
   STATS_TIMEZONE,
 } from "@/lib/limits";
+import { AVATAR_SEED_RE } from "@/lib/avatar";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
 import { isTag, normalizeTag } from "@/lib/tags";
 import { computePreview } from "@/lib/preview";
@@ -472,6 +473,7 @@ const commentCols = (viewerId: string) => ({
     displayName: users.displayName,
     handle: sql<string>`${users.handle}`,
     profession: users.profession,
+    avatarSeed: users.avatarSeed,
   },
 });
 export type CommentSummary = Awaited<ReturnType<typeof commentSummaries>>[number];
@@ -770,6 +772,7 @@ const postCols = (viewerId: string | null) => ({
     displayName: users.displayName,
     handle: sql<string>`${users.handle}`,
     profession: users.profession, // the badge in the byline
+    avatarSeed: users.avatarSeed,
   },
 });
 
@@ -1009,7 +1012,13 @@ export type ThreadNode = {
   deleted: boolean;
   removed: boolean; // deleted by a moderator
   body: string | null; // null when deleted
-  author: { id: string; handle: string; displayName: string; profession: string | null } | null;
+  author: {
+    id: string;
+    handle: string;
+    displayName: string;
+    profession: string | null;
+    avatarSeed: string;
+  } | null;
   likeCount: number;
   liked: boolean; // by the viewer
   bookmarked: boolean; // by the viewer
@@ -1055,6 +1064,7 @@ export async function getThread(
     handle: string;
     display_name: string;
     profession: string | null;
+    avatar_seed: string;
     created_at: string;
     edited_at: string | null;
     child_count: number;
@@ -1077,7 +1087,7 @@ export async function getThread(
       where t.depth < ${THREAD_DEPTH}
     )
     select t.id, t.parent_comment_id, t.depth, t.deleted_at, t.removed_at, t.body, t.author_id, t.created_at,
-      t.edited_at, u.handle, u.display_name, u.profession, t.like_count, ${authorLiked("t")} as author_liked,
+      t.edited_at, u.handle, u.display_name, u.profession, u.avatar_seed, t.like_count, ${authorLiked("t")} as author_liked,
       exists (select 1 from comment_likes cl where cl.comment_id = t.id
         and cl.user_id = ${viewerId} and cl.deleted_at is null) as liked,
       exists (select 1 from bookmarks bm where bm.comment_id = t.id
@@ -1107,6 +1117,7 @@ export async function getThread(
             handle: r.handle,
             displayName: r.display_name,
             profession: r.profession,
+            avatarSeed: r.avatar_seed,
           },
       likeCount: r.like_count,
       liked: r.liked,
@@ -1211,17 +1222,21 @@ export async function handleStatus(actorId: string, handle: string) {
 
 /** Handle (unique among active users) and bio, from the welcome screen or the profile.
  * The display name is not editable: it always comes from Keycloak. */
-/** `profession`: a badge from PROFESSIONS, or null for none; left alone when undefined. */
+/** `profession`: a badge from PROFESSIONS, or null for none; left alone when undefined.
+ * `avatarSeed`: the generated avatar (lib/avatar.ts); left alone when undefined. */
 export async function updateProfile(
   actorId: string,
-  input: { handle: string; bio: string; profession?: string | null },
+  input: { handle: string; bio: string; profession?: string | null; avatarSeed?: string },
 ) {
   if (input.profession != null && !isProfession(input.profession))
+    throw new ServiceError("invalid");
+  if (input.avatarSeed !== undefined && !AVATAR_SEED_RE.test(input.avatarSeed))
     throw new ServiceError("invalid");
   const data = {
     handle: parse(Handle, input.handle),
     bio: parse(Bio, input.bio),
     ...(input.profession !== undefined && { profession: input.profession }),
+    ...(input.avatarSeed !== undefined && { avatarSeed: input.avatarSeed }),
   };
   await assertCanWrite(actorId);
   if ((await handleStatus(actorId, data.handle)) === "taken") throw new ServiceError("taken");
@@ -1260,6 +1275,7 @@ const userCard = {
   displayName: users.displayName,
   bio: users.bio,
   profession: users.profession,
+  avatarSeed: users.avatarSeed,
 };
 
 /** People with a profession badge (the badge's link, and search's chips), most followed first. */
@@ -1974,7 +1990,12 @@ export async function pinnedPosts(viewerId: string, userId: string) {
  * inside a subquery that would mean the subquery's own `id`. */
 export async function whoToFollow(viewerId: string, limit = 3) {
   return db
-    .select({ id: users.id, displayName: users.displayName, handle: sql<string>`${users.handle}` })
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      handle: sql<string>`${users.handle}`,
+      avatarSeed: users.avatarSeed,
+    })
     .from(users)
     .where(
       and(

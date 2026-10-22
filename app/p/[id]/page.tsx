@@ -43,7 +43,7 @@ async function PostPage({ params, searchParams }: PageProps<"/p/[id]">) {
   return (
     <>
       <article className="flex gap-3 border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
-        <Avatar name={post.author.displayName} handle={post.author.handle} />
+        <Avatar seed={post.author.avatarSeed} handle={post.author.handle} />
         <div className="min-w-0 flex-1">
           <PostDetail
             post={post}

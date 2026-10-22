@@ -169,6 +169,13 @@
       "when": 1792644650213,
       "tag": "0023_reports_and_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792690044708,
+      "tag": "0024_avatar_seed_default",
+      "breakpoints": true
     }
   ]
 }

@@ -45,9 +45,15 @@ export async function canSeeContent() {
 
 /** What client components need about the viewer: avatar and name, and for a post's "⋯" menu,
  * whether they moderate. Safe to hand to client components. */
-export const viewerCard = async (v: { id: string; displayName: string; handle: string }) => ({
+export const viewerCard = async (v: {
+  id: string;
+  displayName: string;
+  handle: string;
+  avatarSeed: string;
+}) => ({
   id: v.id,
   displayName: v.displayName,
   handle: v.handle,
+  avatarSeed: v.avatarSeed,
   admin: await isAdmin(v.id),
 });

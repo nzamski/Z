@@ -102,6 +102,8 @@ export const he = {
     expand: (n: number) => `הצגת ${n} תשובות`,
   },
   profile: {
+    avatar: "אווטאר",
+    shuffle: "ערבוב",
     profession: "מקצוע",
     replies: "תגובות",
     noReplies: "עוד אין תגובות.",

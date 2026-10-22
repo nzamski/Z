@@ -67,13 +67,13 @@ export async function NavRail() {
         />
       )}
       <NewPostButton
-        viewer={{ displayName: user.displayName, handle: user.handle }}
+        viewer={{ displayName: user.displayName, handle: user.handle, avatarSeed: user.avatarSeed }}
         icon={<Icon d={ICONS.pen} />}
       />
       {/* Bottom: who you are (as on X; not a button: the rail has the links), and the theme at
           the row's other end. Icon-only rail (lg): the theme under the avatar. */}
       <div className="mt-auto flex flex-col items-center gap-2 p-2 xl:flex-row xl:gap-3">
-        <Avatar name={user.displayName} />
+        <Avatar seed={user.avatarSeed} />
         <div className="hidden min-w-0 xl:block">
           <div className="truncate font-bold">{user.displayName}</div>
           <div className="truncate text-sm text-muted" dir="ltr">

@@ -39,7 +39,10 @@ export const users = pgTable(
     handle: text("handle"),
     displayName: text("display_name").notNull(),
     bio: text("bio").notNull().default(""),
-    avatarSeed: text("avatar_seed").notNull().default(""),
+    // The generated avatar (lib/avatar.ts): random until the user shuffles it.
+    avatarSeed: text("avatar_seed")
+      .notNull()
+      .default(sql`substr(md5(random()::text), 1, 8)`),
     // A profession badge the user picked (lib/professions.ts), or null.
     profession: text("profession"),
     // Set when the user finishes the (mandatory) first-login welcome; until then the user can

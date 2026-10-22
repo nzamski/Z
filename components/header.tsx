@@ -45,6 +45,7 @@ async function AuthStatus() {
       <NotificationBell initial={unread} />
       <AccountMenu
         handle={user.handle}
+        avatarSeed={user.avatarSeed}
         displayName={user.displayName}
         admin={admin}
         reports={reports}

@@ -57,7 +57,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
       <section className="border-b border-neutral-200 p-4 text-start dark:border-neutral-800">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <Avatar name={user.displayName} large />
+            <Avatar seed={user.avatarSeed} large />
             <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-2">
               <h2 className="text-xl font-bold">
                 {user.displayName}
@@ -79,6 +79,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
               handle={user.handle}
               bio={user.bio}
               profession={user.profession}
+              avatarSeed={user.avatarSeed}
             />
           )}
           {viewerId !== user.id && (

@@ -15,7 +15,7 @@ export function CommentCard({ comment: c }: { comment: CommentSummary }) {
       href={`/c/${c.id}`}
       className="flex gap-3 border-b border-neutral-200 px-4 py-4 text-start dark:border-neutral-800"
     >
-      <Avatar name={c.author.displayName} handle={c.author.handle} />
+      <Avatar seed={c.author.avatarSeed} handle={c.author.handle} />
       <div className="min-w-0 flex-1">
         <Byline author={c.author} createdAt={c.createdAt} editedAt={c.editedAt} />
         <Link href={`/p/${c.postId}`} className="text-sm text-muted hover:underline">
