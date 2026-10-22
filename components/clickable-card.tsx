@@ -10,7 +10,12 @@ import { he } from "@/lib/i18n/he";
 // [role=menu]: a card's "⋯" menu, whose padding shouldn't open the post either.
 const INTERACTIVE = "a, button, input, textarea, summary, dialog, [role=dialog], [role=menu]";
 
-export function ClickableCard(p: { href: string; className: string; children: React.ReactNode }) {
+export function ClickableCard(p: {
+  href: string;
+  className: string;
+  children: React.ReactNode;
+  srLink?: false; // the card already has a link to the same place (a person's name)
+}) {
   const router = useRouter();
   return (
     <li
@@ -23,12 +28,14 @@ export function ClickableCard(p: { href: string; className: string; children: Re
       }}
     >
       {p.children}
-      <Link
-        href={p.href}
-        className="sr-only text-sm text-link focus:not-sr-only focus:absolute focus:end-4 focus:top-4 focus:underline"
-      >
-        {he.post.open}
-      </Link>
+      {p.srLink !== false && (
+        <Link
+          href={p.href}
+          className="sr-only text-sm text-link focus:not-sr-only focus:absolute focus:end-4 focus:top-4 focus:underline"
+        >
+          {he.post.open}
+        </Link>
+      )}
     </li>
   );
 }
