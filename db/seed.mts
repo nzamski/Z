@@ -308,6 +308,11 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
           service_start: new Date(NOW - (200 + ((i * 97) % 5000)) * 24 * HOUR)
             .toISOString()
             .slice(0, 10),
+          // Regular service ends: some still ahead (days left), some past.
+          service_end:
+            SERVICE_TYPES[i % SERVICE_TYPES.length] === "regular"
+              ? new Date(NOW + (((i * 131) % 900) - 150) * 24 * HOUR).toISOString().slice(0, 10)
+              : null,
           location: BASES[i % BASES.length],
           civic_phone: `050-000${String(1000 + i).slice(-4)}`,
           civic_email: `${i < 3 ? ["dana", "yossi", "noa"][i] : `user${i}`}@example.test`,
@@ -316,6 +321,7 @@ const users: Row[] = Array.from({ length: N_USERS }, (_, i) => {
           rank: null,
           service_type: null,
           service_start: null,
+          service_end: null,
           location: "",
           civic_phone: "",
           civic_email: "",

@@ -44,6 +44,7 @@ const SERVICE_FIELDS = [
   "rank",
   "serviceType",
   "serviceStart",
+  "serviceEnd",
   "location",
   "civicPhone",
   "civicEmail",

@@ -58,13 +58,26 @@ export const SERVICE_TYPE_LABEL: Record<ServiceType, string> = {
 export const isServiceType = (v: unknown): v is ServiceType =>
   SERVICE_TYPES.includes(v as ServiceType);
 
-/** A service start date as stored: YYYY-MM-DD, a real day, not in the future, within 60 years. */
-export function isServiceStart(v: string, today = new Date()) {
+/** YYYY-MM-DD and a real day (not 2026-02-30). */
+function isDay(v: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
   const d = new Date(`${v}T00:00:00Z`);
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return false; // 2026-02-30
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+/** A service start date as stored: a real day, not in the future, within 60 years. */
+export function isServiceStart(v: string, today = new Date()) {
+  if (!isDay(v)) return false;
   const days = serviceDays(v, today);
   return days >= 0 && days <= 60 * 366;
+}
+
+/** A service end (release) date: a real day within 60 years back and 40 ahead. The service layer
+ * also requires it after the start date. */
+export function isServiceEnd(v: string, today = new Date()) {
+  if (!isDay(v)) return false;
+  const left = daysUntil(v, today);
+  return left >= -60 * 366 && left <= 40 * 366;
 }
 
 /** Days in service (פז״ם) from the start date to today, counted in whole UTC days. */
@@ -72,6 +85,9 @@ export function serviceDays(start: string, today = new Date()) {
   const t = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   return Math.floor((t - Date.parse(`${start}T00:00:00Z`)) / 86_400_000);
 }
+
+/** Days from today until a date (release): negative once it has passed. */
+export const daysUntil = (day: string, today = new Date()) => -serviceDays(day, today);
 
 export const LOCATION_MAX = 40;
 
@@ -89,6 +105,7 @@ export type ServiceInfo = {
   rank: string | null;
   serviceType: string | null;
   serviceStart: string | null;
+  serviceEnd: string | null;
   location: string;
   civicPhone: string;
   civicEmail: string;

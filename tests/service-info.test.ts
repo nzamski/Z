@@ -1,7 +1,14 @@
 // Service details on profiles (lib/service-info.ts): the checks, and what updateProfile keeps.
 import { afterAll, expect, test } from "vitest";
 import { sql } from "@/db/client";
-import { isEmail, isPhone, isServiceStart, serviceDays } from "@/lib/service-info";
+import {
+  daysUntil,
+  isEmail,
+  isPhone,
+  isServiceEnd,
+  isServiceStart,
+  serviceDays,
+} from "@/lib/service-info";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
 
@@ -15,6 +22,15 @@ test("days in service count whole days; start dates are real, past and plausible
   expect(isServiceStart("2024-02-29", today)).toBe(true);
   for (const bad of ["2026-10-23", "2026-02-30", "1950-01-01", "22/10/2026", ""])
     expect(isServiceStart(bad, today), bad).toBe(false);
+});
+
+test("days left to the release; end dates may be past or ahead, within limits", () => {
+  expect(daysUntil("2026-10-23", today)).toBe(1);
+  expect(daysUntil("2026-10-21", today)).toBe(-1);
+  expect(isServiceEnd("2028-07-01", today)).toBe(true);
+  expect(isServiceEnd("2020-01-01", today)).toBe(true);
+  for (const bad of ["2080-01-01", "2026-13-01", ""])
+    expect(isServiceEnd(bad, today), bad).toBe(false);
 });
 
 test("civilian phone and email formats", () => {
@@ -36,6 +52,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     rank: "captain",
     serviceType: "career",
     serviceStart: "2020-03-01",
+    serviceEnd: "2030-03-01",
     location: "  בסיס הדמיה  ",
     civicPhone: "050-1234567",
     civicEmail: "Dana@Example.com",
@@ -58,6 +75,8 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     { rank: "general" },
     { serviceType: "volunteer" },
     { serviceStart: "2999-01-01" },
+    { serviceStart: "2020-03-01", serviceEnd: "2020-03-01" }, // not after the start
+    { serviceEnd: "2099-01-01" },
     { location: "x".repeat(41) },
     { civicPhone: "abc" },
     { civicEmail: "nope" },
@@ -70,6 +89,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     rank: "",
     serviceType: "",
     serviceStart: "",
+    serviceEnd: "",
     location: "",
     civicPhone: "",
     civicEmail: "",
@@ -78,6 +98,7 @@ test("the profile saves service details, clears them with blanks, and refuses ba
     rank: null,
     serviceType: null,
     serviceStart: null,
+    serviceEnd: null,
     location: "",
     civicPhone: "",
     civicEmail: "",

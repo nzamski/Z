@@ -51,6 +51,7 @@ export const users = pgTable(
     rank: text("rank"),
     serviceType: text("service_type"),
     serviceStart: date("service_start", { mode: "string" }), // days in service count from it
+    serviceEnd: date("service_end", { mode: "string" }), // release: days remaining count to it
     location: text("location").notNull().default(""), // base or location, free text
     civicPhone: text("civic_phone").notNull().default(""),
     civicEmail: text("civic_email").notNull().default(""),

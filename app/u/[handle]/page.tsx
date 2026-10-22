@@ -56,6 +56,7 @@ async function Profile({ params, searchParams }: PageProps<"/u/[handle]">) {
     rank: user.rank,
     serviceType: user.serviceType,
     serviceStart: user.serviceStart,
+    serviceEnd: user.serviceEnd,
     location: user.location,
     civicPhone: user.civicPhone,
     civicEmail: user.civicEmail,

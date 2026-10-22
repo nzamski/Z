@@ -13,7 +13,8 @@ checks), `components/service-fields.tsx` (form), `components/service-details.tsx
 | Civilian phone  | `civic_phone`   | digits, optional leading `+`, spaces and dashes; 7-15 digits |
 | Civilian email  | `civic_email`   | `x@y.z`, lowercased, up to 254 characters                    |
 
-Days in service (פז״ם) are computed from the start date when the page renders, never stored.
+Days in service (פז״ם) are computed from the start date, and days left to the release from the
+end date (shown only while it is ahead), when the page renders; never stored.
 A blank field clears it; a field the form doesn't send is left alone. All checks run in the
 service layer (`updateProfile`); the form's browser checks are a convenience.
 

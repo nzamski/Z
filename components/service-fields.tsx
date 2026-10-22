@@ -69,6 +69,18 @@ export function ServiceFields(p: { initial: ServiceInfo; field: string }) {
           he.profile.serviceStartHint,
         )}
         {label(
+          he.profile.serviceEnd,
+          <input
+            type="date"
+            name="serviceEnd"
+            value={v.serviceEnd ?? ""}
+            onChange={set("serviceEnd")}
+            min={v.serviceStart ?? undefined}
+            className={p.field}
+          />,
+          he.profile.serviceEndHint,
+        )}
+        {label(
           he.profile.location,
           <input
             name="location"

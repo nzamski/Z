@@ -69,6 +69,7 @@ import {
   isPhone,
   isRank,
   isServiceStart,
+  isServiceEnd,
   isServiceType,
   LOCATION_MAX,
 } from "@/lib/service-info";
@@ -1233,6 +1234,7 @@ function serviceInfo(i: {
   rank?: string | null;
   serviceType?: string | null;
   serviceStart?: string | null;
+  serviceEnd?: string | null;
   location?: string;
   civicPhone?: string;
   civicEmail?: string;
@@ -1243,6 +1245,9 @@ function serviceInfo(i: {
   };
   const opt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
   const [rank, serviceType, serviceStart] = [opt(i.rank), opt(i.serviceType), opt(i.serviceStart)];
+  const serviceEnd = opt(i.serviceEnd);
+  // Both sent (the form sends both): the release comes after the start.
+  if (serviceStart && serviceEnd && serviceEnd <= serviceStart) throw new ServiceError("invalid");
   const location = i.location?.trim();
   const phone = i.civicPhone?.trim();
   const email = i.civicEmail?.trim().toLowerCase();
@@ -1253,6 +1258,9 @@ function serviceInfo(i: {
     }),
     ...(serviceStart !== undefined && {
       serviceStart: check(serviceStart, serviceStart === null || isServiceStart(serviceStart)),
+    }),
+    ...(serviceEnd !== undefined && {
+      serviceEnd: check(serviceEnd, serviceEnd === null || isServiceEnd(serviceEnd)),
     }),
     ...(location !== undefined && {
       location: check(location, [...location].length <= LOCATION_MAX),
@@ -1277,6 +1285,7 @@ export async function updateProfile(
     rank?: string | null;
     serviceType?: string | null;
     serviceStart?: string | null;
+    serviceEnd?: string | null;
     location?: string;
     civicPhone?: string;
     civicEmail?: string;
