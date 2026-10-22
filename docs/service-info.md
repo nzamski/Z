@@ -9,6 +9,7 @@ checks), `components/service-fields.tsx` (form), `components/service-details.tsx
 | Rank            | `rank`          | one of `RANKS` (DB check `users_rank_ck`), or none           |
 | Service type    | `service_type`  | one of `SERVICE_TYPES` (`users_service_type_ck`), or none    |
 | Service start   | `service_start` | a date, not in the future, within 60 years                   |
+| Service end     | `service_end`   | a date after the start, up to 40 years ahead                 |
 | Base / location | `location`      | free text, up to 40 characters                               |
 | Civilian phone  | `civic_phone`   | digits, optional leading `+`, spaces and dashes; 7-15 digits |
 | Civilian email  | `civic_email`   | `x@y.z`, lowercased, up to 254 characters                    |
