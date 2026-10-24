@@ -6,9 +6,10 @@ import type { RoleLine as Role } from "@/lib/services";
 export function RoleLine(p: { role: Role | null | undefined; className?: string }) {
   if (!p.role) return null;
   return (
-    <p className={`truncate text-sm ${p.className ?? ""}`}>
+    // A span (block), not a <p>: it also sits inside links.
+    <span className={`block truncate text-sm ${p.className ?? ""}`}>
       {[p.role.title, p.role.unit].filter(Boolean).join(" · ")}
       {!p.role.current && <span className="text-muted"> ({he.experience.former})</span>}
-    </p>
+    </span>
   );
 }

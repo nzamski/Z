@@ -36,4 +36,8 @@ person (`experience_limit`). Deleting is a soft delete, like everything else.
   it first, then by how many people use them), in a native `<datalist>`, so one unit keeps one
   spelling and the unit page finds everyone in it. Existing spellings are left as they are.
 
+- **Current role in lists**: people lists (search, followers, following, likers, welcome
+  suggestions, the sidebar's who to follow) and the hover card show the person's newest current
+  role (`roleLine` in `userCard`; none without a current role). Post cards don't.
+
 Not done: moderators can't remove a role (they can suspend the person or clear the bio).

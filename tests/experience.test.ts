@@ -122,3 +122,19 @@ test("experienceSuggestions: units in use containing the text, prefix first, the
   expect(await s.experienceSuggestions("unit", `ענף ${tag}`)).toEqual([`ענף ${tag}`]);
   expect(await s.experienceSuggestions("unit", "  ")).toEqual([]);
 });
+
+test("people lists show the current role; none without one", async () => {
+  const [a, b, viewer] = [await makeUser(), await makeUser(), await makeUser()];
+  await s.saveExperience(a.id, role({ title: "קודם", end: "2023-01" }));
+  await s.saveExperience(
+    a.id,
+    role({ title: "עכשיו", unit: "ענף ב", start: "2023-02", end: null }),
+  );
+  await s.saveExperience(b.id, role({ title: "רק בעבר" }));
+  await s.follow(a.id, viewer.id);
+  await s.follow(b.id, viewer.id);
+  const rows = await s.followList(viewer.id, viewer.id, "followers");
+  const byId = new Map(rows.items.map((r) => [r.id, r.role]));
+  expect(byId.get(a.id)).toEqual({ title: "עכשיו", unit: "ענף ב", current: true });
+  expect(byId.get(b.id)).toBeNull();
+});

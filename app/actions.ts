@@ -132,6 +132,7 @@ export type UserCard = {
   bio: string;
   profession: string | null;
   avatarSeed: string;
+  role: s.RoleLine | null; // the current role (docs/experience.md)
   followers: number;
   following: number;
   viewerFollows: boolean;
@@ -143,7 +144,8 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
   const viewer = await requireViewer();
   const u = await s.getUserByHandle(String(handle));
   if (!u) return null;
-  const info = await s.followInfo(u.id, viewer.id);
+  const [info, roles] = await Promise.all([s.followInfo(u.id, viewer.id), s.experienceOf(u.id)]);
+  const current = roles.find((r) => !r.endMonth); // current roles come first
   return {
     id: u.id,
     handle: u.handle,
@@ -151,6 +153,7 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     bio: u.bio,
     profession: u.profession,
     avatarSeed: u.avatarSeed,
+    role: current ? { title: current.title, unit: current.unit, current: true } : null,
     followers: info.followers,
     following: info.following,
     viewerFollows: info.viewerFollows,

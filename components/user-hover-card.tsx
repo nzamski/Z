@@ -6,6 +6,7 @@ import { getUserCardAction, type UserCard } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { ProfessionBadge } from "@/components/profession-badge";
+import { RoleLine } from "@/components/role-line";
 import { he } from "@/lib/i18n/he";
 
 const OPEN_DELAY = 400;
@@ -108,6 +109,7 @@ export function UserHoverCard({
               <ProfessionBadge profession={card.profession} />
             </div>
           )}
+          <RoleLine role={card.role} className="mt-1.5" />
           {card.bio && <p className="mt-2 text-neutral-600 dark:text-neutral-400">{card.bio}</p>}
           <div className="mt-3 flex gap-4 text-muted">
             <Link href={`${href}/following`} className="hover:underline">

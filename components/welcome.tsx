@@ -6,8 +6,16 @@ import { finishOnboardingAction } from "@/app/actions";
 import { ProfileForm } from "@/components/profile-form";
 import { UserRow } from "@/components/user-row";
 import { he } from "@/lib/i18n/he";
+import type { RoleLine } from "@/lib/services";
 
-type Person = { id: string; handle: string; displayName: string; bio: string; avatarSeed: string };
+type Person = {
+  id: string;
+  handle: string;
+  displayName: string;
+  bio: string;
+  avatarSeed: string;
+  role?: RoleLine | null;
+};
 
 export function Welcome(p: {
   displayName: string; // from Keycloak, not editable

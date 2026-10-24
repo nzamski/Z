@@ -1155,11 +1155,13 @@ export type RoleLine = { title: string; unit: string; current: boolean };
 
 /** The role a person's row shows: their newest role matching `match` if any, else their newest
  * current role (the one with no end month), else null. Correlated on the outer `users` row. */
-const roleLine = (match: SQL = sql`false`) => sql<RoleLine | null>`(
+const roleLine = (match?: SQL) => sql<RoleLine | null>`(
   select json_build_object('title', e.title, 'unit', e.unit, 'current', e.end_month is null)
   from ${experiences} e
-  where e.user_id = "users"."id" and e.deleted_at is null and (${match} or e.end_month is null)
-  order by (${match}) desc, e.end_month desc nulls first, e.start_month desc, e.id desc limit 1)`;
+  where e.user_id = "users"."id" and e.deleted_at is null
+    and ${match ? sql`(${match} or e.end_month is null)` : sql`e.end_month is null`}
+  order by ${match ? sql`(${match}) desc, ` : sql``}e.end_month desc nulls first, e.start_month desc,
+    e.id desc limit 1)`;
 
 /**
  * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
@@ -1310,6 +1312,7 @@ const userCard = {
   bio: users.bio,
   profession: users.profession,
   avatarSeed: users.avatarSeed,
+  role: roleLine(), // the current role, if any (docs/experience.md)
 };
 
 /** People with a profession badge (the badge's link, and search's chips), most followed first. */
@@ -2062,6 +2065,7 @@ export async function whoToFollow(viewerId: string, limit = 3) {
       displayName: users.displayName,
       handle: sql<string>`${users.handle}`,
       avatarSeed: users.avatarSeed,
+      role: roleLine(),
     })
     .from(users)
     .where(
