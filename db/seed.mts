@@ -462,7 +462,7 @@ const ROLES = [
   "ארכיטקט/ית",
   "מנהל/ת מוצר",
 ];
-const ORGS = ["צוות הדמיה א", "מדור פיתוח הדמיה", "ענף תשתיות הדמיה", "צוות נתונים הדמיה"];
+const UNITS = ["צוות הדמיה א", "מדור פיתוח הדמיה", "ענף תשתיות הדמיה", "צוות נתונים הדמיה"];
 const ym = (monthsAgo: number) => {
   const d = new Date(NOW);
   d.setUTCDate(1);
@@ -478,7 +478,7 @@ const experiences: Row[] = users.flatMap((u, i) => {
     const row = {
       user_id: u.id,
       title: ROLES[(i + k) % ROLES.length],
-      organization: ORGS[(i * 3 + k) % ORGS.length],
+      unit: UNITS[(i * 3 + k) % UNITS.length],
       location: BASES[(i + k) % BASES.length],
       start_month: ym(start),
       end_month: end === null ? null : ym(end),

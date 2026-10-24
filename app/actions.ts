@@ -132,6 +132,7 @@ export type UserCard = {
   bio: string;
   profession: string | null;
   avatarSeed: string;
+  role: s.RoleLine | null; // the current role (docs/experience.md)
   followers: number;
   following: number;
   viewerFollows: boolean;
@@ -143,7 +144,8 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
   const viewer = await requireViewer();
   const u = await s.getUserByHandle(String(handle));
   if (!u) return null;
-  const info = await s.followInfo(u.id, viewer.id);
+  const [info, roles] = await Promise.all([s.followInfo(u.id, viewer.id), s.experienceOf(u.id)]);
+  const current = roles.find((r) => !r.endMonth); // current roles come first
   return {
     id: u.id,
     handle: u.handle,
@@ -151,6 +153,7 @@ export async function getUserCardAction(handle: string): Promise<UserCard | null
     bio: u.bio,
     profession: u.profession,
     avatarSeed: u.avatarSeed,
+    role: current ? { title: current.title, unit: current.unit, current: true } : null,
     followers: info.followers,
     following: info.following,
     viewerFollows: info.viewerFollows,
@@ -321,18 +324,28 @@ export async function grantAdminAction(_: ActionResult, f: FormData) {
   );
 }
 
-/** Add a role to your experience, or edit one (`id`); docs/experience.md. */
+/** Add a role to your experience, or edit one (`id`); docs/experience.md. Also the welcome's
+ * current-role step, so setup needn't be finished. */
 export async function saveExperienceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
-  return run((uid) =>
-    s.saveExperience(uid, {
-      id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
-      title: String(f.get("title") ?? ""),
-      organization: String(f.get("organization") ?? ""),
-      location: String(f.get("location") ?? ""),
-      start: String(f.get("start") ?? ""),
-      end: f.get("current") ? null : String(f.get("end") ?? ""),
-    }),
+  return run(
+    (uid) =>
+      s.saveExperience(uid, {
+        id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
+        title: String(f.get("title") ?? ""),
+        unit: String(f.get("unit") ?? ""),
+        location: String(f.get("location") ?? ""),
+        start: String(f.get("start") ?? ""),
+        end: f.get("current") ? null : String(f.get("end") ?? ""),
+      }),
+    "setup",
   );
+}
+
+/** Titles or units others already use, as the editor's suggestions. Also on the welcome. */
+export async function experienceSuggestionsAction(fieldName: string, q: string) {
+  await requireLogin();
+  if (fieldName !== "title" && fieldName !== "unit") return [];
+  return s.experienceSuggestions(fieldName, String(q));
 }
 
 export async function deleteExperienceAction(id: string) {

@@ -1,8 +1,9 @@
-// "ניסיון" on a profile (docs/experience.md), LinkedIn-style: each role with its organization
+// "ניסיון" on a profile (docs/experience.md), LinkedIn-style: each role with its unit
 // and location, month range and length. The owner adds and edits here; others only read, and
 // see nothing when there is nothing.
+import Link from "next/link";
 import { ExperienceEditor } from "@/components/experience-editor";
-import { duration, months } from "@/lib/experience";
+import { duration, months, unitHref } from "@/lib/experience";
 import { monthYear } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
 import { experienceOf } from "@/lib/services";
@@ -29,9 +30,20 @@ export async function ExperienceSection(p: { userId: string; isOwner: boolean })
             <li key={r.id} className="flex items-start justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="font-bold">{r.title}</p>
-                {(r.organization || r.location) && (
+                {(r.unit || r.location) && (
                   <p className="text-sm">
-                    {[r.organization, r.location].filter(Boolean).join(" · ")}
+                    {/* The unit links to everyone who has had a role there (peopleInUnit). */}
+                    {r.unit && (
+                      <Link
+                        href={unitHref(r.unit)}
+                        aria-label={he.experience.unitLink(r.unit)}
+                        className="hover:underline"
+                      >
+                        {r.unit}
+                      </Link>
+                    )}
+                    {r.unit && r.location && " · "}
+                    {r.location}
                   </p>
                 )}
                 <p className="text-sm text-muted">

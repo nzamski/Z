@@ -5,6 +5,7 @@ import { FollowButton } from "@/components/buttons";
 import { SidebarSearch } from "@/components/sidebar-search";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
+import { RoleLine } from "@/components/role-line";
 import { getUser, popularTopics, whoToFollow } from "@/lib/services";
 import { tagHref } from "@/lib/tags";
 
@@ -60,6 +61,7 @@ export async function SideBar() {
                   <span className="block truncate text-sm text-muted">
                     <bdi>@{u.handle}</bdi>
                   </span>
+                  <RoleLine role={u.role} className="text-muted" />
                 </Link>
                 <FollowButton userId={u.id} following={false} />
               </li>

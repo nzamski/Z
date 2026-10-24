@@ -14,6 +14,7 @@ import { isTag, normalizeTag, tagHref } from "@/lib/tags";
 import {
   feedPage,
   peopleByProfession,
+  peopleInUnit,
   searchUsers,
   ServiceError,
   similarPosts,
@@ -36,6 +37,7 @@ async function Results({ searchParams }: PageProps<"/search">) {
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
   const profession = isProfession(sp.profession) ? sp.profession : null;
+  const unit = typeof sp.unit === "string" ? sp.unit.trim() : "";
   const viewer = await viewerCard(await requireViewer());
   // "#kubernetes": the topic page, not a text search.
   if (q.startsWith("#") && isTag(normalizeTag(q.slice(1))))
@@ -61,6 +63,8 @@ async function Results({ searchParams }: PageProps<"/search">) {
       </form>
       {q ? (
         <SearchResults viewer={viewer} q={q} cursor={cursor} />
+      ) : unit ? (
+        <UnitPeople viewer={viewer} unit={unit} />
       ) : (
         <>
           <ProfessionChips current={profession} />
@@ -121,6 +125,32 @@ async function ProfessionPeople(p: { viewer: Viewer; profession: Profession }) {
         />
       ))}
     </ul>
+  );
+}
+
+/** Everyone who has had a role in a unit: the unit link on a profile's experience. */
+async function UnitPeople(p: { viewer: Viewer; unit: string }) {
+  const people = await peopleInUnit(p.viewer.id, p.unit);
+  return (
+    <section aria-labelledby="unit-title">
+      <h2 id="unit-title" className={heading}>
+        {he.search.unit(p.unit)}
+      </h2>
+      {people.length ? (
+        <ul>
+          {people.map((u) => (
+            <UserRow
+              key={u.id}
+              user={u}
+              viewerFollows={u.viewerFollows}
+              isSelf={u.id === p.viewer.id}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="p-4 text-start text-muted">{he.search.noUnit(p.unit)}</p>
+      )}
+    </section>
   );
 }
 
