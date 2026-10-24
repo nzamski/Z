@@ -115,6 +115,8 @@ export const he = {
     present: "היום",
     delete: "מחיקה",
     empty: "עוד לא הוספת ניסיון.",
+    former: "לשעבר", // after a past role in a list of people
+    unitLink: (unit: string) => `אנשים ביחידה ${unit}`,
   },
   profile: {
     none: "—",
@@ -379,7 +381,7 @@ export const he = {
   search: {
     placeholder: "חיפוש אנשים ופוסטים",
     searchFor: (q: string) => `חיפוש "${q}"`,
-    hint: "חפשו אנשים לפי שם תצוגה או @שם משתמש, ופוסטים לפי מילים מתוכם. אפשר גם חלק ממילה.",
+    hint: "חפשו אנשים לפי שם תצוגה, @שם משתמש, תפקיד או יחידה, ופוסטים לפי מילים מתוכם. אפשר גם חלק ממילה.",
     none: (q: string) => `לא נמצאו תוצאות עבור "${q}".`,
     noPosts: "אין פוסטים תואמים.",
     rateLimited: "יותר מדי חיפושים בדקה האחרונה. נסו שוב בעוד רגע.",
@@ -388,6 +390,8 @@ export const he = {
     posts: "פוסטים",
     byProfession: "לפי תחום עיסוק",
     noProfession: (label: string) => `עוד אין אנשים עם התג ${label}.`,
+    unit: (unit: string) => `ביחידה ${unit}`,
+    noUnit: (unit: string) => `אין אנשים עם תפקיד ביחידה ${unit}.`,
     recent: "חיפושים אחרונים",
     clearRecent: "ניקוי הכל",
     forget: (q: string) => `הסרת "${q}" מהחיפושים האחרונים`,

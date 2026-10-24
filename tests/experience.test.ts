@@ -64,3 +64,48 @@ test("roles need a title and a sane range; at most EXPERIENCE_MAX each", async (
   for (let i = 0; i < EXPERIENCE_MAX; i++) await s.saveExperience(u.id, role());
   await expect(s.saveExperience(u.id, role())).rejects.toThrow("experience_limit");
 });
+
+test("people search matches role titles and units, and shows the role that matched", async () => {
+  const tag = Math.random().toString(36).slice(2, 8);
+  const tag2 = Math.random().toString(36).slice(2, 8); // unrelated, so fuzzy matching can't mix them
+  const [a, b, viewer] = [await makeUser(), await makeUser(), await makeUser()];
+  await s.saveExperience(a.id, role({ title: `מהנדס/ת נתונים ${tag}`, unit: "ענף א" }));
+  await s.saveExperience(a.id, role({ title: "ראש צוות", start: "2023-07", end: null }));
+  await s.saveExperience(b.id, role({ title: "ראש צוות", unit: `מדור ${tag2}`, end: null }));
+
+  const byTitle = await s.searchUsers(viewer.id, `נתונים ${tag}`);
+  expect(byTitle.map((u) => u.id)).toEqual([a.id]);
+  // The past role that matched, not the current one.
+  expect(byTitle[0].role).toEqual({
+    title: `מהנדס/ת נתונים ${tag}`,
+    unit: "ענף א",
+    current: false,
+  });
+
+  const byUnit = await s.searchUsers(viewer.id, `מדור ${tag2}`);
+  expect(byUnit.map((u) => u.id)).toEqual([b.id]);
+  expect(byUnit[0].role).toMatchObject({ unit: `מדור ${tag2}`, current: true });
+
+  // A deleted role no longer matches.
+  const [r] = await s.experienceOf(b.id);
+  await s.deleteExperience(b.id, r.id);
+  expect(await s.searchUsers(viewer.id, `מדור ${tag2}`)).toEqual([]);
+});
+
+test("peopleInUnit: exact unit ignoring case and spaces, current people first", async () => {
+  const unit = `Unit ${Math.random().toString(36).slice(2, 8)}`;
+  const [left, here, other, viewer] = [
+    await makeUser(),
+    await makeUser(),
+    await makeUser(),
+    await makeUser(),
+  ];
+  await s.saveExperience(left.id, role({ unit, end: "2024-01" }));
+  await s.saveExperience(here.id, role({ unit: unit.toLowerCase(), end: null }));
+  await s.saveExperience(other.id, role({ unit: `${unit} ב` })); // a different unit
+  const people = await s.peopleInUnit(viewer.id, `  ${unit.toUpperCase()} `);
+  expect(people.map((u) => u.id)).toEqual([here.id, left.id]);
+  expect(people[0].role).toMatchObject({ current: true });
+  expect(people[1].role).toMatchObject({ current: false });
+  expect(await s.peopleInUnit(viewer.id, "%")).toEqual([]); // wildcards are literal
+});

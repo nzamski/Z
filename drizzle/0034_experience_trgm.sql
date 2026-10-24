@@ -1,0 +1,2 @@
+CREATE INDEX "experiences_title_trgm_idx" ON "experiences" USING gin ("title" gin_trgm_ops) WHERE "experiences"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "experiences_unit_trgm_idx" ON "experiences" USING gin ("unit" gin_trgm_ops) WHERE "experiences"."deleted_at" is null;

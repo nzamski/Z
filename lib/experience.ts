@@ -3,6 +3,8 @@
 
 export const TITLE_MAX = 60;
 export const UNIT_MAX = 60;
+/** Everyone who has had a role in a unit (search, `peopleInUnit`). */
+export const unitHref = (unit: string) => `/search?unit=${encodeURIComponent(unit)}`;
 export const LOCATION_MAX = 40; // base or location of a role
 export const EXPERIENCE_MAX = 30; // roles per person
 

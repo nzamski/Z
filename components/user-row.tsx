@@ -4,10 +4,12 @@ import { FollowButton } from "@/components/buttons";
 import { ClickableCard } from "@/components/clickable-card";
 import { PlainText } from "@/components/post-card";
 import { ProfessionBadge } from "@/components/profession-badge";
+import { RoleLine } from "@/components/role-line";
 import { UserHoverCard } from "@/components/user-hover-card";
+import type { RoleLine as Role } from "@/lib/services";
 
 /** A person in a list (search, followers, following, likers, welcome suggestions): avatar, name,
- * badge and bio, with a follow button. The row opens the profile; the avatar, name and handle show
+ * badge, role (when the list has one) and bio, with a follow button. The row opens the profile; the avatar, name and handle show
  * the hover card. */
 export function UserRow(p: {
   user: {
@@ -17,6 +19,7 @@ export function UserRow(p: {
     bio: string;
     profession?: string | null;
     avatarSeed: string;
+    role?: Role | null;
   };
   viewerFollows: boolean;
   isSelf: boolean;
@@ -49,6 +52,7 @@ export function UserRow(p: {
             </span>
           )}
         </span>
+        <RoleLine role={p.user.role} className="mt-0.5" />
         {p.user.bio && <PlainText text={p.user.bio} className="mt-0.5 text-sm" />}
       </div>
       {!p.isSelf && <FollowButton userId={p.user.id} following={p.viewerFollows} />}

@@ -550,6 +550,13 @@ export const experiences = pgTable(
     index("experiences_user_idx")
       .on(t.userId)
       .where(sql`${t.deletedAt} is null`),
+    // pg_trgm: people search by role and unit, and the unit page (docs/experience.md).
+    index("experiences_title_trgm_idx")
+      .using("gin", t.title.op("gin_trgm_ops"))
+      .where(sql`${t.deletedAt} is null`),
+    index("experiences_unit_trgm_idx")
+      .using("gin", t.unit.op("gin_trgm_ops"))
+      .where(sql`${t.deletedAt} is null`),
     index("experiences_updated_at_idx").on(t.updatedAt),
   ],
 );

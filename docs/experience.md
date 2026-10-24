@@ -21,4 +21,14 @@ Order: current roles first, then by end and start, newest first. Length counts b
 (January to March is 3 months) and runs to this month for a current role. At most 30 roles a
 person (`experience_limit`). Deleting is a soft delete, like everything else.
 
+## Finding people by role and unit
+
+- **Search** (`searchUsers`): the query also matches role titles and units (substring or close,
+  like names; docs/search.md). The result row shows the role that matched, with "לשעבר" for a
+  past one (`RoleLine`, `components/role-line.tsx`).
+- **Unit page** (`/search?unit=<unit>`, `unitHref`): the unit on a profile's role links to everyone
+  who has had a role there (`peopleInUnit`): an exact match ignoring case and surrounding spaces,
+  people currently there first, then by when they left, then most followed. Each row shows the
+  person's newest role in that unit.
+
 Not done: moderators can't remove a role (they can suspend the person or clear the bio).

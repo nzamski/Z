@@ -1150,9 +1150,22 @@ export async function getThread(
 
 // ---- users ----
 
+/** A role shown under a person in a list: title and unit, and whether it is current. */
+export type RoleLine = { title: string; unit: string; current: boolean };
+
+/** The role a person's row shows: their newest role matching `match` if any, else their newest
+ * current role (the one with no end month), else null. Correlated on the outer `users` row. */
+const roleLine = (match: SQL = sql`false`) => sql<RoleLine | null>`(
+  select json_build_object('title', e.title, 'unit', e.unit, 'current', e.end_month is null)
+  from ${experiences} e
+  where e.user_id = "users"."id" and e.deleted_at is null and (${match} or e.end_month is null)
+  order by (${match}) desc, e.end_month desc nulls first, e.start_month desc, e.id desc limit 1)`;
+
 /**
  * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
- * (pg_trgm) for typos. Exact handle first, then handle prefix, then closest, then most followed.
+ * (pg_trgm) for typos, and the same for the title and unit of their roles (docs/experience.md).
+ * Exact handle first, then handle prefix, then name matches, then closest, then most followed.
+ * Each row has `role`: the role that matched, else the current one.
  */
 export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const q = query.trim().replace(/^@/, "").slice(0, 50);
@@ -1162,10 +1175,15 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const closeness = fuzzy
     ? sql`greatest(word_similarity(${fuzzy}, ${users.handle}), word_similarity(${fuzzy}, ${users.displayName}))`
     : sql`0::float8`; // a bare 0 in ORDER BY would mean "column 0"
+  const nameMatch = sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
+    ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`;
+  const roleMatch = sql`(e.title ilike ${"%" + like + "%"} or e.unit ilike ${"%" + like + "%"}
+    ${fuzzy ? sql`or ${fuzzy} <% e.title or ${fuzzy} <% e.unit` : sql``})`;
   return withTrigramThreshold(FUZZY.people, (tx) =>
     tx
       .select({
         ...userCard,
+        role: roleLine(roleMatch),
         viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
           and v.followee_id = users.id and v.deleted_at is null)`,
       })
@@ -1174,13 +1192,14 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
         and(
           active(users),
           hasHandle,
-          sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
-            ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`,
+          sql`(${nameMatch} or exists (select 1 from ${experiences} e
+            where e.user_id = "users"."id" and e.deleted_at is null and ${roleMatch}))`,
         ),
       )
       .orderBy(
         desc(sql`${users.handle} = lower(${q})`),
         desc(sql`${users.handle} ilike ${like + "%"}`),
+        desc(nameMatch),
         desc(closeness),
         desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
           and f.deleted_at is null)`),
@@ -1306,6 +1325,39 @@ export async function peopleByProfession(viewerId: string, profession: Professio
     .from(users)
     .where(and(active(users), hasHandle, eq(users.profession, profession)))
     .orderBy(desc(followers), users.handle)
+    .limit(limit);
+}
+
+/** Everyone who has had a role in `unit` (the unit link on a profile; exact, ignoring case and
+ * spaces at the ends): people currently there first, then by when they left, then most followed.
+ * `role` is their newest role in it. */
+export async function peopleInUnit(viewerId: string, unit: string, limit = 100) {
+  const u = unit.trim().slice(0, UNIT_MAX);
+  if (!u) return [];
+  const inUnit = sql`e.unit ilike ${u.replace(/[\\%_]/g, (c) => `\\${c}`)}`;
+  return db
+    .select({
+      ...userCard,
+      role: roleLine(inUnit),
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = users.id and v.deleted_at is null)`,
+    })
+    .from(users)
+    .where(
+      and(
+        active(users),
+        hasHandle,
+        sql`exists (select 1 from ${experiences} e
+          where e.user_id = "users"."id" and e.deleted_at is null and ${inUnit})`,
+      ),
+    )
+    .orderBy(
+      desc(sql`(select max(coalesce(e.end_month, 'infinity'::date)) from ${experiences} e
+        where e.user_id = "users"."id" and e.deleted_at is null and ${inUnit})`),
+      desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
+        and f.deleted_at is null)`),
+      users.handle,
+    )
     .limit(limit);
 }
 
