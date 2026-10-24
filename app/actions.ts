@@ -324,17 +324,20 @@ export async function grantAdminAction(_: ActionResult, f: FormData) {
   );
 }
 
-/** Add a role to your experience, or edit one (`id`); docs/experience.md. */
+/** Add a role to your experience, or edit one (`id`); docs/experience.md. Also the welcome's
+ * current-role step, so setup needn't be finished. */
 export async function saveExperienceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
-  return run((uid) =>
-    s.saveExperience(uid, {
-      id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
-      title: String(f.get("title") ?? ""),
-      unit: String(f.get("unit") ?? ""),
-      location: String(f.get("location") ?? ""),
-      start: String(f.get("start") ?? ""),
-      end: f.get("current") ? null : String(f.get("end") ?? ""),
-    }),
+  return run(
+    (uid) =>
+      s.saveExperience(uid, {
+        id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
+        title: String(f.get("title") ?? ""),
+        unit: String(f.get("unit") ?? ""),
+        location: String(f.get("location") ?? ""),
+        start: String(f.get("start") ?? ""),
+        end: f.get("current") ? null : String(f.get("end") ?? ""),
+      }),
+    "setup",
   );
 }
 
