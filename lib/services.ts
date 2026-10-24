@@ -2353,6 +2353,27 @@ export async function saveExperience(
   return row;
 }
 
+/** Role titles or units already in use that contain `q` (the editor's suggestions, so one unit is
+ * spelled one way): ones starting with it first, then by how many people use them. */
+export async function experienceSuggestions(fieldName: "title" | "unit", q: string, limit = 6) {
+  const query = q.trim().slice(0, fieldName === "title" ? TITLE_MAX : UNIT_MAX);
+  if (!query) return [];
+  const col = fieldName === "title" ? experiences.title : experiences.unit;
+  const like = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const rows = await db
+    .select({ value: col })
+    .from(experiences)
+    .where(and(active(experiences), sql`${col} ilike ${"%" + like + "%"}`))
+    .groupBy(col)
+    .orderBy(
+      desc(sql`${col} ilike ${like + "%"}`),
+      desc(sql`count(distinct ${experiences.userId})`),
+      col,
+    )
+    .limit(limit);
+  return rows.map((r) => r.value);
+}
+
 /** Removes one of your own roles (soft delete, like everything else). */
 export async function deleteExperience(actorId: string, id: string) {
   await assertCanWrite(actorId);

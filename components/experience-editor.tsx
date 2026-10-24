@@ -4,6 +4,7 @@
 import { useActionState, useRef, useState, useTransition } from "react";
 import { deleteExperienceAction, saveExperienceAction } from "@/app/actions";
 import { DatePick } from "@/components/date-pick";
+import { SuggestInput } from "@/components/suggest-input";
 import { dayToMonth, LOCATION_MAX, UNIT_MAX, TITLE_MAX } from "@/lib/experience";
 import { he } from "@/lib/i18n/he";
 import type { Experience } from "@/lib/services";
@@ -108,7 +109,8 @@ function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => v
       {entry && <input type="hidden" name="id" value={entry.id} />}
       {label(
         he.experience.role,
-        <input
+        <SuggestInput
+          kind="title"
           name="title"
           value={v.title}
           onChange={set("title")}
@@ -120,7 +122,8 @@ function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => v
       <div className="grid gap-3 sm:grid-cols-2">
         {label(
           he.experience.unit,
-          <input
+          <SuggestInput
+            kind="unit"
             name="unit"
             value={v.unit}
             onChange={set("unit")}

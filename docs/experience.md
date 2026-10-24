@@ -31,4 +31,9 @@ person (`experience_limit`). Deleting is a soft delete, like everything else.
   people currently there first, then by when they left, then most followed. Each row shows the
   person's newest role in that unit.
 
+- **Suggestions while typing** (`SuggestInput`, `components/suggest-input.tsx`): the role and unit
+  fields offer values already in use (`experienceSuggestions`: containing the text, starting with
+  it first, then by how many people use them), in a native `<datalist>`, so one unit keeps one
+  spelling and the unit page finds everyone in it. Existing spellings are left as they are.
+
 Not done: moderators can't remove a role (they can suspend the person or clear the bio).

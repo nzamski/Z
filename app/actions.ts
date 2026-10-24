@@ -335,6 +335,13 @@ export async function saveExperienceAction(_: ActionResult, f: FormData): Promis
   );
 }
 
+/** Titles or units others already use, as the editor's suggestions. Also on the welcome. */
+export async function experienceSuggestionsAction(fieldName: string, q: string) {
+  await requireLogin();
+  if (fieldName !== "title" && fieldName !== "unit") return [];
+  return s.experienceSuggestions(fieldName, String(q));
+}
+
 export async function deleteExperienceAction(id: string) {
   return run((uid) => s.deleteExperience(uid, Id.parse(id)));
 }

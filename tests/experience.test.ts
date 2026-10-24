@@ -109,3 +109,16 @@ test("peopleInUnit: exact unit ignoring case and spaces, current people first", 
   expect(people[1].role).toMatchObject({ current: false });
   expect(await s.peopleInUnit(viewer.id, "%")).toEqual([]); // wildcards are literal
 });
+
+test("experienceSuggestions: units in use containing the text, prefix first, then most used", async () => {
+  const tag = Math.random().toString(36).slice(2, 8);
+  const [a, b, c] = [await makeUser(), await makeUser(), await makeUser()];
+  await s.saveExperience(a.id, role({ unit: `ענף ${tag}` }));
+  await s.saveExperience(b.id, role({ unit: `מדור ${tag}` }));
+  await s.saveExperience(c.id, role({ unit: `מדור ${tag}` }));
+  const gone = await s.saveExperience(c.id, role({ unit: `${tag} ישן`, start: "2020-01" }));
+  await s.deleteExperience(c.id, gone.id);
+  expect(await s.experienceSuggestions("unit", tag)).toEqual([`מדור ${tag}`, `ענף ${tag}`]);
+  expect(await s.experienceSuggestions("unit", `ענף ${tag}`)).toEqual([`ענף ${tag}`]);
+  expect(await s.experienceSuggestions("unit", "  ")).toEqual([]);
+});
