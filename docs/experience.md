@@ -6,13 +6,13 @@ math, Hebrew durations), `experienceOf` / `saveExperience` / `deleteExperience` 
 `lib/services.ts`, `components/experience-section.tsx` (profile) and
 `components/experience-editor.tsx` (the add/edit dialog).
 
-| Field        | Column         | Rule                                                   |
-| ------------ | -------------- | ------------------------------------------------------ |
-| Role         | `title`        | required, up to 60 characters                          |
-| Organization | `organization` | optional (unit, team, company), up to 60               |
-| Location     | `location`     | optional (base or location of the role), up to 40      |
-| Start        | `start_month`  | a month, not in the future (stored as its first day)   |
-| End          | `end_month`    | a month from the start up to this month; none: current |
+| Field    | Column        | Rule                                                            |
+| -------- | ------------- | --------------------------------------------------------------- |
+| Role     | `title`       | required, up to 60 characters                                   |
+| Unit     | `unit`        | optional (called `organization` until migration 0033), up to 60 |
+| Location | `location`    | optional (base or location of the role), up to 40               |
+| Start    | `start_month` | a month, not in the future (stored as its first day)            |
+| End      | `end_month`   | a month from the start up to this month; none: current          |
 
 `description` is no longer used (dropped from the form 2026-10-22); the column stays until a later
 migration, so a rollback to the previous version still works.

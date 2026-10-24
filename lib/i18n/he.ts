@@ -107,7 +107,7 @@ export const he = {
     add: "הוספת תפקיד",
     edit: "עריכת תפקיד",
     role: "תפקיד",
-    organization: "ארגון / יחידה",
+    unit: "יחידה",
     location: "בסיס / מיקום",
     start: "התחלה",
     end: "סיום",

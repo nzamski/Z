@@ -66,7 +66,7 @@ import {
   isMonth,
   LOCATION_MAX,
   monthToDay,
-  ORGANIZATION_MAX,
+  UNIT_MAX,
   TITLE_MAX,
 } from "@/lib/experience";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
@@ -2230,7 +2230,7 @@ export async function experienceOf(userId: string) {
     .select({
       id: experiences.id,
       title: experiences.title,
-      organization: experiences.organization,
+      unit: experiences.unit,
       location: experiences.location,
       startMonth: experiences.startMonth,
       endMonth: experiences.endMonth,
@@ -2249,7 +2249,7 @@ const ExperienceInput = (thisMonth: string) =>
   z
     .object({
       title: z.string().trim().min(1).max(TITLE_MAX),
-      organization: z.string().trim().max(ORGANIZATION_MAX),
+      unit: z.string().trim().max(UNIT_MAX),
       location: z.string().trim().max(LOCATION_MAX),
       start: z.string().refine(isMonth),
       end: z.string().refine(isMonth).nullable(), // null: the current role
@@ -2263,7 +2263,7 @@ export async function saveExperience(
   input: {
     id?: string;
     title: string;
-    organization: string;
+    unit: string;
     location: string;
     start: string;
     end: string | null;
@@ -2273,7 +2273,7 @@ export async function saveExperience(
   await assertCanWrite(actorId);
   const values = {
     title: e.title,
-    organization: e.organization,
+    unit: e.unit,
     location: e.location,
     startMonth: monthToDay(e.start),
     endMonth: e.end && monthToDay(e.end),

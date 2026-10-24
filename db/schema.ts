@@ -536,7 +536,7 @@ export const experiences = pgTable(
       .notNull()
       .references(() => users.id),
     title: text("title").notNull(),
-    organization: text("organization").notNull().default(""),
+    unit: text("unit").notNull().default(""),
     location: text("location").notNull().default(""), // base or location of this role
     // First day of the month (lib/experience.ts); no end: the current role.
     startMonth: date("start_month", { mode: "string" }).notNull(),

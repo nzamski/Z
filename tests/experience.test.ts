@@ -22,7 +22,7 @@ test("role length counts both months; Hebrew durations", () => {
 
 const role = (o: Partial<Parameters<typeof s.saveExperience>[1]> = {}) => ({
   title: "מפתח/ת",
-  organization: "צוות הדמיה",
+  unit: "צוות הדמיה",
   location: "בסיס הדמיה",
   start: "2022-01",
   end: "2023-06" as string | null,

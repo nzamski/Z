@@ -327,7 +327,7 @@ export async function saveExperienceAction(_: ActionResult, f: FormData): Promis
     s.saveExperience(uid, {
       id: f.get("id") ? Id.parse(String(f.get("id"))) : undefined,
       title: String(f.get("title") ?? ""),
-      organization: String(f.get("organization") ?? ""),
+      unit: String(f.get("unit") ?? ""),
       location: String(f.get("location") ?? ""),
       start: String(f.get("start") ?? ""),
       end: f.get("current") ? null : String(f.get("end") ?? ""),

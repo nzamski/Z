@@ -4,7 +4,7 @@
 import { useActionState, useRef, useState, useTransition } from "react";
 import { deleteExperienceAction, saveExperienceAction } from "@/app/actions";
 import { DatePick } from "@/components/date-pick";
-import { dayToMonth, LOCATION_MAX, ORGANIZATION_MAX, TITLE_MAX } from "@/lib/experience";
+import { dayToMonth, LOCATION_MAX, UNIT_MAX, TITLE_MAX } from "@/lib/experience";
 import { he } from "@/lib/i18n/he";
 import type { Experience } from "@/lib/services";
 
@@ -78,7 +78,7 @@ export function ExperienceEditor({ entry }: { entry?: Experience }) {
 function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => void }) {
   const [v, setV] = useState({
     title: entry?.title ?? "",
-    organization: entry?.organization ?? "",
+    unit: entry?.unit ?? "",
     location: entry?.location ?? "",
     start: entry ? dayToMonth(entry.startMonth) : "",
     end: entry?.endMonth ? dayToMonth(entry.endMonth) : "",
@@ -119,12 +119,12 @@ function ExperienceForm({ entry, onDone }: { entry?: Experience; onDone: () => v
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         {label(
-          he.experience.organization,
+          he.experience.unit,
           <input
-            name="organization"
-            value={v.organization}
-            onChange={set("organization")}
-            maxLength={ORGANIZATION_MAX}
+            name="unit"
+            value={v.unit}
+            onChange={set("unit")}
+            maxLength={UNIT_MAX}
             className={field}
           />,
         )}
