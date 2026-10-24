@@ -16,3 +16,7 @@ X-style polls on posts (added 2026-10-21). The post's text is the question.
   viewer's option or null), `open` and `endsAt`. The card (`components/poll.tsx`) shows buttons until
   you vote, and results with percentages after you vote, when the poll ends, or to its author. A vote
   shows at once (`useOptimistic`), then the refresh brings the real counts.
+- **Ranking:** For You boosts polls the viewer can still vote in (open at the feed's snapshot, not
+  theirs, no vote of theirs from before the snapshot): ×1.5, or ×2 in the last 6 hours
+  (`pollBoost`, `pollEndingSoonBoost`, `pollEndingSoonHours` in `RANKING`; docs/ranking.md). A vote
+  cast while scrolling doesn't change the score until the next snapshot, so pages stay stable.

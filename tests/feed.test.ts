@@ -2,7 +2,7 @@
 // so posts other test files create at now() are never candidates.
 import { afterAll, describe, expect, test } from "vitest";
 import { db, sql } from "@/db/client";
-import { posts } from "@/db/schema";
+import { pollVotes, posts } from "@/db/schema";
 import { applyAuthorPenalty, FEED_TABS, mergeById, parseTab, RANKING } from "@/lib/feed";
 import * as s from "@/lib/services";
 import { makeUser } from "./helpers";
@@ -253,5 +253,54 @@ describe("home tabs", () => {
     expect(parseTab("following")).toBe("following");
     expect(parseTab("latest")).toBe("forYou");
     expect(parseTab("top")).toBe("forYou");
+  });
+});
+
+describe("poll boost", () => {
+  test("open polls the viewer can vote in rank higher, more when ending soon", async () => {
+    const [viewer, a] = [await makeUser(), await makeUser()];
+    const asOf = new Date(Date.UTC(2012, 5, 30));
+    const createdAt = new Date(asOf.getTime() - 5 * HOUR); // all the same age and likes
+    const post = (body: string, authorId: string, endsInHours?: number) => ({
+      authorId,
+      body,
+      preview: body,
+      hasMore: false,
+      likeCount: 2,
+      createdAt,
+      ...(endsInHours !== undefined && {
+        pollOptions: ["כן", "לא"],
+        pollEndsAt: new Date(asOf.getTime() + endsInHours * HOUR),
+      }),
+    });
+    const rows = await db
+      .insert(posts)
+      .values([
+        post("plain", a.id),
+        post("open", a.id, 48),
+        post("soon", a.id, RANKING.pollEndingSoonHours - 1),
+        post("closed", a.id, -1),
+        post("voted", a.id, 48),
+        post("own", viewer.id, 48),
+        post("votedLater", a.id, 48), // voted after the snapshot: still boosted on this snapshot
+      ])
+      .returning();
+    const id = (body: string) => rows.find((r) => r.body === body)!.id;
+    await db.insert(pollVotes).values([
+      { postId: id("voted"), userId: viewer.id, option: 0, createdAt: createdAt },
+      {
+        postId: id("votedLater"),
+        userId: viewer.id,
+        option: 0,
+        createdAt: new Date(asOf.getTime() + HOUR),
+      },
+    ]);
+    const items = (await s.feedPage(viewer.id, { view: "forYou", now: asOf })).items;
+    const score = new Map(items.map((p) => [p.preview, (p as unknown as { score: number }).score]));
+    const base = score.get("plain")!;
+    expect(score.get("open")).toBeCloseTo(base * RANKING.pollBoost);
+    expect(score.get("votedLater")).toBeCloseTo(base * RANKING.pollBoost);
+    expect(score.get("soon")).toBeCloseTo(base * RANKING.pollEndingSoonBoost);
+    for (const b of ["closed", "voted", "own"]) expect(score.get(b)).toBeCloseTo(base);
   });
 });

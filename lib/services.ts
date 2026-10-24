@@ -856,10 +856,19 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   const asOf = cursor?.a ?? now.toISOString();
   const R = RANKING;
   const ageHours = sql`(extract(epoch from (${asOf}::timestamptz - ${posts.createdAt})) / 3600)::float8`;
+  // A poll the viewer can still vote in, as of the snapshot (votes after it don't count, so a vote
+  // mid-scroll doesn't move the post between pages). Null without a poll: CASE treats it as false.
+  const votable = sql`(${posts.pollEndsAt} > ${asOf}::timestamptz and ${posts.authorId} <> ${viewerId}
+    and not exists (select 1 from ${pollVotes} pv where pv.post_id = ${posts.id}
+      and pv.user_id = ${viewerId} and pv.deleted_at is null
+      and pv.created_at <= ${asOf}::timestamptz))`;
   const score = sql<number>`((1 + ${posts.likeCount} + ${R.commentWeight}::float8 * ${posts.commentCount})
     / power(${ageHours} + ${R.ageOffsetHours}::float8, ${R.gravity}::float8)
     * (case when ${followsAuthor(viewerId)} then ${R.followBoost}::float8
-            when ${followsTopic(viewerId)} then ${R.topicBoost}::float8 else 1 end))::float8`;
+            when ${followsTopic(viewerId)} then ${R.topicBoost}::float8 else 1 end)
+    * (case when ${votable} and ${posts.pollEndsAt} <= ${asOf}::timestamptz
+              + make_interval(hours => ${R.pollEndingSoonHours}::int) then ${R.pollEndingSoonBoost}::float8
+            when ${votable} then ${R.pollBoost}::float8 else 1 end))::float8`;
   const rows = await db
     .select({ ...postCols(viewerId), score })
     .from(posts)

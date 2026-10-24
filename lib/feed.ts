@@ -10,6 +10,10 @@ export const RANKING = {
   gravity: 1.5,
   followBoost: 2.0,
   topicBoost: 1.5, // posts under a topic you follow (docs/topics.md)
+  // Open polls you can still vote in (not yours, no vote yet), more when ending soon (docs/polls.md).
+  pollBoost: 1.5,
+  pollEndingSoonBoost: 2.0,
+  pollEndingSoonHours: 6,
   authorPenalty: 0.7, // nth post by one author within a page is scaled by 0.7^(n-1)
   restoreMaxAgeMinutes: 30, // sessionStorage scroll snapshot
   newPostsPollSeconds: 15, // For You / Following check for posts newer than the snapshot; the bell polls too

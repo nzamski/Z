@@ -26,8 +26,10 @@ The chosen tab is a cookie (`z_view`, one year), not part of the URL; an old `la
 ```
 age_hours    = (feed_as_of - created_at) in hours
 base         = (1 + likes + 0.5 * comments) / (age_hours + 2) ^ 1.5
-boost        = 2.0 if the viewer follows the author, else 1.0
-cursor_score = base * boost                      -- SQL order + cursor
+boost        = 2.0 if the viewer follows the author, 1.5 if a topic they follow, else 1.0
+poll         = 2.0 if a poll the viewer can vote in ends within 6 hours of feed_as_of,
+               1.5 if one they can vote in ends later, else 1.0
+cursor_score = base * boost * poll               -- SQL order + cursor
 penalty      = 0.7 ^ (n-1) for the nth post by the same author within the page
 display      = page re-sorted by cursor_score * penalty
 ```
@@ -42,6 +44,8 @@ All constants live in `RANKING` in `lib/feed.ts`:
 | `gravity`              | 1.5   | How fast posts sink with age                       |
 | `followBoost`          | 2.0   | Posts by people you follow                         |
 | `topicBoost`           | 1.5   | Posts under a topic you follow (docs/topics.md)    |
+| `pollBoost`            | 1.5   | An open poll you can vote in (docs/polls.md)       |
+| `pollEndingSoonBoost`  | 2.0   | ... one ending within `pollEndingSoonHours` (6)    |
 | `authorPenalty`        | 0.7   | Spreads one author's posts out within a page       |
 | `pageSize`             | 20    |                                                    |
 | `restoreMaxAgeMinutes` | 30    | Older sessionStorage snapshots start a fresh feed  |
