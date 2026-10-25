@@ -536,7 +536,7 @@ export const experiences = pgTable(
       .notNull()
       .references(() => users.id),
     title: text("title").notNull(),
-    organization: text("organization").notNull().default(""),
+    unit: text("unit").notNull().default(""),
     location: text("location").notNull().default(""), // base or location of this role
     // First day of the month (lib/experience.ts); no end: the current role.
     startMonth: date("start_month", { mode: "string" }).notNull(),
@@ -549,6 +549,13 @@ export const experiences = pgTable(
     check("experiences_months_ck", sql`${t.endMonth} is null or ${t.endMonth} >= ${t.startMonth}`),
     index("experiences_user_idx")
       .on(t.userId)
+      .where(sql`${t.deletedAt} is null`),
+    // pg_trgm: people search by role and unit, and the unit page (docs/experience.md).
+    index("experiences_title_trgm_idx")
+      .using("gin", t.title.op("gin_trgm_ops"))
+      .where(sql`${t.deletedAt} is null`),
+    index("experiences_unit_trgm_idx")
+      .using("gin", t.unit.op("gin_trgm_ops"))
       .where(sql`${t.deletedAt} is null`),
     index("experiences_updated_at_idx").on(t.updatedAt),
   ],

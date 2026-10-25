@@ -66,7 +66,7 @@ import {
   isMonth,
   LOCATION_MAX,
   monthToDay,
-  ORGANIZATION_MAX,
+  UNIT_MAX,
   TITLE_MAX,
 } from "@/lib/experience";
 import { extractMentions, extractTags, hasContent } from "@/lib/markdown";
@@ -856,10 +856,19 @@ async function forYouPage(viewerId: string, cursor: Cursor | null, now: Date): P
   const asOf = cursor?.a ?? now.toISOString();
   const R = RANKING;
   const ageHours = sql`(extract(epoch from (${asOf}::timestamptz - ${posts.createdAt})) / 3600)::float8`;
+  // A poll the viewer can still vote in, as of the snapshot (votes after it don't count, so a vote
+  // mid-scroll doesn't move the post between pages). Null without a poll: CASE treats it as false.
+  const votable = sql`(${posts.pollEndsAt} > ${asOf}::timestamptz and ${posts.authorId} <> ${viewerId}
+    and not exists (select 1 from ${pollVotes} pv where pv.post_id = ${posts.id}
+      and pv.user_id = ${viewerId} and pv.deleted_at is null
+      and pv.created_at <= ${asOf}::timestamptz))`;
   const score = sql<number>`((1 + ${posts.likeCount} + ${R.commentWeight}::float8 * ${posts.commentCount})
     / power(${ageHours} + ${R.ageOffsetHours}::float8, ${R.gravity}::float8)
     * (case when ${followsAuthor(viewerId)} then ${R.followBoost}::float8
-            when ${followsTopic(viewerId)} then ${R.topicBoost}::float8 else 1 end))::float8`;
+            when ${followsTopic(viewerId)} then ${R.topicBoost}::float8 else 1 end)
+    * (case when ${votable} and ${posts.pollEndsAt} <= ${asOf}::timestamptz
+              + make_interval(hours => ${R.pollEndingSoonHours}::int) then ${R.pollEndingSoonBoost}::float8
+            when ${votable} then ${R.pollBoost}::float8 else 1 end))::float8`;
   const rows = await db
     .select({ ...postCols(viewerId), score })
     .from(posts)
@@ -1150,9 +1159,24 @@ export async function getThread(
 
 // ---- users ----
 
+/** A role shown under a person in a list: title and unit, and whether it is current. */
+export type RoleLine = { title: string; unit: string; current: boolean };
+
+/** The role a person's row shows: their newest role matching `match` if any, else their newest
+ * current role (the one with no end month), else null. Correlated on the outer `users` row. */
+const roleLine = (match?: SQL) => sql<RoleLine | null>`(
+  select json_build_object('title', e.title, 'unit', e.unit, 'current', e.end_month is null)
+  from ${experiences} e
+  where e.user_id = "users"."id" and e.deleted_at is null
+    and ${match ? sql`(${match} or e.end_month is null)` : sql`e.end_month is null`}
+  order by ${match ? sql`(${match}) desc, ` : sql``}e.end_month desc nulls first, e.start_month desc,
+    e.id desc limit 1)`;
+
 /**
  * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
- * (pg_trgm) for typos. Exact handle first, then handle prefix, then closest, then most followed.
+ * (pg_trgm) for typos, and the same for the title and unit of their roles (docs/experience.md).
+ * Exact handle first, then handle prefix, then name matches, then closest, then most followed.
+ * Each row has `role`: the role that matched, else the current one.
  */
 export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const q = query.trim().replace(/^@/, "").slice(0, 50);
@@ -1162,10 +1186,15 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const closeness = fuzzy
     ? sql`greatest(word_similarity(${fuzzy}, ${users.handle}), word_similarity(${fuzzy}, ${users.displayName}))`
     : sql`0::float8`; // a bare 0 in ORDER BY would mean "column 0"
+  const nameMatch = sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
+    ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`;
+  const roleMatch = sql`(e.title ilike ${"%" + like + "%"} or e.unit ilike ${"%" + like + "%"}
+    ${fuzzy ? sql`or ${fuzzy} <% e.title or ${fuzzy} <% e.unit` : sql``})`;
   return withTrigramThreshold(FUZZY.people, (tx) =>
     tx
       .select({
         ...userCard,
+        role: roleLine(roleMatch),
         viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
           and v.followee_id = users.id and v.deleted_at is null)`,
       })
@@ -1174,13 +1203,14 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
         and(
           active(users),
           hasHandle,
-          sql`(${users.handle} ilike ${"%" + like + "%"} or ${users.displayName} ilike ${"%" + like + "%"}
-            ${fuzzy ? sql`or ${fuzzy} <% ${users.handle} or ${fuzzy} <% ${users.displayName}` : sql``})`,
+          sql`(${nameMatch} or exists (select 1 from ${experiences} e
+            where e.user_id = "users"."id" and e.deleted_at is null and ${roleMatch}))`,
         ),
       )
       .orderBy(
         desc(sql`${users.handle} = lower(${q})`),
         desc(sql`${users.handle} ilike ${like + "%"}`),
+        desc(nameMatch),
         desc(closeness),
         desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
           and f.deleted_at is null)`),
@@ -1291,6 +1321,7 @@ const userCard = {
   bio: users.bio,
   profession: users.profession,
   avatarSeed: users.avatarSeed,
+  role: roleLine(), // the current role, if any (docs/experience.md)
 };
 
 /** People with a profession badge (the badge's link, and search's chips), most followed first. */
@@ -1306,6 +1337,39 @@ export async function peopleByProfession(viewerId: string, profession: Professio
     .from(users)
     .where(and(active(users), hasHandle, eq(users.profession, profession)))
     .orderBy(desc(followers), users.handle)
+    .limit(limit);
+}
+
+/** Everyone who has had a role in `unit` (the unit link on a profile; exact, ignoring case and
+ * spaces at the ends): people currently there first, then by when they left, then most followed.
+ * `role` is their newest role in it. */
+export async function peopleInUnit(viewerId: string, unit: string, limit = 100) {
+  const u = unit.trim().slice(0, UNIT_MAX);
+  if (!u) return [];
+  const inUnit = sql`e.unit ilike ${u.replace(/[\\%_]/g, (c) => `\\${c}`)}`;
+  return db
+    .select({
+      ...userCard,
+      role: roleLine(inUnit),
+      viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
+        and v.followee_id = users.id and v.deleted_at is null)`,
+    })
+    .from(users)
+    .where(
+      and(
+        active(users),
+        hasHandle,
+        sql`exists (select 1 from ${experiences} e
+          where e.user_id = "users"."id" and e.deleted_at is null and ${inUnit})`,
+      ),
+    )
+    .orderBy(
+      desc(sql`(select max(coalesce(e.end_month, 'infinity'::date)) from ${experiences} e
+        where e.user_id = "users"."id" and e.deleted_at is null and ${inUnit})`),
+      desc(sql`(select count(*) from ${follows} f where f.followee_id = users.id
+        and f.deleted_at is null)`),
+      users.handle,
+    )
     .limit(limit);
 }
 
@@ -2010,6 +2074,7 @@ export async function whoToFollow(viewerId: string, limit = 3) {
       displayName: users.displayName,
       handle: sql<string>`${users.handle}`,
       avatarSeed: users.avatarSeed,
+      role: roleLine(),
     })
     .from(users)
     .where(
@@ -2230,7 +2295,7 @@ export async function experienceOf(userId: string) {
     .select({
       id: experiences.id,
       title: experiences.title,
-      organization: experiences.organization,
+      unit: experiences.unit,
       location: experiences.location,
       startMonth: experiences.startMonth,
       endMonth: experiences.endMonth,
@@ -2249,7 +2314,7 @@ const ExperienceInput = (thisMonth: string) =>
   z
     .object({
       title: z.string().trim().min(1).max(TITLE_MAX),
-      organization: z.string().trim().max(ORGANIZATION_MAX),
+      unit: z.string().trim().max(UNIT_MAX),
       location: z.string().trim().max(LOCATION_MAX),
       start: z.string().refine(isMonth),
       end: z.string().refine(isMonth).nullable(), // null: the current role
@@ -2263,7 +2328,7 @@ export async function saveExperience(
   input: {
     id?: string;
     title: string;
-    organization: string;
+    unit: string;
     location: string;
     start: string;
     end: string | null;
@@ -2273,7 +2338,7 @@ export async function saveExperience(
   await assertCanWrite(actorId);
   const values = {
     title: e.title,
-    organization: e.organization,
+    unit: e.unit,
     location: e.location,
     startMonth: monthToDay(e.start),
     endMonth: e.end && monthToDay(e.end),
@@ -2299,6 +2364,27 @@ export async function saveExperience(
     .values({ ...values, userId: actorId })
     .returning({ id: experiences.id });
   return row;
+}
+
+/** Role titles or units already in use that contain `q` (the editor's suggestions, so one unit is
+ * spelled one way): ones starting with it first, then by how many people use them. */
+export async function experienceSuggestions(fieldName: "title" | "unit", q: string, limit = 6) {
+  const query = q.trim().slice(0, fieldName === "title" ? TITLE_MAX : UNIT_MAX);
+  if (!query) return [];
+  const col = fieldName === "title" ? experiences.title : experiences.unit;
+  const like = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const rows = await db
+    .select({ value: col })
+    .from(experiences)
+    .where(and(active(experiences), sql`${col} ilike ${"%" + like + "%"}`))
+    .groupBy(col)
+    .orderBy(
+      desc(sql`${col} ilike ${like + "%"}`),
+      desc(sql`count(distinct ${experiences.userId})`),
+      col,
+    )
+    .limit(limit);
+  return rows.map((r) => r.value);
 }
 
 /** Removes one of your own roles (soft delete, like everything else). */

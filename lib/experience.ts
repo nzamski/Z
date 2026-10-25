@@ -1,8 +1,10 @@
-// Experience on a profile (docs/experience.md), LinkedIn-style: roles with an organization and
+// Experience on a profile (docs/experience.md), LinkedIn-style: roles with a unit and
 // location, a month range (no end: current). Pure: the editor form uses it too.
 
 export const TITLE_MAX = 60;
-export const ORGANIZATION_MAX = 60;
+export const UNIT_MAX = 60;
+/** Everyone who has had a role in a unit (search, `peopleInUnit`). */
+export const unitHref = (unit: string) => `/search?unit=${encodeURIComponent(unit)}`;
 export const LOCATION_MAX = 40; // base or location of a role
 export const EXPERIENCE_MAX = 30; // roles per person
 
