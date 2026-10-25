@@ -8,7 +8,7 @@ import { DatePick } from "@/components/date-pick";
 import { ProfileForm } from "@/components/profile-form";
 import { SuggestInput } from "@/components/suggest-input";
 import { UserRow } from "@/components/user-row";
-import { dayToMonth, TITLE_MAX, UNIT_MAX } from "@/lib/experience";
+import { dayToMonth, LOCATION_MAX, TITLE_MAX, UNIT_MAX } from "@/lib/experience";
 import { he } from "@/lib/i18n/he";
 import type { Experience, RoleLine } from "@/lib/services";
 
@@ -103,6 +103,7 @@ function RoleStep(p: { role?: Experience; onDone: () => void }) {
   const [v, setV] = useState({
     title: p.role?.title ?? "",
     unit: p.role?.unit ?? "",
+    location: p.role?.location ?? "",
     start: p.role ? dayToMonth(p.role.startMonth) : "",
   });
   const year = new Date().getFullYear();
@@ -124,7 +125,6 @@ function RoleStep(p: { role?: Experience; onDone: () => void }) {
         {p.role && <input type="hidden" name="id" value={p.role.id} />}
         {/* Current: no end month (saveExperienceAction reads "current"). */}
         <input type="hidden" name="current" value="1" />
-        <input type="hidden" name="location" value={p.role?.location ?? ""} />
         <label className="block space-y-1">
           <span className="text-sm font-medium">{he.experience.role}</span>
           <SuggestInput
@@ -137,17 +137,29 @@ function RoleStep(p: { role?: Experience; onDone: () => void }) {
             className={field}
           />
         </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">{he.experience.unit}</span>
-          <SuggestInput
-            kind="unit"
-            name="unit"
-            value={v.unit}
-            onChange={(e) => setV((c) => ({ ...c, unit: e.target.value }))}
-            maxLength={UNIT_MAX}
-            className={field}
-          />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">{he.experience.unit}</span>
+            <SuggestInput
+              kind="unit"
+              name="unit"
+              value={v.unit}
+              onChange={(e) => setV((c) => ({ ...c, unit: e.target.value }))}
+              maxLength={UNIT_MAX}
+              className={field}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">{he.experience.location}</span>
+            <input
+              name="location"
+              value={v.location}
+              onChange={(e) => setV((c) => ({ ...c, location: e.target.value }))}
+              maxLength={LOCATION_MAX}
+              className={field}
+            />
+          </label>
+        </div>
         <div className="space-y-1">
           <span className="block text-sm font-medium">{he.experience.start}</span>
           <DatePick
