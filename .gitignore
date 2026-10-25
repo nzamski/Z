@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Emoji picker data, copied from emojibase-data (scripts/copy-emojibase.mjs)
 /public/emojibase/
+
+# graphify knowledge graph (local tool output)
+graphify-out/

@@ -40,7 +40,7 @@ person (`experience_limit`). Deleting is a soft delete, like everything else.
   suggestions, the sidebar's who to follow) and the hover card show the person's newest current
   role (`roleLine` in `userCard`; none without a current role). Post cards don't.
 
-- **Welcome step** (`/welcome`, step 2 of 3): the current role (title, unit, start month), saved
+- **Welcome step** (`/welcome`, step 2 of 3): the current role (title, unit, location, start month), saved
   as a current role with `saveExperienceAction` (allowed before setup is finished). Skippable;
   on a reload it edits the role saved there instead of adding another.
 
