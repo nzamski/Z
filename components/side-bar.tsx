@@ -3,9 +3,9 @@ import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/buttons";
 import { SidebarSearch } from "@/components/sidebar-search";
+import { UserHoverCard } from "@/components/user-hover-card";
 import { getSession } from "@/lib/auth/session";
 import { he } from "@/lib/i18n/he";
-import { RoleLine } from "@/components/role-line";
 import { getUser, popularTopics, whoToFollow } from "@/lib/services";
 import { tagHref } from "@/lib/tags";
 
@@ -51,18 +51,21 @@ export async function SideBar() {
         {people.length ? (
           <ul className="space-y-3">
             {people.map((u) => (
-              <li key={u.id} className="flex items-center gap-3">
+              // The hover card is anchored on the row (relative), not the name (static!): from the
+              // name it would stick out past the aside, whose overflow-y-auto clips it.
+              <li key={u.id} className="relative flex items-center gap-3">
                 <Avatar seed={u.avatarSeed} handle={u.handle} small />
-                <Link href={`/u/${encodeURIComponent(u.handle)}`} className="group min-w-0 flex-1">
-                  <span className="block truncate font-bold group-hover:underline">
-                    {u.displayName}
-                  </span>
-                  {/* bdi: "@user7" reads whole, the line stays RTL (under the name, at the right). */}
-                  <span className="block truncate text-sm text-muted">
-                    <bdi>@{u.handle}</bdi>
-                  </span>
-                  <RoleLine role={u.role} className="text-muted" />
-                </Link>
+                <UserHoverCard handle={u.handle} className="static! min-w-0 flex-1">
+                  <Link href={`/u/${encodeURIComponent(u.handle)}`} className="group block">
+                    <span className="block truncate font-bold group-hover:underline">
+                      {u.displayName}
+                    </span>
+                    {/* bdi: "@user7" reads whole, the line stays RTL (under the name, at the right). */}
+                    <span className="block truncate text-sm text-muted">
+                      <bdi>@{u.handle}</bdi>
+                    </span>
+                  </Link>
+                </UserHoverCard>
                 <FollowButton userId={u.id} following={false} />
               </li>
             ))}

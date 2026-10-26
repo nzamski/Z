@@ -65,7 +65,7 @@ test("roles need a title and a sane range; at most EXPERIENCE_MAX each", async (
   await expect(s.saveExperience(u.id, role())).rejects.toThrow("experience_limit");
 });
 
-test("people search matches role titles and units, and shows the role that matched", async () => {
+test("people search matches role titles and units", async () => {
   const tag = Math.random().toString(36).slice(2, 8);
   const tag2 = Math.random().toString(36).slice(2, 8); // unrelated, so fuzzy matching can't mix them
   const [a, b, viewer] = [await makeUser(), await makeUser(), await makeUser()];
@@ -74,17 +74,10 @@ test("people search matches role titles and units, and shows the role that match
   await s.saveExperience(b.id, role({ title: "ראש צוות", unit: `מדור ${tag2}`, end: null }));
 
   const byTitle = await s.searchUsers(viewer.id, `נתונים ${tag}`);
-  expect(byTitle.map((u) => u.id)).toEqual([a.id]);
-  // The past role that matched, not the current one.
-  expect(byTitle[0].role).toEqual({
-    title: `מהנדס/ת נתונים ${tag}`,
-    unit: "ענף א",
-    current: false,
-  });
+  expect(byTitle.map((u) => u.id)).toEqual([a.id]); // a past role matches too
 
   const byUnit = await s.searchUsers(viewer.id, `מדור ${tag2}`);
   expect(byUnit.map((u) => u.id)).toEqual([b.id]);
-  expect(byUnit[0].role).toMatchObject({ unit: `מדור ${tag2}`, current: true });
 
   // A deleted role no longer matches.
   const [r] = await s.experienceOf(b.id);
@@ -105,8 +98,6 @@ test("peopleInUnit: exact unit ignoring case and spaces, current people first", 
   await s.saveExperience(other.id, role({ unit: `${unit} ב` })); // a different unit
   const people = await s.peopleInUnit(viewer.id, `  ${unit.toUpperCase()} `);
   expect(people.map((u) => u.id)).toEqual([here.id, left.id]);
-  expect(people[0].role).toMatchObject({ current: true });
-  expect(people[1].role).toMatchObject({ current: false });
   expect(await s.peopleInUnit(viewer.id, "%")).toEqual([]); // wildcards are literal
 });
 
@@ -121,20 +112,4 @@ test("experienceSuggestions: units in use containing the text, prefix first, the
   expect(await s.experienceSuggestions("unit", tag)).toEqual([`מדור ${tag}`, `ענף ${tag}`]);
   expect(await s.experienceSuggestions("unit", `ענף ${tag}`)).toEqual([`ענף ${tag}`]);
   expect(await s.experienceSuggestions("unit", "  ")).toEqual([]);
-});
-
-test("people lists show the current role; none without one", async () => {
-  const [a, b, viewer] = [await makeUser(), await makeUser(), await makeUser()];
-  await s.saveExperience(a.id, role({ title: "קודם", end: "2023-01" }));
-  await s.saveExperience(
-    a.id,
-    role({ title: "עכשיו", unit: "ענף ב", start: "2023-02", end: null }),
-  );
-  await s.saveExperience(b.id, role({ title: "רק בעבר" }));
-  await s.follow(a.id, viewer.id);
-  await s.follow(b.id, viewer.id);
-  const rows = await s.followList(viewer.id, viewer.id, "followers");
-  const byId = new Map(rows.items.map((r) => [r.id, r.role]));
-  expect(byId.get(a.id)).toEqual({ title: "עכשיו", unit: "ענף ב", current: true });
-  expect(byId.get(b.id)).toBeNull();
 });

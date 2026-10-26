@@ -10,7 +10,7 @@ import { SuggestInput } from "@/components/suggest-input";
 import { UserRow } from "@/components/user-row";
 import { dayToMonth, LOCATION_MAX, TITLE_MAX, UNIT_MAX } from "@/lib/experience";
 import { he } from "@/lib/i18n/he";
-import type { Experience, RoleLine } from "@/lib/services";
+import type { Experience } from "@/lib/services";
 
 type Person = {
   id: string;
@@ -18,7 +18,6 @@ type Person = {
   displayName: string;
   bio: string;
   avatarSeed: string;
-  role?: RoleLine | null;
 };
 
 export function Welcome(p: {

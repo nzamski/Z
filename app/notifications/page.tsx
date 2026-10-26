@@ -2,13 +2,16 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { z } from "zod";
+import { ClickableCard } from "@/components/clickable-card";
 import { ListSkeleton } from "@/components/loading";
+import { Markdown } from "@/components/markdown";
 import { DesktopToggle, MarkRead } from "@/components/notifications-client";
 import { requireViewer } from "@/lib/auth/viewer";
-import { ago, snippet } from "@/lib/format";
+import { ago } from "@/lib/format";
 import { he } from "@/lib/i18n/he";
 import { notificationHref, notificationSnippet, notificationText } from "@/lib/notification-text";
 import { groupNotifications, type NotificationItem } from "@/lib/notifications";
+import { computePreview } from "@/lib/preview";
 import { notificationsPage } from "@/lib/services";
 import type { Metadata } from "next";
 
@@ -61,34 +64,35 @@ async function Notifications({ searchParams }: PageProps<"/notifications">) {
           {items.map((n) => {
             const text = notificationSnippet(n);
             return (
-              <li key={n.id}>
-                <Link
-                  href={notificationHref(n)}
-                  className={`flex gap-3 border-b border-neutral-200 px-4 py-3 text-start transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-white/[0.03] ${
-                    n.unread ? "bg-sky-500/5" : ""
-                  }`}
-                >
-                  <KindIcon type={n.type} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block">
-                      <span className={n.unread ? "font-bold" : ""}>{notificationText(n)}</span>
-                      <span className="text-sm text-muted" suppressHydrationWarning>
-                        {" · "}
-                        {ago(n.createdAt)}
-                      </span>
+              <ClickableCard
+                key={n.id}
+                href={notificationHref(n)}
+                className={`flex gap-3 border-b border-neutral-200 px-4 py-3 text-start dark:border-neutral-800 ${
+                  n.unread ? "bg-sky-500/5" : ""
+                }`}
+              >
+                <KindIcon type={n.type} />
+                <span className="min-w-0 flex-1">
+                  <span className="block">
+                    <span className={n.unread ? "font-bold" : ""}>{notificationText(n)}</span>
+                    <span className="text-sm text-muted" suppressHydrationWarning>
+                      {" · "}
+                      {ago(n.createdAt)}
                     </span>
-                    {text && (
-                      <span className="mt-0.5 line-clamp-2 block text-sm text-muted">
-                        {snippet(text, 140)}
-                      </span>
-                    )}
-                    {n.reason && <span className="mt-0.5 block text-sm">{T.reason(n.reason)}</span>}
                   </span>
-                  {n.unread && (
-                    <span aria-hidden className="mt-2 size-2 shrink-0 rounded-full bg-sky-600" />
+                  {text && (
+                    // Whole blocks only, so the cut never leaves broken markdown; then 2 lines.
+                    <Markdown
+                      text={computePreview(text, 280, 4).preview}
+                      className="mt-0.5 line-clamp-2 text-sm text-muted"
+                    />
                   )}
-                </Link>
-              </li>
+                  {n.reason && <span className="mt-0.5 block text-sm">{T.reason(n.reason)}</span>}
+                </span>
+                {n.unread && (
+                  <span aria-hidden className="mt-2 size-2 shrink-0 rounded-full bg-sky-600" />
+                )}
+              </ClickableCard>
             );
           })}
         </ul>

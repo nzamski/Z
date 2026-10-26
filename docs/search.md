@@ -55,8 +55,7 @@ Confirmed available on the managed Postgres (2026-10-19). The migration runs
   exact handle, handle prefix, closest, most followed. Indexes: `users_handle_trgm_idx`,
   `users_display_name_trgm_idx`. It also matches the title and unit of a person's live roles the
   same way (after name matches in the order; `experiences_title_trgm_idx`,
-  `experiences_unit_trgm_idx`, migration 0034), and each row carries `role`: the role that
-  matched, else the current one (docs/experience.md).
+  `experiences_unit_trgm_idx`, migration 0034; docs/experience.md).
 - **Post search fallback** (`similarPosts`): when full-text search returns nothing on the first
   page, the page shows up to 20 live posts with `word_similarity(query, body) >= 0.5`, best
   first, under "no exact matches". Index: `posts_body_trgm_idx`.
