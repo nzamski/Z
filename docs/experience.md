@@ -24,21 +24,19 @@ person (`experience_limit`). Deleting is a soft delete, like everything else.
 ## Finding people by role and unit
 
 - **Search** (`searchUsers`): the query also matches role titles and units (substring or close,
-  like names; docs/search.md). The result row shows the role that matched, with "לשעבר" for a
-  past one (`RoleLine`, `components/role-line.tsx`).
+  like names; docs/search.md).
 - **Unit page** (`/search?unit=<unit>`, `unitHref`): the unit on a profile's role links to everyone
   who has had a role there (`peopleInUnit`): an exact match ignoring case and surrounding spaces,
-  people currently there first, then by when they left, then most followed. Each row shows the
-  person's newest role in that unit.
+  people currently there first, then by when they left, then most followed.
 
 - **Suggestions while typing** (`SuggestInput`, `components/suggest-input.tsx`): the role and unit
   fields offer values already in use (`experienceSuggestions`: containing the text, starting with
   it first, then by how many people use them), in a native `<datalist>`, so one unit keeps one
   spelling and the unit page finds everyone in it. Existing spellings are left as they are.
 
-- **Current role in lists**: people lists (search, followers, following, likers, welcome
-  suggestions, the sidebar's who to follow) and the hover card show the person's newest current
-  role (`roleLine` in `userCard`; none without a current role). Post cards don't.
+- **Not on user cards**: people lists, the sidebar's who to follow, post cards and the hover card
+  don't show roles (removed 2026-10-26 at the user's request); only the profile's experience
+  section does.
 
 - **Welcome step** (`/welcome`, step 2 of 3): the current role (title, unit, location, start month), saved
   as a current role with `saveExperienceAction` (allowed before setup is finished). Skippable;

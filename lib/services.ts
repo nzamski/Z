@@ -1159,24 +1159,10 @@ export async function getThread(
 
 // ---- users ----
 
-/** A role shown under a person in a list: title and unit, and whether it is current. */
-export type RoleLine = { title: string; unit: string; current: boolean };
-
-/** The role a person's row shows: their newest role matching `match` if any, else their newest
- * current role (the one with no end month), else null. Correlated on the outer `users` row. */
-const roleLine = (match?: SQL) => sql<RoleLine | null>`(
-  select json_build_object('title', e.title, 'unit', e.unit, 'current', e.end_month is null)
-  from ${experiences} e
-  where e.user_id = "users"."id" and e.deleted_at is null
-    and ${match ? sql`(${match} or e.end_month is null)` : sql`e.end_month is null`}
-  order by ${match ? sql`(${match}) desc, ` : sql``}e.end_month desc nulls first, e.start_month desc,
-    e.id desc limit 1)`;
-
 /**
  * People search: handle or display-name substring (a leading @ is ignored), plus fuzzy matches
  * (pg_trgm) for typos, and the same for the title and unit of their roles (docs/experience.md).
  * Exact handle first, then handle prefix, then name matches, then closest, then most followed.
- * Each row has `role`: the role that matched, else the current one.
  */
 export async function searchUsers(viewerId: string, query: string, limit = 5) {
   const q = query.trim().replace(/^@/, "").slice(0, 50);
@@ -1194,7 +1180,6 @@ export async function searchUsers(viewerId: string, query: string, limit = 5) {
     tx
       .select({
         ...userCard,
-        role: roleLine(roleMatch),
         viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
           and v.followee_id = users.id and v.deleted_at is null)`,
       })
@@ -1321,7 +1306,6 @@ const userCard = {
   bio: users.bio,
   profession: users.profession,
   avatarSeed: users.avatarSeed,
-  role: roleLine(), // the current role, if any (docs/experience.md)
 };
 
 /** People with a profession badge (the badge's link, and search's chips), most followed first. */
@@ -1341,8 +1325,7 @@ export async function peopleByProfession(viewerId: string, profession: Professio
 }
 
 /** Everyone who has had a role in `unit` (the unit link on a profile; exact, ignoring case and
- * spaces at the ends): people currently there first, then by when they left, then most followed.
- * `role` is their newest role in it. */
+ * spaces at the ends): people currently there first, then by when they left, then most followed. */
 export async function peopleInUnit(viewerId: string, unit: string, limit = 100) {
   const u = unit.trim().slice(0, UNIT_MAX);
   if (!u) return [];
@@ -1350,7 +1333,6 @@ export async function peopleInUnit(viewerId: string, unit: string, limit = 100) 
   return db
     .select({
       ...userCard,
-      role: roleLine(inUnit),
       viewerFollows: sql<boolean>`exists (select 1 from ${follows} v where v.follower_id = ${viewerId}
         and v.followee_id = users.id and v.deleted_at is null)`,
     })
@@ -2074,7 +2056,6 @@ export async function whoToFollow(viewerId: string, limit = 3) {
       displayName: users.displayName,
       handle: sql<string>`${users.handle}`,
       avatarSeed: users.avatarSeed,
-      role: roleLine(),
     })
     .from(users)
     .where(
